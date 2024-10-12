@@ -1,0 +1,47 @@
+{
+  "id": "STRING: Unique identifier for the problem. It should be a universally unique identifier (UUID) to ensure that each problem has a distinct and traceable reference.",
+  "origin_query": "STRING: Description of the core issue that needs to be solved",
+  "context": "STRING: including context and key aspects of the problem.",
+  "sub_problems": "ARRAY: List of smaller problems (REFERENCE to IDs) that the main problem can be broken down into, if applicable.",
+  "analysis": {
+    "complexity": "ENUM(Possible values: 'low', 'medium', 'high') - Represents the level of complexity of the problem.",
+    "parameters_constraints": "STRING: Key parameters and constraints that affect the problem, such as requirements, boundaries, and limitations.",
+    "desired_outcomes": "STRING: The specific goals or results that are expected from solving the problem. ideal final result (IFR)",
+    "missing_information": " ARRAY: Details of any missing data or knowledge gaps that need to be addressed to solve the problem effectively.",
+    "available_resources": "ARRAY: Details of the materials available for solving the problem. Information or data available to assist in solving the problem. Etc..."
+  },
+  "concepts": {
+    "ideas": "ARRAY: List of ideas generated to solve the problem.",
+    "TOP_TRIZ_applied": "ARRAY: TOP-TRIZ principles that should be applied to generate innovative solutions.",
+    "solution_approaches": "ARRAY: Different approaches that could potentially solve the problem.",
+    "resources_per_concept": "ARRAY: Analysis of resources required for each potential solution concept."
+  },
+  "method_selection": {
+    "evaluated_methods": "ARRAY: List of methods evaluated for solving the problem.",
+    "selected_method": "The chosen method for solving the problem, selected based on criteria such as resource availability, efficiency, feasibility, and potential impact. If no method is suitable, return to analysis stage.",
+    "iteration_required": "BOOLEAN: Indicates whether further iteration is needed to find a suitable method."
+  },
+  "method_application": {
+    "applied_method": "Detailed Description of the method will be applied to solve the problem.",
+    "expected_outcome": "STRING: Description of the expected outcome or metrics to evaluate the method's success."
+  },
+  "solution": {
+    "developed_solution": "The solution that has been developed after applying the selected method."
+  },
+  "evaluation": {
+    "compliance": "Evaluation of how well the solution meets the original requirements.",
+    "new_problems": "ARRAY: List of any new problems that have arisen as a result of the solution.",
+    "effectiveness": "Analysis of the overall effectiveness of the solution.",
+    "alignment_with_goal": "Evaluation of whether the solution aligns with the initial goal.",
+    "resource_usage": "Assessment of how efficiently resources were used in solving the problem.",
+    "iteration_required": "BOOLEAN: Indicates whether further iterations are required due to unsatisfactory results."
+  },
+  "integration": {
+    "sub_problem_solutions": "Details of how sub-problem solutions were integrated into a comprehensive solution.",
+    "iteration_required": "BOOLEAN: Indicates whether further iteration is needed for integration."
+  },
+  "output": {
+    "final_solution": "The final structured solution to the problem.",
+    "response": "The prepared response or summary of the solution for the user."
+  }
+}
