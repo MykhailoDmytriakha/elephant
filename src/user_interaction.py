@@ -7,13 +7,13 @@ class UserInteraction:
         print(f"{UserInteraction.GREEN}AI: {text}{UserInteraction.RESET}")
 
     @staticmethod
-    def greeting():
-        UserInteraction._print_green("Что вас интересует?")
+    def greeting() -> str:
+        UserInteraction._print_green("What are you interested in?")
         return input("User: ")
 
     @staticmethod
     def get_context():
-        UserInteraction._print_green("Можете предоставить больше контекста?")
+        UserInteraction._print_green("Can you provide more context?")
         return input("User: ")
 
     @staticmethod
