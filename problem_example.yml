@@ -27,11 +27,13 @@ analysis:
   complexity: 2  # Possible values: '1 is low', '2 is medium', '3 is high' - Represents the level of complexity of the problem.
 
 concepts:
+  contribution_to_parent_task: "optional string"  # Description of how the concept contributes to solving the parent task.
   ideas:  # List of ideas generated to solve the problem.
     - "Implement redundant network routes"
     - "Use failover mechanisms"
-  TOP_TRIZ_applied: false  # Indicates whether TOP-TRIZ principles have been applied to generate innovative solutions.
-  solution_approaches:  # Different approaches that could potentially solve the problem.
+  TOP_TRIZ_applied:  #Array: TRIZ, ARIZ, TOP-TRIZ principles that should be applied to generate innovative solutions.
+    - string
+  solution_approaches:  # Different approaches that could potentially solve the problem in format: {TOP_TRIZ_principle}: {approach description}
     - "Automated failover switch"
     - "Load balancer adjustments"
   resources_per_concept:  # Analysis of resources required for each potential solution concept.

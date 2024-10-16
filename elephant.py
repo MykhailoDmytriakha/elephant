@@ -1,10 +1,12 @@
 import json
 import os
+
 from dotenv import load_dotenv
+
 from src.database_service import DatabaseService
-from src.task import Task
-from src.problem_analyzer import ProblemAnalyzer
 from src.openai_service import OpenAiService
+from src.problem_analyzer import ProblemAnalyzer
+from src.task import Task
 from src.user_interaction import UserInteraction
 
 
@@ -37,6 +39,10 @@ def print_task_tree(task: Task, indent: str = ""):
             print_task_tree(sub_task, indent + "│   ")
 
 
+def print_task(task: Task):
+    print(f"{json.dumps(task.to_dict(), indent=2, ensure_ascii=False)}")
+
+
 def main():
     load_dotenv()
 
@@ -54,13 +60,15 @@ def main():
 
     problem_analyzer.clarify_context(task)
     problem_analyzer.analyze(task)
-    problem_analyzer.analyze_complexity_and_decompose(task)
+    problem_analyzer.decompose(task)
 
-    # print("\nDetailed Task Information:")
-    # print(json.dumps(task.to_dict(), indent=2, ensure_ascii=False))
+    problem_analyzer.concept_formation(task)
 
     print("\nTask Tree:")
     print_task_tree(task)
+
+    print("\nTask Info:")
+    print_task(task)
 
 
 if __name__ == "__main__":

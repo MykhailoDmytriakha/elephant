@@ -77,7 +77,7 @@ class OpenAiService:
                                     "items": {"type": "string"},
                                     "description": "Details of the resources required for solving the task"
                                 },
-                                "ifr": {
+                                "ideal_final_result": {
                                     "type": "string",
                                     "description": "Ideal Final Result - The specific goals or results expected from solving the task"
                                 },
@@ -152,7 +152,7 @@ class OpenAiService:
                         },
                         "follow_up_question": {
                             "type": "string",
-                            "description": "A question to ask the user if more context is needed. If context is sufficient, provide a summary instead."
+                            "description": "A question to ask the user if more context is needed. In addition to follow-up questions, suggest possible context to add or variations of relevant context or scopes. If context is sufficient, provide a summary instead."
                         }
                     },
                     "required": ["is_context_sufficient", "follow_up_question"]
@@ -222,9 +222,13 @@ class OpenAiService:
                                     "short_description": {
                                         "type": "string",
                                         "description": "Short description of the sub-task"
+                                    },
+                                    "contribution_to_parent_task": {
+                                        "type": "string",
+                                        "description": "Explanation of how this sub-task contributes to achieving the overall goal of the parent task"
                                     }
                                 },
-                                "required": ["task", "context", "complexity", "short_description"]
+                                "required": ["task", "context", "complexity", "short_description", "contribution_to_parent_task"]
                             },
                             "description": "List of sub-tasks derived from the main task"
                         }
@@ -239,6 +243,7 @@ class OpenAiService:
         prompt = f"""
         Decompose the following complex task into smaller, manageable sub-tasks:
         Task: {task.task}
+        Ideal Final Result: {task.analysis.get('ideal_final_result', 'N/A')}
         Context: {context}
         Analysis: {json.dumps(task.analysis)}
         Original Task Complexity: {original_complexity}
@@ -274,6 +279,107 @@ class OpenAiService:
                         "short_description": "Decomposition failure"
                     }
                 ]
+            }
+            logging.warning(f"OpenAI API fallback response: {fallback_result}")
+            return fallback_result
+
+    def generate_concepts(self, task: Task) -> dict:
+        logging.info("Called generate_concepts method")
+        functions = [
+            {
+                "name": "generate_concepts",
+                "description": "Generate concepts and ideas to solve the given task.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "concepts": {
+                            "type": "object",
+                            "properties": {
+                                "contribution_to_parent_task": {
+                                    "type": "string",
+                                    "description": "Description of how the concept contributes to solving the parent task"
+                                },
+                                "ideas": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "List of ideas generated to solve the problem"
+                                },
+                                "TOP_TRIZ_principles": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "TRIZ, ARIZ, TOP-TRIZ principles that should be applied to generate innovative solutions."
+                                },
+                                "solution_approaches": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Different approaches that could potentially solve the problem in format: {TOP_TRIZ_principle}: {approach description}"
+                                },
+                                "resources_per_concept": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "concept": {
+                                                "type": "string",
+                                                "description": "Concept or idea to solve the problem"
+                                            },
+                                            "resources": {
+                                                "type": "string",
+                                                "description": "Analysis of resources required for each potential solution concept"
+                                            }
+                                        },
+                                        "required": ["concept", "resources"]
+                                    },
+                                    "description": "Analysis of resources required for each potential solution concept"
+                                }
+                            },
+                            "required": ["contribution_to_parent_task", "ideas", "TOP_TRIZ_applied", "solution_approaches", "resources_per_concept"]
+                        }
+                    },
+                    "required": ["concepts"]
+                }
+            }
+        ]
+
+        context = self._gather_context(task)
+        prompt = f"""
+        Generate concepts and ideas to solve the following task:
+        Task: {task.task}
+        Ideal Final Result: {task.analysis.get('ideal_final_result', 'N/A')}
+        Short Description: {task.short_description}
+        Context: {context}
+        Analysis: {json.dumps(task.analysis)}
+
+        Provide a list of concepts and ideas that could potentially solve the problem.
+        Include a description of how each concept contributes to solving the parent task.
+        """
+        logging.debug(f"OpenAI API prompt: {prompt}")
+        response = openai.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            functions=functions,
+            function_call={"name": "generate_concepts"}
+        )
+
+        function_call = response.choices[0].message.function_call
+        if function_call:
+            result = json.loads(function_call.arguments)
+            logging.debug(f"OpenAI API response: {result}")
+            return result
+        else:
+            fallback_result = {
+                "concepts": {
+                    "contribution_to_parent_task": "Unable to generate concepts",
+                    "ideas": ["Concept generation failed"],
+                    "TOP_TRIZ_applied": False,
+                    "solution_approaches": ["Concept generation failed"],
+                    "resources_per_concept": [
+                        {
+                            "concept": "Concept generation failed",
+                            "resources": "N/A"
+                        }
+                    ]
+                }
             }
             logging.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
