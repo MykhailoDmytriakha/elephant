@@ -23,16 +23,17 @@ def print_task_tree(task: Task, indent: str = ""):
     complexity = task.analysis.get('complexity', 'N/A')
     print(f"{indent}├────── Description: {task.task}")
     print(f"{indent}│       Complexity: {complexity}")
+    print(f"{indent}│       SUB-LEVEL: {task.sub_level}")
 
     # Print sub-tasks
     for i, sub_task in enumerate(task.sub_tasks):
         if i == len(task.sub_tasks) - 1:
             # Last sub-task
-            print(f"{indent}│")
+            print(f"{indent}│   │")
             print_task_tree(sub_task, indent + "    ")
         else:
             # Not the last sub-task
-            print(f"{indent}│")
+            print(f"{indent}│   │")
             print_task_tree(sub_task, indent + "│   ")
 
 
@@ -53,9 +54,10 @@ def main():
 
     problem_analyzer.clarify_context(task)
     problem_analyzer.analyze(task)
+    problem_analyzer.analyze_complexity_and_decompose(task)
 
-    print("\nDetailed Task Information:")
-    print(json.dumps(task.to_dict(), indent=2, ensure_ascii=False))
+    # print("\nDetailed Task Information:")
+    # print(json.dumps(task.to_dict(), indent=2, ensure_ascii=False))
 
     print("\nTask Tree:")
     print_task_tree(task)

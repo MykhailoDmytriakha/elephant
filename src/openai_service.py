@@ -37,7 +37,8 @@ class OpenAiService:
         logging.debug(f"OpenAI API response: {result}")
         return result
 
-    def _gather_context(self, task: Task) -> str:
+    @staticmethod
+    def _gather_context(task: Task) -> str:
         contexts = []
         current_task = task
         while current_task:
@@ -159,11 +160,10 @@ class OpenAiService:
             }
         ]
 
-        summarized_context = self.summarize_context(task.formatted_user_interaction,
-                                                    task.context) if not task.is_context_sufficient else task.context
+        summarized_context = self.summarize_context(task.formatted_user_interaction, task.context) if not task.is_context_sufficient else task.context
         prompt = f"""
         Given the following problem and context, determine if the context is sufficient for analysis:
-        Problem: {task.task or task.origin_query}
+        Problem: {task.task or task.short_description}
         Context: {summarized_context}
 
         If the context is not sufficient, provide a follow-up question to gather more information.
@@ -197,7 +197,7 @@ class OpenAiService:
         functions = [
             {
                 "name": "decompose_task",
-                "description": "Decompose a complex task into smaller, manageable sub-tasks with lower complexity.",
+                "description": "Decompose a complex task into smaller, manageable sub-tasks with meaningful granularity.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -224,9 +224,9 @@ class OpenAiService:
                                         "description": "Short description of the sub-task"
                                     }
                                 },
-                                "required": ["task", "context", "complexity"]
+                                "required": ["task", "context", "complexity", "short_description"]
                             },
-                            "description": "List of sub-tasks derived from the main task, each with lower complexity"
+                            "description": "List of sub-tasks derived from the main task"
                         }
                     },
                     "required": ["sub_tasks"]
@@ -250,6 +250,7 @@ class OpenAiService:
         2 - Medium complexity
         3 - High complexity
         """
+
         logging.debug(f"OpenAI API prompt: {prompt}")
         response = openai.chat.completions.create(
             model=self.model,
@@ -257,6 +258,7 @@ class OpenAiService:
             functions=functions,
             function_call={"name": "decompose_task"}
         )
+
         function_call = response.choices[0].message.function_call
         if function_call:
             result = json.loads(function_call.arguments)
@@ -268,7 +270,8 @@ class OpenAiService:
                     {
                         "task": "Unable to decompose task",
                         "context": "Task decomposition failed",
-                        "complexity": "1"  # Default to low complexity for fallback
+                        "complexity": "1",
+                        "short_description": "Decomposition failure"
                     }
                 ]
             }

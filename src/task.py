@@ -28,7 +28,6 @@ class Task:
         self.state = TaskState.NEW
         self.task = task
         self.short_description = None
-        self.origin_query = None
         self.user_interaction: List[Tuple[str, str]] = []
         self.context = context
         self.is_context_sufficient = False
@@ -54,8 +53,8 @@ class Task:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "state": self.state.value,
-            "origin_query": self.origin_query,
             "task": self.task,
+            "short_description": self.short_description,
             "user_interaction": self.user_interaction,
             "context": self.context,
             "is_context_sufficient": self.is_context_sufficient,

@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 from .database_service import DatabaseService
 from .openai_service import OpenAiService
 from .task import Task, TaskState
@@ -5,8 +7,8 @@ from .user_interaction import UserInteraction
 
 
 class ProblemAnalyzer:
-    MAX_RETRY = 4
-    MAX_SUB_LEVEL = 3
+    MAX_RETRY = 5
+    MAX_SUB_LEVEL = 5
 
     def __init__(self, openai_service: OpenAiService, db_service: DatabaseService):
         self.openai_service = openai_service
@@ -49,9 +51,9 @@ class ProblemAnalyzer:
         task.update_state(TaskState.ANALYZED)
         self.db_service.updated_task(task)
 
-        # self._analyze_complexity_and_decompose(task)  # TODO: use it by the request from user
+        # self.analyze_complexity_and_decompose(task)  # TODO: use it by the request from user
 
-    def _analyze_complexity_and_decompose(self, task: Task) -> dict:
+    def analyze_complexity_and_decompose(self, task: Task) -> dict:
         complexity = int(task.analysis['complexity'])
 
         if complexity > 1:
@@ -67,24 +69,35 @@ class ProblemAnalyzer:
     def _decompose_task(self, task: Task):
         if self._is_max_sub_level_reached(task):
             return
+
         # Call OpenAI service to decompose the task
         decomposed_tasks = self.openai_service.decompose_task(task)
-        for sub_task_info in decomposed_tasks.get('sub_tasks', []):
-            sub_task = Task(sub_task_info['task'], sub_task_info['context'])
-            sub_task.short_description = sub_task_info['short_description']
-            sub_task.parent_task = task
-            sub_task.sub_level = task.sub_level + 1
-            task.sub_tasks.append(sub_task)
-            self.db_service.insert_task(sub_task)
+
+        # Build the task tree
+        self._build_task_tree(decomposed_tasks, task)
 
         print(f"Task {task.short_description} decomposed into {len(task.sub_tasks)} sub-tasks.")
 
         task.update_state(TaskState.DECOMPOSED)
         self.db_service.updated_task(task)
 
-        # Recursively analyze each sub-task
-        # for sub_task in task.sub_tasks:  # TODO: remove it, it should be trigered from UI
-        #     self.analyze(sub_task)
+        for sub_task in task.sub_tasks:
+            self.analyze_complexity_and_decompose(sub_task)
+
+    def _build_task_tree(self, task_data: Dict[str, Any], parent_task: Task):
+        for sub_task_info in task_data.get('sub_tasks', []):
+            sub_task = Task(sub_task_info['task'], sub_task_info['context'])
+            sub_task.short_description = sub_task_info['short_description']
+            if 'complexity' in sub_task_info:
+                sub_task.analysis['complexity'] = sub_task_info['complexity']
+            sub_task.parent_task = parent_task
+            sub_task.sub_level = parent_task.sub_level + 1
+            parent_task.sub_tasks.append(sub_task)
+            self.db_service.insert_task(sub_task)
+
+            # Recursively build sub-tasks if they exist
+            if 'sub_tasks' in sub_task_info:
+                self._build_task_tree(sub_task_info, sub_task)
 
     def _is_max_sub_level_reached(self, task: Task) -> bool:
         if task.sub_level >= self.MAX_SUB_LEVEL:
