@@ -1,4 +1,6 @@
 openai
 python-dotenv
-sqlite3
+fastapi
+pydantic
+pydantic-settings
 pytest

@@ -1,16 +1,16 @@
 from typing import Dict, Any
 
 from .database_service import DatabaseService
-from .openai_service import OpenAiService
-from .task import Task, TaskState
-from .user_interaction import UserInteraction
+from src.services.openai_service import OpenAIService
+from src.model.task import Task, TaskState
+from src.user_interaction import UserInteraction
 
 
 class ProblemAnalyzer:
     MAX_RETRY = 5
     MAX_SUB_LEVEL = 1
 
-    def __init__(self, openai_service: OpenAiService, db_service: DatabaseService):
+    def __init__(self, openai_service: OpenAIService, db_service: DatabaseService):
         self.openai_service = openai_service
         self.db_service = db_service
 

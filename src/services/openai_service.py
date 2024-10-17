@@ -1,26 +1,19 @@
 import json
 import logging
-import os
 
 import openai
 
-from .task import Task
+from src.core.config import settings
+from src.model.task import Task
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-class OpenAiService:
-    def __init__(self, api_key: str):
-        openai.api_key = api_key
-        self.model = self._get_openai_model()
-
-    @staticmethod
-    def _get_openai_model() -> str:
-        model = os.getenv('OPENAI_MODEL')
-        if not model:
-            raise ValueError("OPENAI_MODEL environment variable is not set")
-        return model
+class OpenAIService:
+    def __init__(self):
+        self.api_key = settings.OPENAI_API_KEY
+        self.model = settings.OPENAI_MODEL
 
     def summarize_context(self, formatted_user_interaction: str, context: str) -> str:
         logging.info("Called summarize_context method")

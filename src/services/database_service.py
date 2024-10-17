@@ -3,11 +3,13 @@ import json
 import sqlite3
 from typing import Any, Dict, List
 
-from src.task import Task
+from src.core.config import settings
+from src.model.task import Task
 
 
 class DatabaseService:
-    def __init__(self, db_path: str):
+    def __init__(self):
+        db_path = settings.DATABASE_URL
         self.connection = sqlite3.connect(db_path)
         self.cursor = self.connection.cursor()
         self._initialize_db()

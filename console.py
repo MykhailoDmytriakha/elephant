@@ -3,10 +3,10 @@ import os
 
 from dotenv import load_dotenv
 
-from src.database_service import DatabaseService
-from src.openai_service import OpenAiService
-from src.problem_analyzer import ProblemAnalyzer
-from src.task import Task
+from src.services.database_service import DatabaseService
+from src.services.openai_service import OpenAIService
+from src.services.problem_analyzer import ProblemAnalyzer
+from src.model.task import Task
 from src.user_interaction import UserInteraction
 
 
@@ -46,8 +46,8 @@ def print_task(task: Task):
 def main():
     load_dotenv()
 
-    openai_service = OpenAiService(os.getenv("OPENAI_API_KEY"))
-    db_service = DatabaseService("data/tasks.db")
+    openai_service = OpenAIService()
+    db_service = DatabaseService()
     problem_analyzer = ProblemAnalyzer(openai_service, db_service)
     user_interaction = UserInteraction()
 
