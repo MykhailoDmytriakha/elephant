@@ -13,7 +13,7 @@ class UserQueryDB(BaseModel):
     origin_query: str = Field(..., description="The original query text")
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserQueryCreate(UserQuery):

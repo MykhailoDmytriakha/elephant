@@ -3,4 +3,5 @@ python-dotenv
 fastapi
 pydantic
 pydantic-settings
+uvicorn
 pytest

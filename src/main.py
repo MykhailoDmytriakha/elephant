@@ -9,6 +9,7 @@ app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 app.include_router(user_queries.router, prefix="/user-queries", tags=["user-queries"])
 
 
+# url: http://localhost:8000/
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Elephant API"}

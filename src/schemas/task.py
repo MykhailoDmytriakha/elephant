@@ -15,7 +15,7 @@ class Task(BaseModel):
     sub_tasks: List['Task'] = Field([], description="List of sub-tasks")
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class AnalysisResult(BaseModel):
