@@ -4,7 +4,7 @@
   "context": "STRING: including context and key aspects of the problem.",
   "sub_problems": "ARRAY: List of smaller problems (REFERENCE to IDs) that the main problem can be broken down into, if applicable.",
   "analysis": {
-    "complexity": "ENUM(Possible values: 'low', 'medium', 'high') - Represents the level of complexity of the problem.",
+    "complexity": "ENUM(Possible values: '1', '2', '3', '4', '5') - Represents the level of complexity of the problem.",
     "parameters_constraints": "STRING: Key parameters and constraints that affect the problem, such as requirements, boundaries, and limitations.",
     "desired_outcomes": "STRING: The specific goals or results that are expected from solving the problem. ideal final result (IFR)",
     "missing_information": " ARRAY: Details of any missing data or knowledge gaps that need to be addressed to solve the problem effectively.",

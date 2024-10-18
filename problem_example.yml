@@ -24,7 +24,7 @@ analysis:
   missing_information:  # Details of any missing data or knowledge gaps that need to be addressed.
     - "Root cause of network instability"
     - "Historical data on traffic peaks"
-  complexity: 2  # Possible values: '1 is low', '2 is medium', '3 is high' - Represents the level of complexity of the problem.
+  complexity: 2  # Possible values: '1 is simple', '2 is low', '3 is medium', '4 is high', '5 is very high' - Represents the level of complexity of the problem.
 
 concepts:
   contribution_to_parent_task: "optional string"  # Description of how the concept contributes to solving the parent task.

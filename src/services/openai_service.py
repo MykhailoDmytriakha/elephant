@@ -81,8 +81,8 @@ class OpenAIService:
                                 },
                                 "complexity": {
                                     "type": "string",
-                                    "enum": ["1", "2", "3"],
-                                    "description": "Level of complexity of the task (1: low, 2: medium, 3: high)"
+                                    "enum": ["1", "2", "3", "4", "5"],
+                                    "description": "Level of complexity of the task (1: simple, 2: low, 3: medium, 4: high, 5: very high)"
                                 }
                             },
                             "required": ["parameters_constraints", "available_resources", "required_resources", "ifr",
@@ -209,8 +209,8 @@ class OpenAIService:
                                     },
                                     "complexity": {
                                         "type": "string",
-                                        "enum": ["1", "2", "3"],
-                                        "description": "Estimated complexity of the sub-task (1: low, 2: medium, 3: high)"
+                                        "enum": ["1", "2", "3", "4", "5"],
+                                        "description": "Estimated complexity of the sub-task (1: simple, 2: low, 3: medium, 4: high, 5: very high)"
                                     },
                                     "short_description": {
                                         "type": "string",
@@ -232,7 +232,7 @@ class OpenAIService:
         ]
 
         context = self._gather_context(task)
-        original_complexity = task.analysis.get('complexity', '3')  # Default to high if not specified
+        original_complexity = task.analysis.get('complexity', '4')  # Default to high if not specified
         prompt = f"""
         Decompose the following complex task into smaller, manageable sub-tasks:
         Task: {task.task}
@@ -244,9 +244,11 @@ class OpenAIService:
         Provide a list of sub-tasks, each with its own description, context, and complexity.
         Ensure that each sub-task has a lower complexity than the original task (complexity {original_complexity}).
         The complexity levels are:
-        1 - Low complexity
-        2 - Medium complexity
-        3 - High complexity
+        1 - Simple
+        2 - Low complexity
+        3 - Medium complexity
+        4 - High complexity
+        5 - Very high complexity
         """
 
         logging.debug(f"OpenAI API prompt: {prompt}")
