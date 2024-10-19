@@ -1,7 +1,7 @@
 from typing import Dict, Any
 
 from .database_service import DatabaseService
-from src.services.openai_service import OpenAIService
+from src.services.openai_service import OpenAIService, ContextSufficiencyResult
 from src.model.task import Task, TaskState
 from src.user_interaction import UserInteraction
 
@@ -14,10 +14,11 @@ class ProblemAnalyzer:
         self.openai_service = openai_service
         self.db_service = db_service
 
-    def clarify_context(self, task: Task):
+    def clarify_context(self, task: Task) -> ContextSufficiencyResult:
         task.update_state(TaskState.CONTEXT)
         for _ in range(self.MAX_RETRY):
-            if self._is_context_sufficient(task):
+            result = self.openai_service.is_context_sufficient(task)
+            if result["is_context_sufficient"]:
                 break
         else:
             if not task.is_context_sufficient:
@@ -25,20 +26,9 @@ class ProblemAnalyzer:
                 task.context = summarized_context
                 task.is_context_sufficient = True
             print(f"Max retries ({self.MAX_RETRY}) reached. Proceeding with available context.")
+        
         self.db_service.updated_task(task)
-
-    def _is_context_sufficient(self, task: Task) -> bool:
-        result = self.openai_service.is_context_sufficient(task)
-        if result["is_context_sufficient"]:
-            print("Context is sufficient. Proceeding with analysis.")
-            return True
-        else:
-            follow_up_question = result["follow_up_question"]
-            print("Need more information.")
-            print("Follow-up question:", follow_up_question)
-            answer = UserInteraction.get_input(follow_up_question)
-            task.add_user_interaction(follow_up_question, answer)
-            return False
+        return result
 
     def analyze(self, task: Task):
         if self._is_max_sub_level_reached(task):

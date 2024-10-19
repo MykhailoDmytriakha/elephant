@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from typing import List, Tuple
+from user_interaction import UserInteraction
 
 
 class TaskState(Enum):
@@ -20,7 +21,7 @@ class TaskState(Enum):
 
 
 class Task:
-    def __init__(self, task: str = None, context: str = None):
+    def __init__(self, task: str = '', context: str = ''):
         # metadata
         self.id = str(uuid.uuid4())
         self.sub_level = 0
@@ -35,18 +36,18 @@ class Task:
         self.task = task
         self.short_description = None
         # user interaction
-        self.user_interaction: List[Tuple[str, str]] = []
+        self.user_interaction: List[UserInteraction] = []
         # problem analysis
         self.analysis = {}
         # concept formation
         self.concepts = {}
 
-    def add_user_interaction(self, query: str, answer: str):
-        self.user_interaction.append((query, answer))
+    def add_user_interaction(self, user_interaction: UserInteraction):
+        self.user_interaction.append(user_interaction)
 
     @property
     def formatted_user_interaction(self) -> str:
-        return "\n".join([f"Q: {q}\nA: {a}" for q, a in self.user_interaction])
+            return "\n".join([f"Q: {user_interaction.query}\nA: {user_interaction.answer}" for user_interaction in self.user_interaction])
 
     def update_state(self, new_state: TaskState):
         self.state = new_state

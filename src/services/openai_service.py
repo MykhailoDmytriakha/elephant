@@ -1,6 +1,7 @@
 import json
 import logging
-
+from typing import TypedDict
+from src.model.context import ContextSufficiencyResult
 import openai
 
 from src.core.config import settings
@@ -8,6 +9,7 @@ from src.model.task import Task
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 
 class OpenAIService:
@@ -39,6 +41,61 @@ class OpenAIService:
                 contexts.append(current_task.context)
             current_task = current_task.parent_task
         return "\n".join(contexts) if contexts else ""
+    
+    def is_context_sufficient(self, task: Task) -> ContextSufficiencyResult:
+        logging.info("Called is_context_sufficient method")
+        functions = [
+            {
+                "name": "context_analysis",
+                "description": "Analyze if the given context is sufficient for the problem and suggest a question if more information is needed.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "is_context_sufficient": {
+                            "type": "boolean",
+                            "description": "Whether the given context is sufficient for analysis"
+                        },
+                        "follow_up_question": {
+                            "type": "string",
+                            "description": "A question to ask the user if more context is needed. In addition to follow-up questions, suggest possible context to add or variations of relevant context or scopes. If context is sufficient, provide a summary instead."
+                        }
+                    },
+                    "required": ["is_context_sufficient", "follow_up_question"]
+                }
+            }
+        ]
+
+        summarized_context = self.summarize_context(task.formatted_user_interaction, task.context) if not task.is_context_sufficient else task.context
+        prompt = f"""
+        Given the following problem and context, determine if the context is sufficient for analysis:
+        Problem: {task.task or task.short_description}
+        Context: {summarized_context}
+
+        If the context is not sufficient, provide a follow-up question to gather more information.
+        If the context is sufficient, provide a brief summary of the context instead.
+        """
+        logging.debug(f"OpenAI API prompt: {prompt}")
+        response = openai.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            functions=functions,
+            function_call={"name": "context_analysis"}
+        )
+        function_call = response.choices[0].message.function_call
+        if function_call:
+            result = json.loads(function_call.arguments)
+            logging.debug(f"OpenAI API response: {result}")
+            return ContextSufficiencyResult(
+                is_context_sufficient=result["is_context_sufficient"],
+                follow_up_question=result["follow_up_question"]
+            )
+        else:
+            fallback_result = ContextSufficiencyResult(
+                is_context_sufficient=False,
+                follow_up_question="Can you provide more details about the problem?"
+            )
+            logging.warning(f"OpenAI API fallback response: {fallback_result}")
+            return fallback_result
 
     def analyze_task(self, task: Task) -> dict:
         logging.info("Called analyze_task method")
@@ -126,61 +183,6 @@ class OpenAIService:
                     "missing_information": ["Unable to determine missing information"],
                     "complexity": "0"
                 }
-            }
-            logging.warning(f"OpenAI API fallback response: {fallback_result}")
-            return fallback_result
-
-    def is_context_sufficient(self, task: Task) -> dict:
-        logging.info("Called is_context_sufficient method")
-        functions = [
-            {
-                "name": "context_analysis",
-                "description": "Analyze if the given context is sufficient for the problem and suggest a question if more information is needed.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "is_context_sufficient": {
-                            "type": "boolean",
-                            "description": "Whether the given context is sufficient for analysis"
-                        },
-                        "follow_up_question": {
-                            "type": "string",
-                            "description": "A question to ask the user if more context is needed. In addition to follow-up questions, suggest possible context to add or variations of relevant context or scopes. If context is sufficient, provide a summary instead."
-                        }
-                    },
-                    "required": ["is_context_sufficient", "follow_up_question"]
-                }
-            }
-        ]
-
-        summarized_context = self.summarize_context(task.formatted_user_interaction, task.context) if not task.is_context_sufficient else task.context
-        prompt = f"""
-        Given the following problem and context, determine if the context is sufficient for analysis:
-        Problem: {task.task or task.short_description}
-        Context: {summarized_context}
-
-        If the context is not sufficient, provide a follow-up question to gather more information.
-        If the context is sufficient, provide a brief summary of the context instead.
-        """
-        logging.debug(f"OpenAI API prompt: {prompt}")
-        response = openai.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            functions=functions,
-            function_call={"name": "context_analysis"}
-        )
-        function_call = response.choices[0].message.function_call
-        if function_call:
-            result = json.loads(function_call.arguments)
-            logging.debug(f"OpenAI API response: {result}")
-            if result["is_context_sufficient"]:
-                task.context = summarized_context
-                task.is_context_sufficient = True
-            return result
-        else:
-            fallback_result = {
-                "is_context_sufficient": False,
-                "follow_up_question": "Can you provide more details about the problem?"
             }
             logging.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result

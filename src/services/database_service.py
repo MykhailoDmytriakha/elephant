@@ -103,3 +103,12 @@ class DatabaseService:
             cursor.execute('SELECT * FROM tasks')
             rows = cursor.fetchall()
             return [{"id": row[0], "task_id": row[1], "task_json": row[2]} for row in rows]
+
+    def fetch_task_by_id(self, task_id: str) -> Dict[str, Any] | None:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM tasks WHERE task_id = ?', (task_id,))
+            row = cursor.fetchone()
+            if row:
+                return {"id": row[0], "task_id": row[1], "task_json": row[2]}
+            return None
