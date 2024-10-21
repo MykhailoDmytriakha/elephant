@@ -1,31 +1,39 @@
-# Виртуальное окружение
-venv/
-env/
-.venv/
+# Frontend
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.js
+frontend/coverage/
+frontend/build/
+frontend/.DS_Store
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
 
-# Файлы Python
-__pycache__/
-*.py[cod]
-*.so
+# Backend
+backend/__pycache__/
+backend/*.py[cod]
+backend/*$py.class
+backend/.env
+backend/.venv
+backend/env/
+backend/venv/
+backend/ENV/
+backend/env.bak/
+backend/venv.bak/
+backend/.pytest_cache/
+backend/.coverage
+backend/.tox/
+backend/.idea/
+backend/.vscode/
+backend/myenv/
 
-# Файлы среды выполнения
-.env
-
-# Файлы данных
-data/*
-!data/.gitkeep
-
-# Файлы IDE
-.vscode/
-.idea/
-
-# Файлы операционной системы
+# Common
 .DS_Store
-Thumbs.db
-
-# Файлы логов
 *.log
-
-# Файлы тестового покрытия
-.coverage
-htmlcov/
+*.swp
+*.swo
+data/tasks.db

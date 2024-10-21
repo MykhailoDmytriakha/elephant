@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Database settings
-    DATABASE_URL: str = "data/tasks.db"
+    DATABASE_URL: str = "../data/tasks.db"
 
     # OpenAI settings
     OPENAI_API_KEY: str

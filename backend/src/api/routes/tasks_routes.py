@@ -8,17 +8,20 @@ from src.schemas.user_query import UserQuery
 from src.services.problem_analyzer import ProblemAnalyzer
 from src.services.database_service import DatabaseService
 from src.model.user_interaction import UserInteraction
+import logging
+
+logger = logging.getLogger(__name__)
 
 import json
 
 router = APIRouter()
 
 
-@router.post("/", response_model=Task)
-# task creaeted manually by user
-async def create_task(user_query: UserQuery, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):
-    """Create a new task based on user query"""
-    # TODO: do not implemet yet. Keeping it for future, maybe it make sense to create task manualy by user
+# @router.post("/", response_model=Task)
+# # task creaeted manually by user
+# async def create_task(user_query: UserQuery, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):
+#     """Create a new task based on user query"""
+#     # TODO: do not implemet yet. Keeping it for future, maybe it make sense to create task manualy by user
 
 
 @router.get("/{task_id}", response_model=Task)
@@ -35,7 +38,7 @@ async def get_task(task_id: str, db: DatabaseService = Depends(get_db_service)):
 
 
 @router.put("/{task_id}/context", response_model=ContextSufficiencyResult)
-async def update_task_context(task_id: str, user_interaction: Optional[UserInteraction], analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
+async def update_task_context(task_id: str, user_interaction: Optional[UserInteraction] = None, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
     task_data = db.fetch_task_by_id(task_id)
     if task_data is None:
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
@@ -45,8 +48,10 @@ async def update_task_context(task_id: str, user_interaction: Optional[UserInter
     task.state = TaskState.CONTEXT
     
     if not user_interaction:
+        logger.info("No user interaction provided. Clarifying context.")
         return analyzer.clarify_context(task)
     else:
+        logger.info(f"User interaction provided: {user_interaction}")
         task.add_user_interaction(user_interaction)
         return analyzer.clarify_context(task)
  

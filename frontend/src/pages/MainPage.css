@@ -1,0 +1,36 @@
+/* frontend/src/pages/MainPage.css */
+.main-page {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.create-button {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.create-button:hover {
+    background-color: #0056b3;
+}
+
+.queries-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.error {
+    color: red;
+}

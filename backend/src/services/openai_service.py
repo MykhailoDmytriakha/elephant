@@ -2,34 +2,38 @@ import json
 import logging
 from typing import TypedDict
 from src.model.context import ContextSufficiencyResult
-import openai
+from openai import OpenAI
 
 from src.core.config import settings
 from src.model.task import Task
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 
 class OpenAIService:
     def __init__(self):
+        logger.info("Initializing OpenAIService")
         self.api_key = settings.OPENAI_API_KEY
         self.model = settings.OPENAI_MODEL
+        if not self.api_key:
+            logger.error("OpenAI API key is not set!")
+            raise ValueError("OpenAI API key is not set!")
+        self.client = OpenAI(api_key=self.api_key)
 
     def summarize_context(self, formatted_user_interaction: str, context: str) -> str:
-        logging.info("Called summarize_context method")
+        logger.info("Called summarize_context method")
         if not context and not formatted_user_interaction:
-            logging.info("Context is empty. Skipping summarization.")
+            logger.info("Context is empty. Skipping summarization.")
             return ""
         prompt = f"Summarize the following context: \n- {context}\n- {formatted_user_interaction}"
-        logging.debug(f"OpenAI API prompt: {prompt}")
-        response = openai.chat.completions.create(
+        logger.debug(f"OpenAI API prompt: {prompt}")
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}]
         )
         result = response.choices[0].message.content
-        logging.debug(f"OpenAI API response: {result}")
+        logger.debug(f"OpenAI API response: {result}")
         return result
 
     @staticmethod
@@ -43,7 +47,7 @@ class OpenAIService:
         return "\n".join(contexts) if contexts else ""
     
     def is_context_sufficient(self, task: Task) -> ContextSufficiencyResult:
-        logging.info("Called is_context_sufficient method")
+        logger.info("Called is_context_sufficient method")
         functions = [
             {
                 "name": "context_analysis",
@@ -74,8 +78,8 @@ class OpenAIService:
         If the context is not sufficient, provide a follow-up question to gather more information.
         If the context is sufficient, provide a brief summary of the context instead.
         """
-        logging.debug(f"OpenAI API prompt: {prompt}")
-        response = openai.chat.completions.create(
+        logger.debug(f"OpenAI API prompt: {prompt}")
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             functions=functions,
@@ -84,7 +88,7 @@ class OpenAIService:
         function_call = response.choices[0].message.function_call
         if function_call:
             result = json.loads(function_call.arguments)
-            logging.debug(f"OpenAI API response: {result}")
+            logger.debug(f"OpenAI API response: {result}")
             return ContextSufficiencyResult(
                 is_context_sufficient=result["is_context_sufficient"],
                 follow_up_question=result["follow_up_question"]
@@ -94,11 +98,11 @@ class OpenAIService:
                 is_context_sufficient=False,
                 follow_up_question="Can you provide more details about the problem?"
             )
-            logging.warning(f"OpenAI API fallback response: {fallback_result}")
+            logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
 
     def analyze_task(self, task: Task) -> dict:
-        logging.info("Called analyze_task method")
+        logger.info("Called analyze_task method")
         functions = [
             {
                 "name": "analyze_task",
@@ -159,8 +163,8 @@ class OpenAIService:
 
         Provide a detailed analysis of the task, including task formulation, key parameters, resources, ideal final result, missing information, and complexity level.
         """
-        logging.debug(f"OpenAI API prompt: {prompt}")
-        response = openai.chat.completions.create(
+        logger.debug(f"OpenAI API prompt: {prompt}")
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             functions=functions,
@@ -169,7 +173,7 @@ class OpenAIService:
         function_call = response.choices[0].message.function_call
         if function_call:
             result = json.loads(function_call.arguments)
-            logging.debug(f"OpenAI API response: {result}")
+            logger.debug(f"OpenAI API response: {result}")
             return result
         else:
             fallback_result = {
@@ -184,11 +188,11 @@ class OpenAIService:
                     "complexity": "0"
                 }
             }
-            logging.warning(f"OpenAI API fallback response: {fallback_result}")
+            logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
 
     def decompose_task(self, task: Task) -> dict:
-        logging.info("Called decompose_task method")
+        logger.info("Called decompose_task method")
         functions = [
             {
                 "name": "decompose_task",
@@ -253,8 +257,8 @@ class OpenAIService:
         5 - Very high complexity
         """
 
-        logging.debug(f"OpenAI API prompt: {prompt}")
-        response = openai.chat.completions.create(
+        logger.debug(f"OpenAI API prompt: {prompt}")
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             functions=functions,
@@ -264,7 +268,7 @@ class OpenAIService:
         function_call = response.choices[0].message.function_call
         if function_call:
             result = json.loads(function_call.arguments)
-            logging.debug(f"OpenAI API response: {result}")
+            logger.debug(f"OpenAI API response: {result}")
             return result
         else:
             fallback_result = {
@@ -277,11 +281,11 @@ class OpenAIService:
                     }
                 ]
             }
-            logging.warning(f"OpenAI API fallback response: {fallback_result}")
+            logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
 
     def generate_concepts(self, task: Task) -> dict:
-        logging.info("Called generate_concepts method")
+        logger.info("Called generate_concepts method")
         functions = [
             {
                 "name": "generate_concepts",
@@ -350,8 +354,8 @@ class OpenAIService:
         Provide a list of concepts and ideas that could potentially solve the problem.
         Include a description of how each concept contributes to solving the parent task.
         """
-        logging.debug(f"OpenAI API prompt: {prompt}")
-        response = openai.chat.completions.create(
+        logger.debug(f"OpenAI API prompt: {prompt}")
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             functions=functions,
@@ -361,7 +365,7 @@ class OpenAIService:
         function_call = response.choices[0].message.function_call
         if function_call:
             result = json.loads(function_call.arguments)
-            logging.debug(f"OpenAI API response: {result}")
+            logger.debug(f"OpenAI API response: {result}")
             return result
         else:
             fallback_result = {
@@ -378,5 +382,5 @@ class OpenAIService:
                     ]
                 }
             }
-            logging.warning(f"OpenAI API fallback response: {fallback_result}")
+            logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result

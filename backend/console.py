@@ -52,7 +52,7 @@ def main():
     user_interaction = UserInteraction()
 
     origin_query = user_interaction.greeting()
-    task = Task()
+    task = Task.create_new()
     task.short_description = origin_query
 
     db_service.insert_task(task)

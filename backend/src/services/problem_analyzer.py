@@ -16,10 +16,11 @@ class ProblemAnalyzer:
 
     def clarify_context(self, task: Task) -> ContextSufficiencyResult:
         task.update_state(TaskState.CONTEXT)
-        for _ in range(self.MAX_RETRY):
+        for _ in range(self.MAX_RETRY): # TODO: fix range, this logic should be moved to the frontend
             result = self.openai_service.is_context_sufficient(task)
             if result["is_context_sufficient"]:
                 break
+            
         else:
             if not task.is_context_sufficient:
                 summarized_context = self.openai_service.summarize_context(task.formatted_user_interaction, task.context)
@@ -77,7 +78,7 @@ class ProblemAnalyzer:
 
     def _build_task_tree(self, task_data: Dict[str, Any], parent_task: Task):
         for sub_task_info in task_data.get('sub_tasks', []):
-            sub_task = Task(sub_task_info['task'], sub_task_info['context'])
+            sub_task = Task.create_new(sub_task_info['task'], sub_task_info['context'])
             sub_task.sub_level = parent_task.sub_level + 1
             sub_task.short_description = sub_task_info['short_description']
             sub_task.analysis['complexity'] = sub_task_info['complexity']

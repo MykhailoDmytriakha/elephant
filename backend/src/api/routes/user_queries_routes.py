@@ -17,11 +17,12 @@ router = APIRouter()
 @router.post("/", response_model=UserQueryDB)
 async def create_user_query(user_query: UserQuery, db: DatabaseService = Depends(get_db_service)):
     """Create a new user query associated with a task"""
-    task = Task()
+    task = Task.create_new()
     task.short_description = user_query.query
     try:
-        db.insert_task(task)
-        created_query = db.insert_user_query(task.id, user_query.query)
+        inserted_task_id = db.insert_task(task)
+        created_query = db.insert_user_query(inserted_task_id, user_query.query)
+        
         return UserQueryDB(**created_query)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create user query: {str(e)}")

@@ -1,0 +1,31 @@
+# Виртуальное окружение
+venv/
+env/
+.venv/
+
+# Файлы Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Файлы среды выполнения
+.env
+
+# Файлы данных
+data/*
+!data/.gitkeep
+
+# Файлы IDE
+.vscode/
+.idea/
+
+# Файлы операционной системы
+.DS_Store
+Thumbs.db
+
+# Файлы логов
+*.log
+
+# Файлы тестового покрытия
+.coverage
+htmlcov/
