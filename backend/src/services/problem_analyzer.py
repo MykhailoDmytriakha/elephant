@@ -7,7 +7,7 @@ from src.user_interaction import UserInteraction
 
 
 class ProblemAnalyzer:
-    MAX_RETRY = 5
+    MAX_RETRY = 1
     MAX_SUB_LEVEL = 1
 
     def __init__(self, openai_service: OpenAIService, db_service: DatabaseService):

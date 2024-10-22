@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "backend"
+		},
+		{
+			"path": "docs"
+		},
+		{
+			"path": "data"
+		}
+	],
+	"settings": {
+		"python.globalModuleInstallation": false
+	}
+}

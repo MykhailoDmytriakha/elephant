@@ -47,8 +47,12 @@ async def update_task_context(task_id: str, user_interaction: Optional[UserInter
     task = Task(**task_dict)
     task.state = TaskState.CONTEXT
     
+    # Handle the case where UserInteraction is provided but both query and answer are empty
     if not user_interaction:
         logger.info("No user interaction provided. Clarifying context.")
+        return analyzer.clarify_context(task)
+    if user_interaction and not user_interaction.query and not user_interaction.answer:
+        logger.info("Empty user interaction provided. Treating as if no interaction was given.")
         return analyzer.clarify_context(task)
     else:
         logger.info(f"User interaction provided: {user_interaction}")

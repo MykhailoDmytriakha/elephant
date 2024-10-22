@@ -1,0 +1,59 @@
+{
+  "info": {
+    "name": "REST API Flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get all user queries",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8000/user-queries"
+      }
+    },
+    {
+      "name": "Create a new user query",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8000/user-queries",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"how blockchain works?\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get task by ID",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8000/tasks/2f2f9040-3cb6-4df8-8ae3-09b4ba58371d"
+      }
+    },
+    {
+      "name": "Clarify context",
+      "request": {
+        "method": "PUT",
+        "url": "http://localhost:8000/tasks/2f2f9040-3cb6-4df8-8ae3-09b4ba58371d/context",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Analyze task",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8000/tasks/{task_id}/analyze"
+      }
+    }
+  ]
+}
