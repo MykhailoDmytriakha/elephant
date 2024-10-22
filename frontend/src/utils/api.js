@@ -56,3 +56,12 @@ export const analyzeTask = async (taskId) => {
     throw new Error('Failed to analyze task');
   }
 };
+
+export const generateConcepts = async (taskId) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/concepts`);
+    return response.data;
+  } catch (error) {
+    throw new Error('Failed to generate concepts');
+  }
+};

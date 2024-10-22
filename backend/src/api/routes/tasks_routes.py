@@ -119,10 +119,24 @@ async def analyze_task(task_id: str, analyzer: ProblemAnalyzer = Depends(get_pro
     
     return analysis_result
 
-@router.post("/{task_id}/generate-concepts", response_model=ConceptFormationResult)
-async def generate_concepts(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):
+@router.post("/{task_id}/concepts", response_model=ConceptFormationResult)
+async def generate_concepts(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
     """Generate concepts for a specific task"""
-    # Implementation here
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    task_dict = json.loads(task_data['task_json'])
+    task = Task(**task_dict)
+    concept_definition = analyzer.concept_definition(task)
+
+    concept_result = ConceptFormationResult(
+        contribution_to_parent_task=concept_definition['contribution_to_parent_task'],
+        ideas=concept_definition['ideas'],
+        TOP_TRIZ_principles=concept_definition['TOP_TRIZ_principles'],
+        solution_approaches=concept_definition['solution_approaches'],
+        resources_per_concept=concept_definition['resources_per_concept']
+    )
+    return concept_result
     
     
 @router.post("/{task_id}/decompose", response_model=DecompositionResult)

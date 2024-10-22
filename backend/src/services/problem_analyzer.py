@@ -96,7 +96,10 @@ class ProblemAnalyzer:
             return True
         return False
 
-    def concept_formation(self, task):
-        concept_formation = self.openai_service.generate_concepts(task)
-        task.concepts = concept_formation
-        task.update_state(TaskState.CONCEPTS)
+    def concept_definition(self, task: Task):
+        concept_definition = self.openai_service.generate_concepts(task)
+        concepts = concept_definition['concepts']
+        task.concepts = concepts
+        task.update_state(TaskState.CONCEPT_DEFINITION)
+        self.db_service.updated_task(task)
+        return concepts

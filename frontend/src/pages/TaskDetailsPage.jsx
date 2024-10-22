@@ -12,8 +12,9 @@ import {
   ThemeBadge,
   ProgressBar
 } from '../components/TaskComponents';
-import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask } from '../utils/api';
+import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateConcepts } from '../utils/api';
 import { TaskStates } from '../constants/taskStates';
+import ConceptDefinition from '../components/ConceptDefinition';
 
 export default function TaskDetailsPage() {
   const { taskId } = useParams();
@@ -25,6 +26,7 @@ export default function TaskDetailsPage() {
   const [followUpQuestion, setFollowUpQuestion] = useState(null);
   const [isContextSufficient, setIsContextSufficient] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isGeneratingConcepts, setIsGeneratingConcepts] = useState(false);
 
   const loadTask = async () => {
     try {
@@ -121,6 +123,28 @@ export default function TaskDetailsPage() {
       setError('Failed to analyze task: ' + err.message);
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleGenerateConcepts = async () => {
+    try {
+      setIsGeneratingConcepts(true);
+      console.log("Starting concept generation...");
+      const conceptResponse = await generateConcepts(taskId);
+      console.log("Generate concepts response:", conceptResponse);
+      
+      // Add a small delay before fetching updated task
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Fetch and log the updated task data
+      const updatedTask = await fetchTaskDetails(taskId);
+      console.log("Updated task after generating concepts:", updatedTask);
+      setTask(updatedTask);
+    } catch (err) {
+      console.error("Error generating concepts:", err);
+      setError('Failed to generate concepts: ' + err.message);
+    } finally {
+      setIsGeneratingConcepts(false);
     }
   };
 
@@ -239,6 +263,10 @@ export default function TaskDetailsPage() {
         </div>
       </InfoCard>
     );
+  };
+
+  const shouldShowConcepts = () => {
+    return task.state === TaskStates.ANALYSIS || task.state === TaskStates.CONCEPT_DEFINITION;
   };
 
   if (loading) return <LoadingSpinner />;
@@ -372,6 +400,16 @@ export default function TaskDetailsPage() {
                   ))}
                 </div>
               </InfoCard>
+            )}
+
+            {shouldShowConcepts() && (
+              <ConceptDefinition
+                concepts={task.concepts}
+                isLoading={isGeneratingConcepts}
+                onGenerateConcepts={handleGenerateConcepts}
+                taskState={task.state}
+                isContextSufficient={isContextSufficient}
+              />
             )}
           </div>
 
