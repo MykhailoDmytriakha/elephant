@@ -17,6 +17,11 @@ class ProblemAnalyzer:
     def clarify_context(self, task: Task) -> ContextSufficiencyResult:
         task.update_state(TaskState.CONTEXT_GATHERING)
         result = self.openai_service.is_context_sufficient(task)
+        
+        # Ensure result has the expected structure
+        if not isinstance(result, dict) or 'is_context_sufficient' not in result:
+            return {"is_context_sufficient": False, "follow_up_question": "Could you please provide more context about the task?"}
+            
         if result["is_context_sufficient"]:
             task.is_context_sufficient = True
             summarized_context = self.openai_service.summarize_context(task.formatted_user_interaction, task.context)
@@ -29,7 +34,6 @@ class ProblemAnalyzer:
     def analyze(self, task: Task):
         if self._is_max_sub_level_reached(task):
             return
-        task.update_state(TaskState.ANALYSIS)
         analysis_result = self.openai_service.analyze_task(task)
 
         task.task = analysis_result['task']

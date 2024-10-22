@@ -112,7 +112,7 @@ class OpenAIService:
                     "properties": {
                         "task": {
                             "type": "string",
-                            "description": "The original query with context converted to a task"
+                            "description": "A refined and comprehensive task definition based on the original query and context, including clear objectives, scope, and any relevant constraints or requirements"
                         },
                         "analysis": {
                             "type": "object",
@@ -158,7 +158,7 @@ class OpenAIService:
         context = self._gather_context(task)
         prompt = f"""
         Analyze the following task and context:
-        Task: {task.task}
+        Task: {task.task or task.short_description}
         Context: {context}
 
         Provide a detailed analysis of the task, including task formulation, key parameters, resources, ideal final result, missing information, and complexity level.

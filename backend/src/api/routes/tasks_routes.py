@@ -43,8 +43,8 @@ async def update_task_context(task_id: str, user_interaction: Optional[UserInter
     if task_data is None:
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
     task_dict = json.loads(task_data['task_json'])
-    if task_dict['state'] == TaskState.CONTEXT_GATHERING:
-        raise HTTPException(status_code=400, detail=f"Task is already in the context gathering state. Current state: {task_dict['state']}")
+    if task_dict['state'] == TaskState.CONTEXT_GATHERED:
+        raise HTTPException(status_code=400, detail=f"Task is already in the context gathered state. Current state: {task_dict['state']}")
     
     task = Task(**task_dict)
     task.state = TaskState.CONTEXT_GATHERING
@@ -98,11 +98,11 @@ async def analyze_task(task_id: str, analyzer: ProblemAnalyzer = Depends(get_pro
     task = Task(**task_dict)
     
     # Check if the task is in the correct state for analysis
-    if task.state != TaskState.NEW:
+    if task.state == TaskState.NEW or task.state == TaskState.CONTEXT_GATHERING:
         raise HTTPException(status_code=400, detail=f"Task is not in the correct state for analysis. Current state: {task.state}")
     
-    if task.state != TaskState.CONTEXT and task.is_context_sufficient == False:
-        raise HTTPException(status_code=400, detail=f"Task is not in the correct state for analysis. Required more context. Current state: {task.state}")
+    if task.state != TaskState.CONTEXT_GATHERED or task.is_context_sufficient == False:
+        raise HTTPException(status_code=400, detail=f"Task is not in the correct state for analysis. Current state: {task.state}")
     
     # Perform the analysis
     analyzer.analyze(task)

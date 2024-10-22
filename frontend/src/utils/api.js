@@ -48,3 +48,11 @@ export const deleteTask = async (taskId) => {
   }
 };
 
+export const analyzeTask = async (taskId) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/analyze`);
+    return response.data;
+  } catch (error) {
+    throw new Error('Failed to analyze task');
+  }
+};

@@ -1,7 +1,7 @@
 // src/pages/TaskDetailsPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, Trash2, ExternalLink, RefreshCcw, Send, MessageCircle, X } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Trash2, ExternalLink, RefreshCcw, Send, MessageCircle, X, BarChart2 } from 'lucide-react';
 import { 
   StatusBadge, 
   InfoCard, 
@@ -12,7 +12,7 @@ import {
   ThemeBadge,
   ProgressBar
 } from '../components/TaskComponents';
-import { fetchTaskDetails, updateTaskContext, deleteTask } from '../utils/api';
+import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask } from '../utils/api';
 import { TaskStates } from '../constants/taskStates';
 
 export default function TaskDetailsPage() {
@@ -24,29 +24,30 @@ export default function TaskDetailsPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [followUpQuestion, setFollowUpQuestion] = useState(null);
   const [isContextSufficient, setIsContextSufficient] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const loadTask = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchTaskDetails(taskId);
+      console.log("Task data:", data);
+      setTask(data);
+      setIsContextSufficient(data.is_context_sufficient);
+      if (!data.is_context_sufficient) {
+        setIsChatOpen(true);
+        const contextUpdate = await updateTaskContext(taskId);
+        console.log("Context update:", contextUpdate);
+        setFollowUpQuestion(contextUpdate.follow_up_question);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadTask = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await fetchTaskDetails(taskId);
-        console.log("Task data:", data);
-        setTask(data);
-        setIsContextSufficient(data.is_context_sufficient);
-        if (!data.is_context_sufficient) {
-          setIsChatOpen(true);
-          const contextUpdate = await updateTaskContext(taskId);
-          console.log("Context update:", contextUpdate);
-          setFollowUpQuestion(contextUpdate.follow_up_question);
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadTask();
   }, [taskId]);
 
@@ -111,6 +112,135 @@ export default function TaskDetailsPage() {
     ...(followUpQuestion ? [{ role: 'assistant', content: followUpQuestion }] : [])
   ];
 
+  const handleAnalyze = async () => {
+    try {
+      setIsAnalyzing(true);
+      await analyzeTask(taskId);
+      await loadTask(); // Reload task to get updated analysis
+    } catch (err) {
+      setError('Failed to analyze task: ' + err.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const renderAnalysisSection = () => {
+    if (!isContextSufficient) {
+      return null;
+    }
+
+    // Check if analysis is empty object or null/undefined
+    if (!task.analysis || Object.keys(task.analysis).length === 0) {
+      return (
+        <InfoCard title="Analysis">
+          <div className="text-center py-8">
+            <button
+              onClick={handleAnalyze}
+              disabled={isAnalyzing}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+            >
+              {isAnalyzing ? (
+                <>
+                  <RefreshCcw className="w-5 h-5 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <BarChart2 className="w-5 h-5" />
+                  Start Analysis
+                </>
+              )}
+            </button>
+          </div>
+        </InfoCard>
+      );
+    }
+
+    return (
+      <InfoCard title="Analysis Results">
+        <div className="space-y-6">
+          {/* Keep existing sentiment distribution section if needed */}
+          {task.analysis.sentiment_distribution && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-4">Sentiment Distribution</h3>
+              <div className="grid grid-cols-3 gap-4">
+                {Object.entries(task.analysis.sentiment_distribution).map(([sentiment, percentage]) => (
+                  <div key={sentiment}>
+                    <div className="text-2xl font-semibold">{percentage}%</div>
+                    <div className="text-gray-500 capitalize">{sentiment}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Parameters and Constraints */}
+          {task.analysis.parameters_constraints && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Parameters & Constraints</h3>
+              <p className="text-gray-700">{task.analysis.parameters_constraints}</p>
+            </div>
+          )}
+
+          {/* Available Resources */}
+          {task.analysis.available_resources?.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Available Resources</h3>
+              <ul className="list-disc list-inside space-y-1">
+                {task.analysis.available_resources.map((resource, index) => (
+                  <li key={index} className="text-gray-700">{resource}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Required Resources */}
+          {task.analysis.required_resources?.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Required Resources</h3>
+              <ul className="list-disc list-inside space-y-1">
+                {task.analysis.required_resources.map((resource, index) => (
+                  <li key={index} className="text-gray-700">{resource}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Ideal Final Result */}
+          {task.analysis.ideal_final_result && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Ideal Final Result</h3>
+              <p className="text-gray-700">{task.analysis.ideal_final_result}</p>
+            </div>
+          )}
+
+          {/* Missing Information */}
+          {task.analysis.missing_information?.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Missing Information</h3>
+              <ul className="list-disc list-inside space-y-1">
+                {task.analysis.missing_information.map((info, index) => (
+                  <li key={index} className="text-gray-700">{info}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Complexity */}
+          {task.analysis.complexity && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Complexity Level</h3>
+              <p className="text-gray-700">{task.analysis.complexity}</p>
+            </div>
+          )}
+
+          {/* Keep existing themes and insights sections if needed */}
+          {/* ... existing theme and insights code ... */}
+        </div>
+      </InfoCard>
+    );
+  };
+
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorDisplay message={error} />;
   if (!task) return <ErrorDisplay message="Task not found" />;
@@ -159,8 +289,14 @@ export default function TaskDetailsPage() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Description</h3>
-                  <p className="mt-1 text-gray-900">{task.short_description || task.description}</p>
+                  <p className="mt-1 text-gray-900">{task.short_description}</p>
                 </div>
+                {task.task && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Task</h3>
+                    <p className="mt-1 text-gray-900">{task.task}</p>
+                  </div>
+                )}
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Context</h3>
                   <p className="mt-1 text-gray-900">{task.context || 'No context provided'}</p>
@@ -215,40 +351,7 @@ export default function TaskDetailsPage() {
               </InfoCard>
             )}
 
-            {task.analysis && (
-              <InfoCard title="Analysis Results">
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-4">Sentiment Distribution</h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <div className="text-2xl font-semibold">65%</div>
-                        <div className="text-gray-500">Positive</div>
-                      </div>
-                      <div>
-                        <div className="text-2xl font-semibold">20%</div>
-                        <div className="text-gray-500">Neutral</div>
-                      </div>
-                      <div>
-                        <div className="text-2xl font-semibold">15%</div>
-                        <div className="text-gray-500">Negative</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Key Themes</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {['Product reliability', 'Customer service', 'User interface'].map((theme) => (
-                        <span key={theme} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                          {theme}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </InfoCard>
-            )}
+            {renderAnalysisSection()}
 
             {task.concepts?.length > 0 && (
               <InfoCard title="Related Concepts">
