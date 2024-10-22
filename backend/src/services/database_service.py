@@ -181,3 +181,58 @@ class DatabaseService:
         except sqlite3.Error as e:
             logger.error(f"Error fetching task by ID: {e}")
             raise
+
+    def delete_task_by_id(self, task_id: str) -> bool:
+        """Delete a task by its ID"""
+        logger.info(f"Deleting task with ID: {task_id}")
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Fetch the task to check its level
+                cursor.execute('SELECT task_json FROM tasks WHERE task_id = ?', (task_id,))
+                task_row = cursor.fetchone()
+                if not task_row:
+                    logger.info(f"Task with ID {task_id} not found")
+                    return False
+                
+                task_data = json.loads(task_row[0])
+                is_top_level = task_data.get('sub_level', 0) == 0
+
+                # Delete the task and its children
+                cursor.execute('''
+                    WITH RECURSIVE
+                        subtasks(id) AS (
+                            SELECT task_id FROM tasks WHERE task_id = ?
+                            UNION ALL
+                            SELECT t.task_id
+                            FROM tasks t
+                            JOIN subtasks s ON json_extract(t.task_json, '$.parent_id') = s.id
+                        )
+                    DELETE FROM tasks WHERE task_id IN subtasks
+                ''', (task_id,))
+
+                # If it's a top-level task, delete related user queries
+                if is_top_level:
+                    cursor.execute('DELETE FROM user_queries WHERE task_id = ?', (task_id,))
+
+                conn.commit()
+                
+                deleted_count = cursor.rowcount
+                logger.info(f"Deleted task and {deleted_count - 1} subtasks")
+                return True
+
+        except sqlite3.Error as e:
+            logger.error(f"Error deleting task: {e}")
+            return False
+        
+    def delete_all_tasks(self):
+        logger.info("Deleting all tasks")
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('DELETE FROM tasks')
+                conn.commit()
+                logger.info("All tasks deleted successfully")
+        except sqlite3.Error as e:  # {{ edit_1 }}
+            logger.error(f"Error deleting all tasks: {e}")  # {{ edit_2 }}

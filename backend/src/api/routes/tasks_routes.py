@@ -58,7 +58,27 @@ async def update_task_context(task_id: str, user_interaction: Optional[UserInter
         logger.info(f"User interaction provided: {user_interaction}")
         task.add_user_interaction(user_interaction)
         return analyzer.clarify_context(task)
+    
+@router.delete("/", response_model=dict)
+async def delete_all_tasks(db: DatabaseService = Depends(get_db_service)):
+    """Delete all tasks"""
+    db.delete_all_tasks()
+    return {"message": "All tasks deleted successfully"}
  
+@router.delete("/{task_id}", response_model=dict)
+async def delete_task(task_id: str, db: DatabaseService = Depends(get_db_service)):
+    """Delete a specific task by ID"""
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    
+    # Delete the task from the database
+    success = db.delete_task_by_id(task_id)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to delete task with ID {task_id}")
+    
+    return {"message": f"Task with ID {task_id} has been successfully deleted"}
 
 
 @router.post("/{task_id}/analyze", response_model=AnalysisResult)
@@ -112,3 +132,4 @@ async def decompose_task(task_id: str, analyzer: ProblemAnalyzer = Depends(get_p
 async def get_task_tree(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):
     """Get the task tree for a specific task"""
     # Implementation here
+    
