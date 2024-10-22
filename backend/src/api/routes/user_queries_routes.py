@@ -1,10 +1,11 @@
 from typing import List
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.deps import get_db_service
 from src.model.task import Task
-from src.schemas.user_query import UserQuery, UserQueryDB
+from src.schemas.user_query import UserQuery, UserQueryDB, UserQueryCreate
 from src.services.database_service import DatabaseService
 
 router = APIRouter()
@@ -14,7 +15,7 @@ router = APIRouter()
 # {
 #     "query": "What is the status of my order?"
 # }
-@router.post("/", response_model=UserQueryDB)
+@router.post("/", response_model=UserQueryCreate)
 async def create_user_query(user_query: UserQuery, db: DatabaseService = Depends(get_db_service)):
     """Create a new user query associated with a task"""
     task = Task.create_new()
@@ -22,23 +23,25 @@ async def create_user_query(user_query: UserQuery, db: DatabaseService = Depends
     try:
         inserted_task_id = db.insert_task(task)
         created_query = db.insert_user_query(inserted_task_id, user_query.query)
+        created_query['created_at'] = task.created_at
         
-        return UserQueryDB(**created_query)
+        return UserQueryCreate(**created_query)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create user query: {str(e)}")
 
 
 # url: http://localhost:8000/user-queries/
-@router.get("/", response_model=List[UserQueryDB])
+@router.get("/", response_model=List[UserQueryCreate])
 async def get_user_queries(db: DatabaseService = Depends(get_db_service)):
     """Get all user queries"""
     raw_queries = db.fetch_user_queries()
-    response = [UserQueryDB(**query) for query in raw_queries]
-    # [UserQueryDB(
-    #     id=query['id'],
-    #     task_id=query['task_id'],
-    #     origin_query=query['origin_query'].strip()  # Example: strip whitespace
-    # ) for query in raw_queries]
+    response = []
+    for query in raw_queries:
+        task_data = db.fetch_task_by_id(query['task_id'])
+        if task_data:
+            task_json = json.loads(task_data['task_json'])
+            query['created_at'] = task_json.get('created_at')
+        response.append(UserQueryCreate(**query))
     return response
 
 

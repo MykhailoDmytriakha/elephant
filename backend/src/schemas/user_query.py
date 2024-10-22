@@ -1,5 +1,5 @@
 from typing import Optional
-
+from datetime import datetime
 from pydantic import BaseModel, Field
 
 
@@ -16,8 +16,14 @@ class UserQueryDB(BaseModel):
         from_attributes = True
 
 
-class UserQueryCreate(UserQuery):
-    task_id: str = Field(..., description="The ID of the task to associate with this query")
+class UserQueryCreate(BaseModel):
+    id: int = Field(..., description="The unique identifier for the user query")
+    task_id: str = Field(..., description="The ID of the associated task")
+    origin_query: str = Field(..., description="The original query text")
+    created_at: datetime = Field(..., description="The creation timestamp of the user query")
+
+    class Config:
+        from_attributes = True
 
 
 class UserQueryUpdate(BaseModel):
