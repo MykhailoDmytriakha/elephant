@@ -39,7 +39,11 @@ class DatabaseService:
                     CREATE TABLE IF NOT EXISTS user_queries (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         task_id TEXT NOT NULL,
-                        origin_query TEXT NOT NULL
+                        query TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        created_at TIMESTAMP NOT NULL,
+                        progress INTEGER NOT NULL,
+                        FOREIGN KEY (task_id) REFERENCES tasks (id)
                     )
                 ''')
                 cursor.execute('''
@@ -55,27 +59,22 @@ class DatabaseService:
             logger.error(f"Error initializing database: {e}")
             raise
 
-    def insert_user_query(self, task_id: str, origin_query: str) -> Dict[str, Any]:
-        logger.info(f"Inserting user query for task_id: {task_id}")
-        if not task_id:
-            raise ValueError("task_id cannot be None or empty")
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute('''
-                    INSERT INTO user_queries (task_id, origin_query)
-                    VALUES (?, ?)
-                ''', (task_id, origin_query))
-                conn.commit()
-                # Fetch the inserted row
-                inserted_id = cursor.lastrowid
-                cursor.execute('SELECT * FROM user_queries WHERE id = ?', (inserted_id,))
-                row = cursor.fetchone()
-                logger.info(f"User query inserted successfully. ID: {inserted_id}")
-                return {"id": row[0], "task_id": row[1], "origin_query": row[2]}
-        except sqlite3.Error as e:
-            logger.error(f"Error inserting user query: {e}")
-            raise
+    def insert_user_query(self, task_id: str, query: str, status: str, created_at: str, progress: float):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO user_queries (task_id, query, status, created_at, progress)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (task_id, query, status, created_at, progress))
+            conn.commit()
+            return {
+                "id": cursor.lastrowid,
+                "task_id": task_id,
+                "query": query,
+                "status": status,
+                "created_at": created_at,
+                "progress": progress
+            }
 
     def insert_task(self, task: Task) -> str:
         logger.info(f"Inserting task with ID: {task.id}")
@@ -111,47 +110,26 @@ class DatabaseService:
             logger.error(f"Error updating task: {e}")
             raise
 
-    def fetch_user_queries(self) -> List[Dict[str, Any]]:
-        logger.info("Fetching all user queries")
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute('SELECT * FROM user_queries')
-                rows = cursor.fetchall()
-                logger.info(f"Fetched {len(rows)} user queries")
-                return [{"id": row[0], "task_id": row[1], "origin_query": row[2]} for row in rows]
-        except sqlite3.Error as e:
-            logger.error(f"Error fetching user queries: {e}")
-            raise
+    def fetch_user_queries(self):
+        with self.get_connection() as conn:
+            conn.row_factory = sqlite3.Row  # Enable row_factory to return sqlite3.Row objects
+            cursor = conn.cursor()
+            cursor.execute('SELECT id, task_id, query, status, created_at, progress FROM user_queries')
+            rows = cursor.fetchall()
+            return [dict(zip([column[0] for column in cursor.description], row)) for row in rows]
 
-    def fetch_user_query_by_id(self, query_id: int) -> dict[str, Any] | None:
-        logger.info(f"Fetching user query with ID: {query_id}")
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute('SELECT * FROM user_queries WHERE id = ?', (query_id,))
-                row = cursor.fetchone()
-                if row:
-                    logger.info(f"User query found. ID: {query_id}")
-                    return {"id": row[0], "task_id": row[1], "origin_query": row[2]}
-                logger.info(f"User query not found. ID: {query_id}")
-                return None
-        except sqlite3.Error as e:
-            logger.error(f"Error fetching user query by ID: {e}")
-            raise
+    def fetch_user_query_by_id(self, query_id: int):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT id, task_id, query, status, created_at, progress FROM user_queries WHERE id = ?', (query_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
-    def fetch_user_queries_by_task_id(self, task_id: str) -> List[Dict[str, Any]]:
-        logger.info(f"Fetching user queries for task_id: {task_id}")
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute('SELECT * FROM user_queries WHERE task_id = ?', (task_id,))
-                rows = cursor.fetchall()
-                logger.info(f"Fetched {len(rows)} user queries for task_id: {task_id}")
-                return [{"id": row[0], "task_id": row[1], "origin_query": row[2]} for row in rows]
-        except sqlite3.Error as e:
-            logger.error(f"Error fetching user queries by task_id: {e}")
-            raise
+    def fetch_user_queries_by_task_id(self, task_id: str):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT id, task_id, query, status, created_at, progress FROM user_queries WHERE task_id = ?', (task_id,))
+            return [dict(row) for row in cursor.fetchall()]
 
     def fetch_tasks(self) -> List[Dict[str, Any]]:
         logger.info("Fetching all tasks")
