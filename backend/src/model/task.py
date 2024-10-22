@@ -9,16 +9,17 @@ import json
 class TaskState(Enum):
     NEW = "1. New"
     CONTEXT_GATHERING = "2. Context Gathering"
-    ANALYSIS = "3. Analysis"
-    CONCEPT_DEFINITION = "4. Concept Definition"
-    METHOD_SELECTION = "5. Method Selection"
-    DECOMPOSITION = "6. Decomposition"
-    METHOD_APPLICATION = "7. Method Application"
-    SOLUTION_DEVELOPMENT = "8. Solution Development"
-    EVALUATION = "9. Evaluation"
-    INTEGRATION = "10. Integration"
-    OUTPUT_GENERATION = "11. Output Generation"
-    COMPLETED = "12. Completed"
+    CONTEXT_GATHERED = "3. Context Gathered"
+    ANALYSIS = "4. Analysis"
+    CONCEPT_DEFINITION = "5. Concept Definition"
+    METHOD_SELECTION = "6. Method Selection"
+    DECOMPOSITION = "7. Decomposition"
+    METHOD_APPLICATION = "8. Method Application"
+    SOLUTION_DEVELOPMENT = "9. Solution Development"
+    EVALUATION = "10. Evaluation"
+    INTEGRATION = "11. Integration"
+    OUTPUT_GENERATION = "12. Output Generation"
+    COMPLETED = "13. Completed"
 
 
 class Task(BaseModel):
@@ -82,10 +83,15 @@ class Task(BaseModel):
             raise ValueError(f"Invalid state transition from {self.state} to {new_state}")
 
     def _is_valid_state_transition(self, new_state: TaskState) -> bool:
+        # Allow transition to the same state
+        if self.state == new_state:
+            return True
+
         # Define valid state transitions
         valid_transitions = {
             TaskState.NEW: [TaskState.CONTEXT_GATHERING],
-            TaskState.CONTEXT_GATHERING: [TaskState.ANALYSIS],
+            TaskState.CONTEXT_GATHERING: [TaskState.CONTEXT_GATHERED],
+            TaskState.CONTEXT_GATHERED: [TaskState.ANALYSIS],
             TaskState.ANALYSIS: [TaskState.CONCEPT_DEFINITION],
             TaskState.CONCEPT_DEFINITION: [TaskState.METHOD_SELECTION],
             TaskState.METHOD_SELECTION: [TaskState.DECOMPOSITION],

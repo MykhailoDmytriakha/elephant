@@ -15,20 +15,15 @@ class ProblemAnalyzer:
         self.db_service = db_service
 
     def clarify_context(self, task: Task) -> ContextSufficiencyResult:
-        task.update_state(TaskState.CONTEXT)
-        for _ in range(self.MAX_RETRY): # TODO: fix range, this logic should be moved to the frontend
-            result = self.openai_service.is_context_sufficient(task)
-            if result["is_context_sufficient"]:
-                break
-            
-        else:
-            if not task.is_context_sufficient:
-                summarized_context = self.openai_service.summarize_context(task.formatted_user_interaction, task.context)
-                task.context = summarized_context
-                task.is_context_sufficient = True
-            print(f"Max retries ({self.MAX_RETRY}) reached. Proceeding with available context.")
-        
-        self.db_service.updated_task(task)
+        task.update_state(TaskState.CONTEXT_GATHERING)
+        result = self.openai_service.is_context_sufficient(task)
+        if result["is_context_sufficient"]:
+            task.is_context_sufficient = True
+            summarized_context = self.openai_service.summarize_context(task.formatted_user_interaction, task.context)
+            task.context = summarized_context
+            task.update_state(TaskState.CONTEXT_GATHERED)
+            self.db_service.updated_task(task)
+                    
         return result
 
     def analyze(self, task: Task):
@@ -39,7 +34,7 @@ class ProblemAnalyzer:
 
         task.task = analysis_result['task']
         task.analysis = analysis_result['analysis']
-        task.update_state(TaskState.ANALYZED)
+        task.update_state(TaskState.ANALYSIS)
         self.db_service.updated_task(task)
 
         # self.analyze_complexity_and_decompose(task)  # TODO: use it by the request from user

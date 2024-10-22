@@ -43,6 +43,8 @@ async def update_task_context(task_id: str, user_interaction: Optional[UserInter
     if task_data is None:
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
     task_dict = json.loads(task_data['task_json'])
+    if task_dict['state'] == TaskState.CONTEXT_GATHERING:
+        raise HTTPException(status_code=400, detail=f"Task is already in the context gathering state. Current state: {task_dict['state']}")
     
     task = Task(**task_dict)
     task.state = TaskState.CONTEXT_GATHERING
@@ -57,6 +59,7 @@ async def update_task_context(task_id: str, user_interaction: Optional[UserInter
     else:
         logger.info(f"User interaction provided: {user_interaction}")
         task.add_user_interaction(user_interaction)
+        db.updated_task(task)
         return analyzer.clarify_context(task)
     
 @router.delete("/", response_model=dict)
