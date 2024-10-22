@@ -7,18 +7,18 @@ from pydantic import BaseModel, Field
 import json
 
 class TaskState(Enum):
-    NEW = "1.1. new"
-    CONTEXT = "1.2. context"
-    ANALYSIS = "2.1. analysis"
-    ANALYZED = "2.2. analyzed"
-    DECOMPOSED = "3. decomposed"
-    CONCEPTS = "4. concept"
-    METHOD_SELECTION = "method_selection"
-    METHOD_APPLICATION = "method_application"
-    SOLUTION = "solution"
-    EVALUATION = "evaluation"
-    INTEGRATION = "integration"
-    OUTPUT = "output"
+    NEW = "1. New"
+    CONTEXT_GATHERING = "2. Context Gathering"
+    ANALYSIS = "3. Analysis"
+    CONCEPT_DEFINITION = "4. Concept Definition"
+    METHOD_SELECTION = "5. Method Selection"
+    DECOMPOSITION = "6. Decomposition"
+    METHOD_APPLICATION = "7. Method Application"
+    SOLUTION_DEVELOPMENT = "8. Solution Development"
+    EVALUATION = "9. Evaluation"
+    INTEGRATION = "10. Integration"
+    OUTPUT_GENERATION = "11. Output Generation"
+    COMPLETED = "12. Completed"
 
 
 class Task(BaseModel):
@@ -75,8 +75,29 @@ class Task(BaseModel):
             return "\n".join([f"Q: {user_interaction.query}\nA: {user_interaction.answer}" for user_interaction in self.user_interaction])
 
     def update_state(self, new_state: TaskState):
-        self.state = new_state
-        self.updated_at = datetime.now().isoformat()
+        if self._is_valid_state_transition(new_state):
+            self.state = new_state
+            self.updated_at = datetime.now().isoformat()
+        else:
+            raise ValueError(f"Invalid state transition from {self.state} to {new_state}")
+
+    def _is_valid_state_transition(self, new_state: TaskState) -> bool:
+        # Define valid state transitions
+        valid_transitions = {
+            TaskState.NEW: [TaskState.CONTEXT_GATHERING],
+            TaskState.CONTEXT_GATHERING: [TaskState.ANALYSIS],
+            TaskState.ANALYSIS: [TaskState.CONCEPT_DEFINITION],
+            TaskState.CONCEPT_DEFINITION: [TaskState.METHOD_SELECTION],
+            TaskState.METHOD_SELECTION: [TaskState.DECOMPOSITION],
+            TaskState.DECOMPOSITION: [TaskState.METHOD_APPLICATION],
+            TaskState.METHOD_APPLICATION: [TaskState.SOLUTION_DEVELOPMENT],
+            TaskState.SOLUTION_DEVELOPMENT: [TaskState.EVALUATION],
+            TaskState.EVALUATION: [TaskState.INTEGRATION],
+            TaskState.INTEGRATION: [TaskState.OUTPUT_GENERATION],
+            TaskState.OUTPUT_GENERATION: [TaskState.COMPLETED],
+            TaskState.COMPLETED: []
+        }
+        return new_state in valid_transitions.get(self.state, [])
 
     def to_dict(self) -> dict:
         return json.loads(self.json(by_alias=True))

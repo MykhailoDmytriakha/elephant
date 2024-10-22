@@ -43,6 +43,11 @@ async def get_user_queries(db: DatabaseService = Depends(get_db_service)):
     raw_queries = db.fetch_user_queries()
     return [UserQueryCreate(**query) for query in raw_queries]
 
+@router.delete("/", response_model=dict)
+async def delete_all_user_queries(db: DatabaseService = Depends(get_db_service)):
+    """Delete all user queries"""
+    db.delete_all_user_queries()
+    return {"message": "All user queries deleted successfully"}
 
 @router.get("/{query_id}", response_model=UserQueryDB)
 async def get_user_query(query_id: int, db: DatabaseService = Depends(get_db_service)):

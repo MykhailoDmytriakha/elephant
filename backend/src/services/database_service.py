@@ -212,5 +212,16 @@ class DatabaseService:
                 cursor.execute('DELETE FROM tasks')
                 conn.commit()
                 logger.info("All tasks deleted successfully")
-        except sqlite3.Error as e:  # {{ edit_1 }}
-            logger.error(f"Error deleting all tasks: {e}")  # {{ edit_2 }}
+        except sqlite3.Error as e:
+            logger.error(f"Error deleting all tasks: {e}")
+    
+    def delete_all_user_queries(self):
+        logger.info("Deleting all user queries")
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('DELETE FROM user_queries')
+                conn.commit()
+                logger.info("All user queries deleted successfully")
+        except sqlite3.Error as e:
+            logger.error(f"Error deleting all user queries: {e}")

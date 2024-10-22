@@ -45,7 +45,7 @@ async def update_task_context(task_id: str, user_interaction: Optional[UserInter
     task_dict = json.loads(task_data['task_json'])
     
     task = Task(**task_dict)
-    task.state = TaskState.CONTEXT
+    task.state = TaskState.CONTEXT_GATHERING
     
     # Handle the case where UserInteraction is provided but both query and answer are empty
     if not user_interaction:
