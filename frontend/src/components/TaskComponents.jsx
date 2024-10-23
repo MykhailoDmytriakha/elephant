@@ -1,6 +1,6 @@
 // src/components/TaskComponents.jsx
 import React, { useState } from 'react';
-import { Clock, CheckCircle2, AlertCircle, Send, ExternalLink } from 'lucide-react';
+import { Clock, CheckCircle2, AlertCircle, Send, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { getStateColor, getReadableState } from '../constants/taskStates';
 
 export const StatusBadge = ({ state }) => {
@@ -55,6 +55,7 @@ export const ContextChat = ({ messages = [], onSendMessage, disabled = false }) 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="p-4 max-h-96 overflow-y-auto">
+
         {messages.map((msg, index) => (
           <ChatMessage
             key={index}
@@ -135,3 +136,24 @@ export const ProgressBar = ({ progress }) => (
     <span className="mt-1 text-sm text-gray-600">{progress}% Complete</span>
   </div>
 );
+
+export const CollapsibleSection = ({ title, children }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div 
+        className="flex justify-between items-center cursor-pointer p-4 border-b border-gray-200"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
+      </div>
+      {isExpanded && (
+        <div className="p-4 transition-all duration-200">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};

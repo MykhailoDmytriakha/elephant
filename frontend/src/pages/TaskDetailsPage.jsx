@@ -10,7 +10,8 @@ import {
   ErrorDisplay,
   ConceptBadge,
   ThemeBadge,
-  ProgressBar
+  ProgressBar,
+  CollapsibleSection
 } from '../components/TaskComponents';
 import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateConcepts } from '../utils/api';
 import { TaskStates } from '../constants/taskStates';
@@ -156,7 +157,7 @@ export default function TaskDetailsPage() {
     // Check if analysis is empty object or null/undefined
     if (!task.analysis || Object.keys(task.analysis).length === 0) {
       return (
-        <InfoCard title="Analysis">
+        <CollapsibleSection title="Analysis">
           <div className="text-center py-8">
             <button
               onClick={handleAnalyze}
@@ -176,28 +177,13 @@ export default function TaskDetailsPage() {
               )}
             </button>
           </div>
-        </InfoCard>
+        </CollapsibleSection>
       );
     }
 
     return (
-      <InfoCard title="Analysis Results">
+      <CollapsibleSection title="Analysis Results">
         <div className="space-y-6">
-          {/* Keep existing sentiment distribution section if needed */}
-          {task.analysis.sentiment_distribution && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-4">Sentiment Distribution</h3>
-              <div className="grid grid-cols-3 gap-4">
-                {Object.entries(task.analysis.sentiment_distribution).map(([sentiment, percentage]) => (
-                  <div key={sentiment}>
-                    <div className="text-2xl font-semibold">{percentage}%</div>
-                    <div className="text-gray-500 capitalize">{sentiment}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Parameters and Constraints */}
           {task.analysis.parameters_constraints && (
             <div>
@@ -261,7 +247,7 @@ export default function TaskDetailsPage() {
           {/* Keep existing themes and insights sections if needed */}
           {/* ... existing theme and insights code ... */}
         </div>
-      </InfoCard>
+      </CollapsibleSection>
     );
   };
 
@@ -313,17 +299,17 @@ export default function TaskDetailsPage() {
         <div className="grid grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="col-span-2 space-y-6">
-            <InfoCard title="Overview">
+            <CollapsibleSection title="Overview">
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Description</h3>
                   <p className="mt-1 text-gray-900">{task.short_description}</p>
                 </div>
                 {task.task && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Task</h3>
-                    <p className="mt-1 text-gray-900">{task.task}</p>
-                  </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Task</h3>
+                  <p className="mt-1 text-gray-900">{task.task}</p>
+                </div>
                 )}
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Context</h3>
@@ -357,7 +343,7 @@ export default function TaskDetailsPage() {
                   </div>
                 )}
               </div>
-            </InfoCard>
+            </CollapsibleSection>
 
             {isChatOpen && (
               <InfoCard title={
@@ -403,13 +389,15 @@ export default function TaskDetailsPage() {
             )}
 
             {shouldShowConcepts() && (
-              <ConceptDefinition
-                concepts={task.concepts}
-                isLoading={isGeneratingConcepts}
-                onGenerateConcepts={handleGenerateConcepts}
-                taskState={task.state}
-                isContextSufficient={isContextSufficient}
-              />
+              <CollapsibleSection title="Concept Definition">
+                <ConceptDefinition
+                  concepts={task.concepts}
+                  isLoading={isGeneratingConcepts}
+                  onGenerateConcepts={handleGenerateConcepts}
+                  taskState={task.state}
+                  isContextSufficient={isContextSufficient}
+                />
+              </CollapsibleSection>
             )}
           </div>
 
