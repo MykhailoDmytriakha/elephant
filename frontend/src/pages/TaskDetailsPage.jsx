@@ -313,7 +313,18 @@ export default function TaskDetailsPage() {
                 )}
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Context</h3>
-                  <p className="mt-1 text-gray-900">{task.context || 'No context provided'}</p>
+                  <div className="flex items-start justify-between gap-4">
+                    <p className="mt-1 text-gray-900 flex-grow">{task.context || 'No context provided'}</p>
+                    {isContextSufficient && (
+                      <button
+                        onClick={toggleChatWindow}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        {/* <span>Chat</span> */}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {(!isContextSufficient || task.state === TaskStates.CONTEXT_GATHERING) && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
