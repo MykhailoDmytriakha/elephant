@@ -1,21 +1,17 @@
 // src/pages/TaskDetailsPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, Trash2, ExternalLink, RefreshCcw, Send, MessageCircle, X, BarChart2 } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 import { 
-  StatusBadge, 
-  InfoCard, 
-  ContextChat, 
   LoadingSpinner,
-  ErrorDisplay,
-  ConceptBadge,
-  ThemeBadge,
-  ProgressBar,
-  CollapsibleSection
-} from '../components/TaskComponents';
+  ErrorDisplay} from '../components/task/TaskComponents';
 import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateConcepts } from '../utils/api';
 import { TaskStates } from '../constants/taskStates';
-import ConceptDefinition from '../components/ConceptDefinition';
+import ConceptDefinition from '../components/task/ConceptDefinition';
+import TaskOverview from '../components/task/TaskOverview';
+import Analysis from '../components/task/Analysis';
+import ContextChatWindow from '../components/task/ContextChatWindow';
+import Metadata from '../components/task/Metadata';
 
 export default function TaskDetailsPage() {
   const { taskId } = useParams();
@@ -102,9 +98,6 @@ export default function TaskDetailsPage() {
     setIsChatOpen(false);
   };
 
-  const handleOpenChatWindow = () => {
-    setIsChatOpen(true);
-  };
 
   // Update this part to correctly handle the user interaction and follow-up question
   const chatMessages = [
@@ -149,117 +142,10 @@ export default function TaskDetailsPage() {
     }
   };
 
-  const renderAnalysisSection = () => {
-    if (!isContextSufficient) {
-      return null;
-    }
-
-    // Check if analysis is empty object or null/undefined
-    if (!task.analysis || Object.keys(task.analysis).length === 0) {
-      return (
-        <CollapsibleSection title="Analysis">
-          <div className="text-center py-8">
-            <button
-              onClick={handleAnalyze}
-              disabled={isAnalyzing}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
-            >
-              {isAnalyzing ? (
-                <>
-                  <RefreshCcw className="w-5 h-5 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <BarChart2 className="w-5 h-5" />
-                  Start Analysis
-                </>
-              )}
-            </button>
-          </div>
-        </CollapsibleSection>
-      );
-    }
-
-    return (
-      <CollapsibleSection title="Analysis Results">
-        <div className="space-y-6">
-          {/* Parameters and Constraints */}
-          {task.analysis.parameters_constraints && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Parameters & Constraints</h3>
-              <p className="text-gray-700">{task.analysis.parameters_constraints}</p>
-            </div>
-          )}
-
-          {/* Available Resources */}
-          {task.analysis.available_resources?.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Available Resources</h3>
-              <ul className="list-disc list-inside space-y-1">
-                {task.analysis.available_resources.map((resource, index) => (
-                  <li key={index} className="text-gray-700">{resource}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Required Resources */}
-          {task.analysis.required_resources?.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Required Resources</h3>
-              <ul className="list-disc list-inside space-y-1">
-                {task.analysis.required_resources.map((resource, index) => (
-                  <li key={index} className="text-gray-700">{resource}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Ideal Final Result */}
-          {task.analysis.ideal_final_result && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Ideal Final Result</h3>
-              <p className="text-gray-700">{task.analysis.ideal_final_result}</p>
-            </div>
-          )}
-
-          {/* Missing Information */}
-          {task.analysis.missing_information?.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Missing Information</h3>
-              <ul className="list-disc list-inside space-y-1">
-                {task.analysis.missing_information.map((info, index) => (
-                  <li key={index} className="text-gray-700">{info}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Complexity */}
-          {task.analysis.complexity && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Complexity Level</h3>
-              <p className="text-gray-700">{task.analysis.complexity}</p>
-            </div>
-          )}
-
-          {/* Keep existing themes and insights sections if needed */}
-          {/* ... existing theme and insights code ... */}
-        </div>
-      </CollapsibleSection>
-    );
-  };
-
-  const shouldShowConcepts = () => {
-    return task.state === TaskStates.ANALYSIS || task.state === TaskStates.CONCEPT_DEFINITION;
-  };
-
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorDisplay message={error} />;
   if (!task) return <ErrorDisplay message="Task not found" />;
 
-  const isContextGatheringCompleted = task.state !== TaskStates.CONTEXT_GATHERING && task.is_context_sufficient;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -299,166 +185,40 @@ export default function TaskDetailsPage() {
         <div className="grid grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="col-span-2 space-y-6">
-            <CollapsibleSection title="Overview">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Description</h3>
-                  <p className="mt-1 text-gray-900">{task.short_description}</p>
-                </div>
-                {task.task && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Task</h3>
-                  <p className="mt-1 text-gray-900">{task.task}</p>
-                </div>
-                )}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Context</h3>
-                  <div className="flex items-start justify-between gap-4">
-                    <p className="mt-1 text-gray-900 flex-grow">{task.context || 'No context provided'}</p>
-                    {isContextSufficient && (
-                      <button
-                        onClick={toggleChatWindow}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        {/* <span>Chat</span> */}
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {(!isContextSufficient || task.state === TaskStates.CONTEXT_GATHERING) && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                      <div>
-                        <h4 className="text-sm font-medium text-yellow-800">Additional Context Needed</h4>
-                        <p className="text-sm text-yellow-700">What specific time period should we analyze?</p>
-                        <button
-                          onClick={toggleChatWindow}
-                          className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors"
-                        >
-                          {isChatOpen ? (
-                            <>
-                              <X className="w-5 h-5" />
-                              <span>Hide Conversation</span>
-                            </>
-                          ) : (
-                            <>
-                              <MessageCircle className="w-5 h-5" />
-                              <span>Continue Conversation</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CollapsibleSection>
+            <TaskOverview
+              task={task}
+              isContextSufficient={isContextSufficient}
+              isChatOpen={isChatOpen}
+              toggleChatWindow={toggleChatWindow}
+            />
 
-            {isChatOpen && (
-              <InfoCard title={
-                <div className="flex justify-between items-center">
-                  <span>Context Discussion</span>
-                  <button 
-                    onClick={toggleChatWindow}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              }>
-                <ContextChat 
-                  messages={chatMessages}
-                  onSendMessage={handleSendMessage}
-                  disabled={isContextSufficient}
-                />
-              </InfoCard>
-            )}
+            <ContextChatWindow 
+              isOpen={isChatOpen}
+              messages={chatMessages}
+              onSendMessage={handleSendMessage}
+              onClose={handleCloseChatWindow}
+              isContextSufficient={isContextSufficient}
+            />
 
-            {renderAnalysisSection()}
+            <Analysis 
+              analysis={task.analysis}
+              isContextSufficient={isContextSufficient}
+              isAnalyzing={isAnalyzing}
+              onAnalyze={handleAnalyze}
+            />
 
-            {task.concepts?.length > 0 && (
-              <InfoCard title="Related Concepts">
-                <div className="flex flex-wrap gap-2">
-                  {['Sentiment Analysis', 'Natural Language Processing', 'Topic Modeling'].map((concept) => (
-                    <a
-                      key={concept}
-                      href="#"
-                      className="inline-flex items-center text-blue-600 hover:text-blue-800"
-                    >
-                      {concept}
-                      <svg className="w-4 h-4 ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-                        <path d="M15 3h6v6" />
-                        <path d="M10 14L21 3" />
-                      </svg>
-                    </a>
-                  ))}
-                </div>
-              </InfoCard>
-            )}
-
-            {shouldShowConcepts() && (
-              <CollapsibleSection title="Concept Definition">
-                <ConceptDefinition
-                  concepts={task.concepts}
-                  isLoading={isGeneratingConcepts}
-                  onGenerateConcepts={handleGenerateConcepts}
-                  taskState={task.state}
-                  isContextSufficient={isContextSufficient}
-                />
-              </CollapsibleSection>
-            )}
+            <ConceptDefinition
+              concepts={task.concepts}
+              isLoading={isGeneratingConcepts}
+              onGenerateConcepts={handleGenerateConcepts}
+              taskState={task.state}
+              isContextSufficient={isContextSufficient}
+            />
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <InfoCard title="Metadata">
-              <div className="space-y-3">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Task ID</h3>
-                  <p className="mt-1 text-gray-900 font-mono">{task.id}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Created</h3>
-                  <p className="mt-1 text-gray-900">
-                    {new Date(task.created_at).toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
-                  <p className="mt-1 text-gray-900">
-                    {new Date(task.updated_at).toLocaleString()}
-                  </p>
-                </div>
-                {task.progress !== undefined && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Progress</h3>
-                    <ProgressBar progress={task.progress} />
-                  </div>
-                )}
-                {task.sub_tasks?.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Sub Tasks</h3>
-                    <div className="mt-2 space-y-2">
-                      {task.sub_tasks.map(subTask => (
-                        <div 
-                          key={subTask.id}
-                          onClick={() => navigate(`/tasks/${subTask.id}`)}
-                          className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <StatusBadge state={subTask.state} />
-                          </div>
-                          <p className="text-sm text-gray-900">{subTask.short_description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </InfoCard>
+            <Metadata task={task} />
           </div>
         </div>
       </div>

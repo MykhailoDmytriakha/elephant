@@ -207,7 +207,7 @@ class OpenAIService:
                                 "properties": {
                                     "task": {
                                         "type": "string",
-                                        "description": "The sub-task description"
+                                        "description": "The comprehensive description of the sub-task to be performed"
                                     },
                                     "context": {
                                         "type": "string",
@@ -245,6 +245,7 @@ class OpenAIService:
         Ideal Final Result: {task.analysis.get('ideal_final_result', 'N/A')}
         Context: {context}
         Analysis: {json.dumps(task.analysis)}
+        Concepts: {json.dumps(task.concepts)}
         Original Task Complexity: {original_complexity}
 
         Provide a list of sub-tasks, each with its own description, context, and complexity.

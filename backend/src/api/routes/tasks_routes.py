@@ -3,7 +3,7 @@ from typing import Tuple, Optional
 from src.model.context import ContextSufficiencyResult
 from src.api.deps import get_problem_analyzer, get_db_service
 from src.model.task import Task, TaskState
-from src.schemas.task import AnalysisResult, DecompositionResult, ConceptFormationResult
+from src.schemas.task import AnalysisResult, DecompositionResult, ConceptFormationResult, MethodSelectionResult
 from src.schemas.user_query import UserQuery
 from src.services.problem_analyzer import ProblemAnalyzer
 from src.services.database_service import DatabaseService
@@ -137,7 +137,13 @@ async def generate_concepts(task_id: str, analyzer: ProblemAnalyzer = Depends(ge
         resources_per_concept=concept_definition['resources_per_concept']
     )
     return concept_result
-    
+
+# TODO: add method selection
+@router.post("/{task_id}/method_selection", response_model=MethodSelectionResult)
+async def method_selection(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):
+    """Select a method for a specific task"""
+    # Implementation here
+
     
 @router.post("/{task_id}/decompose", response_model=DecompositionResult)
 async def decompose_task(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):

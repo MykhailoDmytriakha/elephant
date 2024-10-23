@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, AlertCircle } from 'lucide-react';
-import QueryList from '../components/QueryList';
-import CreateQueryModal from '../components/CreateQueryModal';
+import QueryList from '../components/query/QueryList';
+import CreateQueryModal from '../components/query/CreateQueryModal';
 import { fetchQueries } from '../utils/api';
 
 const MainPage = () => {

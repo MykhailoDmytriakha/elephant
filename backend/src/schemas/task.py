@@ -51,5 +51,7 @@ class TaskUpdate(BaseModel):
     short_description: Optional[str] = Field(None, description="Updated brief description of the task")
     state: Optional[str] = Field(None, description="Updated state of the task")
 
+class MethodSelectionResult(BaseModel):
+    method: str = Field(..., description="Selected method for the task")
 
-Task.update_forward_refs()
+Task.model_rebuild()

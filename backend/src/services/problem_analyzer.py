@@ -7,7 +7,6 @@ from src.user_interaction import UserInteraction
 
 
 class ProblemAnalyzer:
-    MAX_RETRY = 1
     MAX_SUB_LEVEL = 1
 
     def __init__(self, openai_service: OpenAIService, db_service: DatabaseService):
@@ -41,7 +40,13 @@ class ProblemAnalyzer:
         task.update_state(TaskState.ANALYSIS)
         self.db_service.updated_task(task)
 
-        # self.analyze_complexity_and_decompose(task)  # TODO: use it by the request from user
+    def concept_definition(self, task: Task):
+        concept_definition = self.openai_service.generate_concepts(task)
+        concepts = concept_definition['concepts']
+        task.concepts = concepts
+        task.update_state(TaskState.CONCEPT_DEFINITION)
+        self.db_service.updated_task(task)
+        return concepts
 
     def decompose(self, task: Task) -> dict:
         complexity = int(task.analysis['complexity'])
@@ -95,11 +100,3 @@ class ProblemAnalyzer:
             print(f"Reached maximum sub-task level ({task.sub_level}). Skipping further decomposition.")
             return True
         return False
-
-    def concept_definition(self, task: Task):
-        concept_definition = self.openai_service.generate_concepts(task)
-        concepts = concept_definition['concepts']
-        task.concepts = concepts
-        task.update_state(TaskState.CONCEPT_DEFINITION)
-        self.db_service.updated_task(task)
-        return concepts
