@@ -117,9 +117,42 @@ class OpenAIService:
                         "analysis": {
                             "type": "object",
                             "properties": {
-                                "parameters_constraints": {
+                                "ideal_final_result": {
                                     "type": "string",
-                                    "description": "Key parameters and constraints that affect the task"
+                                    "description": "Ideal Final Result - The specific goals or results expected from solving the task"
+                                },
+                                "parameters": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Key parameters that affect the task"
+                                },
+                                "constraints": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Key constraints that affect the task"
+                                },
+                                "current_limitations": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Current limitations or drawbacks in the system"
+                                },
+                                "contradictions": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "improving_parameter": {
+                                                "type": "string",
+                                                "description": "Parameter we want to improve"
+                                            },
+                                            "worsening_parameter": {
+                                                "type": "string",
+                                                "description": "Parameter that worsens as a result"
+                                            }
+                                        },
+                                        "required": ["improving_parameter", "worsening_parameter"]
+                                    },
+                                    "description": "Technical and physical contradictions identified in the system"
                                 },
                                 "available_resources": {
                                     "type": "array",
@@ -131,10 +164,6 @@ class OpenAIService:
                                     "items": {"type": "string"},
                                     "description": "Details of the resources required for solving the task"
                                 },
-                                "ideal_final_result": {
-                                    "type": "string",
-                                    "description": "Ideal Final Result - The specific goals or results expected from solving the task"
-                                },
                                 "missing_information": {
                                     "type": "array",
                                     "items": {"type": "string"},
@@ -144,10 +173,25 @@ class OpenAIService:
                                     "type": "string",
                                     "enum": ["1", "2", "3", "4", "5"],
                                     "description": "Level of complexity of the task (1: simple, 2: low, 3: medium, 4: high, 5: very high)"
+                                },
+                                "eta": {
+                                    "type": "object",
+                                    "properties": {
+                                        "time": {
+                                            "type": "string",
+                                            "description": "Estimated time to complete the task"
+                                        },
+                                        "reasoning": {
+                                            "type": "string",
+                                            "description": "Reasoning about the estimated time to complete the task"
+                                        }
+                                    },
+                                    "required": ["time", "reasoning"]
                                 }
                             },
-                            "required": ["parameters_constraints", "available_resources", "required_resources", "ifr",
-                                         "missing_information", "complexity"]
+                            "required": ["ideal_final_result", "parameters", "constraints", "current_limitations", "contradictions", 
+                                         "available_resources", "required_resources",
+                                         "missing_information", "complexity", "eta"]
                         }
                     },
                     "required": ["task", "analysis"]
@@ -285,12 +329,12 @@ class OpenAIService:
             logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
 
-    def generate_concepts(self, task: Task) -> dict:
+    def generate_concepts(self, task: Task) -> list[dict]:
         logger.info("Called generate_concepts method")
         functions = [
             {
                 "name": "generate_concepts",
-                "description": "Generate concepts and ideas to solve the given task.",
+                "description": "Generate concepts and ideas following TOP-TRIZ methodology for systematic innovation",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -303,42 +347,202 @@ class OpenAIService:
                                 },
                                 "ideas": {
                                     "type": "array",
-                                    "items": {"type": "string"},
+                                    "items": { "type": "string" },
                                     "description": "List of ideas generated to solve the problem"
                                 },
                                 "TOP_TRIZ_principles": {
                                     "type": "array",
-                                    "items": {"type": "string"},
+                                    "items": { "type": "string" },
                                     "description": "TRIZ, ARIZ, TOP-TRIZ principles that should be applied to generate innovative solutions."
                                 },
                                 "solution_approaches": {
                                     "type": "array",
-                                    "items": {"type": "string"},
+                                    "items": { "type": "string" },
                                     "description": "Different approaches that could potentially solve the problem in format: {TOP_TRIZ_principle}: {approach description}"
                                 },
                                 "resources_per_concept": {
                                     "type": "array",
                                     "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "concept": {
-                                                "type": "string",
-                                                "description": "Concept or idea to solve the problem"
-                                            },
-                                            "resources": {
-                                                "type": "string",
-                                                "description": "Analysis of resources required for each potential solution concept"
-                                            }
+                                    "type": "object",
+                                    "properties": {
+                                        "concept": {
+                                            "type": "string",
+                                            "description": "Concept or idea to solve the problem"
                                         },
-                                        "required": ["concept", "resources"]
+                                        "resources": {
+                                            "type": "string",
+                                            "description": "Analysis of resources required for each potential solution concept"
+                                        }
+                                    },
+                                    "required": ["concept", "resources"]
                                     },
                                     "description": "Analysis of resources required for each potential solution concept"
                                 }
                             },
-                            "required": ["contribution_to_parent_task", "ideas", "TOP_TRIZ_applied", "solution_approaches", "resources_per_concept"]
+                            "required": [
+                                "contribution_to_parent_task",
+                                "ideas",
+                                "TOP_TRIZ_principles",
+                                "solution_approaches",
+                                "resources_per_concept"
+                            ]
                         }
                     },
                     "required": ["concepts"]
+                }
+            },
+            {
+                "name": "concept_list",
+                "description": "List of generated concepts",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "approach": {
+                            "type": "object",
+                            "properties": {
+                                "initial_problem": {
+                                    "type": "object",
+                                    "properties": {
+                                        "problem_statement": {
+                                            "type": "string",
+                                            "description": "Clear description of the initial problem to be solved"
+                                        },
+                                        "system_purpose": {
+                                            "type": "string",
+                                            "description": "Main useful function or purpose of the system"
+                                        },
+                                        "current_limitations": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                            "description": "Current limitations or drawbacks in the system"
+                                        }
+                                    },
+                                    "required": ["problem_statement", "system_purpose", "current_limitations"]
+                                },
+                                "contradictions": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "improving_parameter": {
+                                                "type": "string",
+                                                "description": "Parameter we want to improve"
+                                            },
+                                            "worsening_parameter": {
+                                                "type": "string",
+                                                "description": "Parameter that worsens as a result"
+                                            }
+                                        },
+                                        "required": ["improving_parameter", "worsening_parameter"]
+                                    },
+                                    "description": "Technical and physical contradictions identified in the system"
+                                },
+                                "concept_list": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "concept_id": {
+                                                "type": "string",
+                                                "description": "Unique identifier for the concept (e.g., 'C1', 'C2' up to 'C5')"
+                                            },
+                                            "description": {
+                                                "type": "string",
+                                                "description": "Detailed description of the concept"
+                                            },
+                                            "applied_principles": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "principle_name": {
+                                                            "type": "string",
+                                                            "description": "Name of the TOP-TRIZ principle applied"
+                                                        },
+                                                        "application_description": {
+                                                            "type": "string",
+                                                            "description": "How the principle is applied in this concept"
+                                                        }
+                                                    },
+                                                    "required": ["principle_name", "application_description"]
+                                                }
+                                            }
+                                        },
+                                        "required": ["concept_id", "description", "applied_principles"]
+                                    },
+                                    "description": "List of generated concepts"
+                                },
+                                "resources_analysis": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "concept_id": {
+                                                "type": "string",
+                                                "description": "Reference to the concept"
+                                            },
+                                            "substance_resources": {
+                                                "type": "array",
+                                                "items": {"type": "string"},
+                                                "description": "Available substance resources for the concept"
+                                            },
+                                            "field_resources": {
+                                                "type": "array",
+                                                "items": {"type": "string"},
+                                                "description": "Available field resources for the concept"
+                                            },
+                                            "space_resources": {
+                                                "type": "array",
+                                                "items": {"type": "string"},
+                                                "description": "Available space resources for the concept"
+                                            },
+                                            "time_resources": {
+                                                "type": "array",
+                                                "items": {"type": "string"},
+                                                "description": "Available time resources for the concept"
+                                            }
+                                        },
+                                        "required": ["concept_id", "substance_resources", "field_resources", "space_resources", "time_resources"]
+                                    },
+                                    "description": "Analysis of available resources for each concept"
+                                },
+                                "evaluation_criteria": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "concept_id": {
+                                                "type": "string",
+                                                "description": "Reference to the concept"
+                                            },
+                                            "ideality_score": {
+                                                "type": "number",
+                                                "description": "Score based on the Ideal Final Result (IFR) principle"
+                                            },
+                                            "feasibility": {
+                                                "type": "number",
+                                                "description": "Technical feasibility score (0-1)"
+                                            },
+                                            "resource_efficiency": {
+                                                "type": "number",
+                                                "description": "Score for efficient use of available resources (0-1)"
+                                            }
+                                        },
+                                        "required": ["concept_id", "ideality_score", "feasibility", "resource_efficiency"]
+                                    },
+                                    "description": "Evaluation criteria for each concept"
+                                }
+                            },
+                            "required": [
+                                "initial_problem",
+                                "contradictions",
+                                "concept_list",
+                                "resources_analysis",
+                                "evaluation_criteria"
+                            ]
+                        }
+                    },
+                    "required": ["approach"]
                 }
             }
         ]
@@ -356,32 +560,36 @@ class OpenAIService:
         Include a description of how each concept contributes to solving the parent task.
         """
         logger.debug(f"OpenAI API prompt: {prompt}")
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            functions=functions,
-            function_call={"name": "generate_concepts"}
-        )
+        results = []
+        for function in functions:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                functions=[function],
+                function_call={"name": function["name"]}
+            )
 
-        function_call = response.choices[0].message.function_call
-        if function_call:
-            result = json.loads(function_call.arguments)
-            logger.debug(f"OpenAI API response: {result}")
-            return result
-        else:
-            fallback_result = {
-                "concepts": {
-                    "contribution_to_parent_task": "Unable to generate concepts",
-                    "ideas": ["Concept generation failed"],
-                    "TOP_TRIZ_applied": False,
-                    "solution_approaches": ["Concept generation failed"],
-                    "resources_per_concept": [
-                        {
-                            "concept": "Concept generation failed",
-                            "resources": "N/A"
-                        }
-                    ]
+            function_call = response.choices[0].message.function_call
+            if function_call:
+                result = json.loads(function_call.arguments)
+                logger.debug(f"OpenAI API response for {function['name']}: {result}")
+                results.append(result)
+            else:
+                fallback_result = {
+                    "concepts": {
+                        "contribution_to_parent_task": "Unable to generate concepts",
+                        "ideas": ["Concept generation failed"],
+                        "TOP_TRIZ_applied": False,
+                        "solution_approaches": ["Concept generation failed"],
+                        "resources_per_concept": [
+                            {
+                                "concept": "Concept generation failed",
+                                "resources": "N/A"
+                            }
+                        ]
+                    }
                 }
-            }
-            logger.warning(f"OpenAI API fallback response: {fallback_result}")
-            return fallback_result
+                logger.warning(f"OpenAI API fallback response: {fallback_result}")
+                results.append(fallback_result)
+        return results
+

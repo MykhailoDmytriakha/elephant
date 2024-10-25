@@ -30,19 +30,21 @@ class ProblemAnalyzer:
                     
         return result
 
-    def analyze(self, task: Task):
+    def analyze(self, task: Task, reAnalyze: bool = False):
         if self._is_max_sub_level_reached(task):
             return
         analysis_result = self.openai_service.analyze_task(task)
 
         task.task = analysis_result['task']
         task.analysis = analysis_result['analysis']
-        task.update_state(TaskState.ANALYSIS)
+        if not reAnalyze:
+            task.update_state(TaskState.ANALYSIS)
         self.db_service.updated_task(task)
 
     def concept_definition(self, task: Task):
-        concept_definition = self.openai_service.generate_concepts(task)
-        concepts = concept_definition['concepts']
+        concept_definitions = self.openai_service.generate_concepts(task)
+        concepts = concept_definitions[0]['concepts']
+        concepts['approach'] = concept_definitions[1]['approach']
         task.concepts = concepts
         task.update_state(TaskState.CONCEPT_DEFINITION)
         self.db_service.updated_task(task)

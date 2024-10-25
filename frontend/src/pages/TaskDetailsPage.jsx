@@ -108,10 +108,10 @@ export default function TaskDetailsPage() {
     ...(followUpQuestion ? [{ role: 'assistant', content: followUpQuestion }] : [])
   ];
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (isReanalyze = false) => {
     try {
       setIsAnalyzing(true);
-      await analyzeTask(taskId);
+      await analyzeTask(taskId, isReanalyze);
       await loadTask(); // Reload task to get updated analysis
     } catch (err) {
       setError('Failed to analyze task: ' + err.message);

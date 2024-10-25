@@ -85,7 +85,7 @@ async def delete_task(task_id: str, db: DatabaseService = Depends(get_db_service
 
 
 @router.post("/{task_id}/analyze", response_model=AnalysisResult)
-async def analyze_task(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
+async def analyze_task(task_id: str, reAnalyze: bool = False, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
     """Analyze a specific task"""
     # Fetch the task from the database
     task_data = db.fetch_task_by_id(task_id)
@@ -97,15 +97,16 @@ async def analyze_task(task_id: str, analyzer: ProblemAnalyzer = Depends(get_pro
     task_dict = json.loads(task_data['task_json'])
     task = Task(**task_dict)
     
-    # Check if the task is in the correct state for analysis
-    if task.state == TaskState.NEW or task.state == TaskState.CONTEXT_GATHERING:
-        raise HTTPException(status_code=400, detail=f"Task is not in the correct state for analysis. Current state: {task.state}")
-    
-    if task.state != TaskState.CONTEXT_GATHERED or task.is_context_sufficient == False:
-        raise HTTPException(status_code=400, detail=f"Task is not in the correct state for analysis. Current state: {task.state}")
+    # Check if the task is in the correct state for analysis, unless force is True
+    if not reAnalyze:
+        if task.state == TaskState.NEW or task.state == TaskState.CONTEXT_GATHERING:
+            raise HTTPException(status_code=400, detail=f"Task is not in the correct state for analysis. Current state: {task.state}")
+        
+        if task.state != TaskState.CONTEXT_GATHERED or task.is_context_sufficient == False:
+            raise HTTPException(status_code=400, detail=f"Task is not in the correct state for analysis. Current state: {task.state}")
     
     # Perform the analysis
-    analyzer.analyze(task)
+    analyzer.analyze(task, reAnalyze)
     
     # Create and return the AnalysisResult
     analysis_result = AnalysisResult(
