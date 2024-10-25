@@ -5,13 +5,14 @@ import { ArrowLeft, Trash2 } from 'lucide-react';
 import { 
   LoadingSpinner,
   ErrorDisplay} from '../components/task/TaskComponents';
-import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateConcepts } from '../utils/api';
+import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateApproaches } from '../utils/api';
 import { TaskStates } from '../constants/taskStates';
 import ConceptDefinition from '../components/task/ConceptDefinition';
 import TaskOverview from '../components/task/TaskOverview';
 import Analysis from '../components/task/Analysis';
 import ContextChatWindow from '../components/task/ContextChatWindow';
 import Metadata from '../components/task/Metadata';
+import ApproachFormation from '../components/task/ApproachFormation';
 
 export default function TaskDetailsPage() {
   const { taskId } = useParams();
@@ -24,6 +25,7 @@ export default function TaskDetailsPage() {
   const [isContextSufficient, setIsContextSufficient] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGeneratingConcepts, setIsGeneratingConcepts] = useState(false);
+  const [isRegeneratingApproaches, setIsRegeneratingApproaches] = useState(false);
 
   const loadTask = async () => {
     try {
@@ -69,22 +71,14 @@ export default function TaskDetailsPage() {
     try {
       const updatedContext = await updateTaskContext(taskId, { "query": followUpQuestion, "answer": message });
       console.log("Updated context:", updatedContext);
-      
-      // Handle the case when context becomes sufficient
-      if (updatedContext.is_context_sufficient && !updatedContext.follow_up_question) {
-        setIsContextSufficient(true);
+      setIsContextSufficient(updatedContext.is_context_sufficient); 
+      if (updatedContext.is_context_sufficient) {
         setFollowUpQuestion(null);
-        // setIsChatOpen(false);  // Close the chat window
-        
-        // Refresh the task data to get the latest state
-        const updatedTask = await fetchTaskDetails(taskId);
-        setTask(updatedTask);
       } else {
-        // Handle normal follow-up questions
         setFollowUpQuestion(updatedContext.follow_up_question);
-        const updatedTask = await fetchTaskDetails(taskId);
-        setTask(updatedTask);
       }
+      const updatedTask = await fetchTaskDetails(taskId);
+      setTask(updatedTask);
     } catch (error) {
       setError('Failed to send message: ' + error.message);
     }
@@ -124,7 +118,7 @@ export default function TaskDetailsPage() {
     try {
       setIsGeneratingConcepts(true);
       console.log("Starting concept generation...");
-      const conceptResponse = await generateConcepts(taskId);
+      const conceptResponse = await generateApproaches(taskId);
       console.log("Generate concepts response:", conceptResponse);
       
       // Add a small delay before fetching updated task
@@ -139,6 +133,18 @@ export default function TaskDetailsPage() {
       setError('Failed to generate concepts: ' + err.message);
     } finally {
       setIsGeneratingConcepts(false);
+    }
+  };
+
+  const handleRegenerateApproaches = async () => {
+    try {
+      setIsRegeneratingApproaches(true);
+      await generateApproaches(taskId);
+      await loadTask(); // Reload task to get updated approaches
+    } catch (err) {
+      setError('Failed to regenerate approaches: ' + err.message);
+    } finally {
+      setIsRegeneratingApproaches(false);
     }
   };
 
@@ -207,12 +213,19 @@ export default function TaskDetailsPage() {
               onAnalyze={handleAnalyze}
             />
 
-            <ConceptDefinition
+            {/* <ConceptDefinition
               concepts={task.concepts}
               isLoading={isGeneratingConcepts}
               onGenerateConcepts={handleGenerateConcepts}
               taskState={task.state}
               isContextSufficient={isContextSufficient}
+            /> */}
+
+            <ApproachFormation 
+              approaches={task.approaches}
+              onRegenerateApproaches={handleRegenerateApproaches}
+              isRegenerating={isRegeneratingApproaches}
+              taskState={task.state}
             />
           </div>
 

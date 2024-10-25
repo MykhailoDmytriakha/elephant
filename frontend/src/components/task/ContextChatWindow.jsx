@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Send } from 'lucide-react';
 import { InfoCard } from './TaskComponents';
 
@@ -18,6 +18,15 @@ const ChatMessage = ({ message, isUser }) => (
 
 const ContextChat = ({ messages = [], onSendMessage, disabled = false }) => {
   const [newMessage, setNewMessage] = useState('');
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -37,6 +46,7 @@ const ContextChat = ({ messages = [], onSendMessage, disabled = false }) => {
             isUser={msg.role === 'user'}
           />
         ))}
+        <div ref={messagesEndRef} /> {/* Добавляем элемент для прокрутки */}
       </div>
       
       <form onSubmit={handleSubmit} className="border-t border-gray-200 p-4">

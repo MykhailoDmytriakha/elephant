@@ -57,11 +57,11 @@ export const analyzeTask = async (taskId, isReanalyze = false) => {
   }
 };
 
-export const generateConcepts = async (taskId) => {
+export const generateApproaches = async (taskId) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/concepts`);
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/approaches`);
     return response.data;
   } catch (error) {
-    throw new Error('Failed to generate concepts');
+    throw new Error('Failed to generate approaches');
   }
 };

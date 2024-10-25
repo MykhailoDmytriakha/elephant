@@ -4,7 +4,7 @@ export const TaskStates = {
   CONTEXT_GATHERING: "2. Context Gathering",
   CONTEXT_GATHERED: "3. Context Gathered",
   ANALYSIS: "4. Analysis",
-  CONCEPT_DEFINITION: "5. Concept Definition",
+  APPROACH_FORMATION: "5. Approach Formation",
   METHOD_SELECTION: "6. Method Selection",
   DECOMPOSITION: "7. Decomposition",
   METHOD_APPLICATION: "8. Method Application",

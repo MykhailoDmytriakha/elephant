@@ -11,7 +11,7 @@ class TaskState(Enum):
     CONTEXT_GATHERING = "2. Context Gathering"
     CONTEXT_GATHERED = "3. Context Gathered"
     ANALYSIS = "4. Analysis"
-    CONCEPT_DEFINITION = "5. Concept Definition"
+    APPROACH_FORMATION = "5. Approach Formation"
     METHOD_SELECTION = "6. Method Selection"
     DECOMPOSITION = "7. Decomposition"
     METHOD_APPLICATION = "8. Method Application"
@@ -34,7 +34,7 @@ class Task(BaseModel):
     short_description: Optional[str] = ''
     user_interaction: List[UserInteraction] = Field(default_factory=list)
     analysis: Dict = Field(default_factory=dict)
-    concepts: Dict = Field(default_factory=dict)
+    approaches: Dict = Field(default_factory=dict)
     sub_tasks: List['Task'] = Field(default_factory=list)
     parent_task: Optional['Task'] = None
     
@@ -65,7 +65,7 @@ class Task(BaseModel):
             short_description='',
             user_interaction=[],
             analysis={},
-            concepts={},
+            approaches={},
         )
 
     def add_user_interaction(self, user_interaction: UserInteraction):
@@ -92,8 +92,8 @@ class Task(BaseModel):
             TaskState.NEW: [TaskState.CONTEXT_GATHERING],
             TaskState.CONTEXT_GATHERING: [TaskState.CONTEXT_GATHERED],
             TaskState.CONTEXT_GATHERED: [TaskState.ANALYSIS],
-            TaskState.ANALYSIS: [TaskState.CONCEPT_DEFINITION],
-            TaskState.CONCEPT_DEFINITION: [TaskState.METHOD_SELECTION],
+            TaskState.ANALYSIS: [TaskState.APPROACH_FORMATION],
+            TaskState.APPROACH_FORMATION: [TaskState.METHOD_SELECTION],
             TaskState.METHOD_SELECTION: [TaskState.DECOMPOSITION],
             TaskState.DECOMPOSITION: [TaskState.METHOD_APPLICATION],
             TaskState.METHOD_APPLICATION: [TaskState.SOLUTION_DEVELOPMENT],

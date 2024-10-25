@@ -41,14 +41,13 @@ class ProblemAnalyzer:
             task.update_state(TaskState.ANALYSIS)
         self.db_service.updated_task(task)
 
-    def concept_definition(self, task: Task):
-        concept_definitions = self.openai_service.generate_concepts(task)
-        concepts = concept_definitions[0]['concepts']
-        concepts['approach'] = concept_definitions[1]['approach']
-        task.concepts = concepts
-        task.update_state(TaskState.CONCEPT_DEFINITION)
+    def generate_approaches(self, task: Task):
+        approach_definitions = self.openai_service.generate_approaches(task)
+        approaches = approach_definitions['approaches']
+        task.approaches = approaches
+        task.update_state(TaskState.APPROACH_FORMATION)
         self.db_service.updated_task(task)
-        return concepts
+        return approaches
 
     def decompose(self, task: Task) -> dict:
         complexity = int(task.analysis['complexity'])

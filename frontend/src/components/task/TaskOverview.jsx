@@ -27,7 +27,7 @@ const TaskOverview = ({
         <div>
           <h3 className="text-sm font-medium text-gray-500">Context</h3>
           <div className="flex items-start justify-between gap-4">
-            <p className="mt-1 text-gray-900 flex-grow">
+            <p className="mt-1 text-gray-900 flex-grow whitespace-pre-line">
               {task.context || "No context provided"}
             </p>
             {isContextSufficient && (
@@ -50,9 +50,9 @@ const TaskOverview = ({
                 <h4 className="text-sm font-medium text-yellow-800">
                   Additional Context Needed
                 </h4>
-                <p className="text-sm text-yellow-700">
+                {/* <p className="text-sm text-yellow-700">
                   What specific time period should we analyze?
-                </p>
+                </p> */}
                 <button
                   onClick={toggleChatWindow}
                   className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors"

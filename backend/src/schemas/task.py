@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 
 from pydantic import BaseModel, Field
 
@@ -17,6 +17,15 @@ class Task(BaseModel):
     class Config:
         from_attributes = True
 
+class ScoreWithReasoning(BaseModel):
+    score: Union[int, float]
+    reasoning: str
+
+class ApproachEvaluation(BaseModel):
+    approach_id: str
+    ideality_score: ScoreWithReasoning
+    feasibility: ScoreWithReasoning
+    resource_efficiency: ScoreWithReasoning
 
 class AnalysisResult(BaseModel):
     parameters_constraints: str = Field(..., description="Key parameters and constraints that affect the task")
@@ -37,6 +46,24 @@ class ConceptFormationResult(BaseModel):
     TOP_TRIZ_principles: List[str] = Field(..., description="TRIZ, ARIZ, TOP-TRIZ principles that should be applied to generate innovative solutions")
     solution_approaches: List[str] = Field(..., description="Different approaches that could potentially solve the problem")
     resources_per_concept: List[Dict[str, str]] = Field(..., description="Analysis of resources required for each potential solution concept")
+    
+class AppliedPrinciple(BaseModel):
+    principle_name: str
+    application_description: str
+
+class Approach(BaseModel):
+    approach_id: str
+    approach_name: str
+    description: str
+    contribution_to_parent_task: str
+    applied_principles: List[AppliedPrinciple]
+    resources: List[str]
+
+class ApproachFormationResult(BaseModel):
+    principles: List[str] = Field(..., description="TRIZ, ARIZ, TOP-TRIZ principles that should be applied to generate innovative solutions")
+    solution_by_principles: List[str] = Field(..., description="Different solutions that could potentially solve the problem")
+    approach_list: List[Approach] = Field(..., description="Different approaches that could potentially solve the problem")
+    evaluation_criteria: List[ApproachEvaluation] | None = Field(None, description="Evaluation criteria for the approaches")
 
 
 class TaskCreate(BaseModel):

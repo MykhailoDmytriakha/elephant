@@ -9,6 +9,48 @@ from src.model.task import Task
 
 logger = logging.getLogger(__name__)
 
+TRIZ_SYSTEM_PROMPT = """You are an AI assistant trained to help solve problems using TRIZ principles. Here are the 40 TRIZ principles:
+
+1. Segmentation - Divide objects or systems into independent parts
+2. Taking Out - Extract disturbing parts or properties
+3. Local Quality - Transition from homogeneous to heterogeneous structures
+4. Asymmetry - Replace symmetrical forms with asymmetrical ones
+5. Merging - Combine identical or similar objects, make operations parallel
+6. Universality - Make parts perform multiple functions
+7. Nested Doll - Place objects inside each other
+8. Anti-Weight - Compensate object's weight with lift or buoyancy
+9. Preliminary Anti-Action - Preempt negative effects with opposing action
+10. Preliminary Action - Perform required changes before needed
+11. Beforehand Cushioning - Prepare emergency means beforehand
+12. Equipotentiality - Eliminate need to raise or lower objects
+13. The Other Way Round - Invert the action or process
+14. Spheroidality - Use curves instead of straight lines
+15. Dynamics - Allow characteristics to change for optimal operation
+16. Partial or Excessive Actions - Use slightly more or less than required
+17. Another Dimension - Move into additional dimensions
+18. Mechanical Vibration - Oscillate or vibrate object
+19. Periodic Action - Use periodic or pulsating actions
+20. Continuity of Useful Action - Work continuously without idle phases
+21. Skipping - Conduct process at high speed
+22. "Blessing in Disguise" - Turn harmful factors into benefits
+23. Feedback - Introduce feedback to improve process
+24. Intermediary - Use intermediary carrier or process
+25. Self-Service - Make object serve itself and perform auxiliary functions
+26. Copying - Use simple copies instead of expensive objects
+27. Cheap Short-Living Objects - Replace expensive with cheap disposables
+28. Mechanics Substitution - Replace mechanical with other means
+29. Pneumatics and Hydraulics - Use gas and liquid parts
+30. Flexible Shells and Thin Films - Use flexible structures
+31. Porous Materials - Make objects porous or add porous elements
+32. Color Changes - Change color or transparency
+33. Homogeneity - Make interacting objects from same material
+34. Discarding and Recovering - Make parts disappear after use
+35. Parameter Changes - Change physical state, concentration, flexibility
+36. Phase Transitions - Use phase transitions
+37. Thermal Expansion - Use thermal expansion or contraction
+38. Strong Oxidants - Use enriched atmospheres
+39. Inert Atmosphere - Replace normal environment with inert one
+40. Composite Materials - Use multiple materials instead of uniform ones"""
 
 
 class OpenAIService:
@@ -288,8 +330,8 @@ class OpenAIService:
         Task: {task.task}
         Ideal Final Result: {task.analysis.get('ideal_final_result', 'N/A')}
         Context: {context}
-        Analysis: {json.dumps(task.analysis)}
-        Concepts: {json.dumps(task.concepts)}
+        Analysis: {json.dumps(task.analysis, ensure_ascii=False)}
+        Concepts: {json.dumps(task.concepts, ensure_ascii=False)}
         Original Task Complexity: {original_complexity}
 
         Provide a list of sub-tasks, each with its own description, context, and complexity.
@@ -329,126 +371,48 @@ class OpenAIService:
             logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
 
-    def generate_concepts(self, task: Task) -> list[dict]:
-        logger.info("Called generate_concepts method")
+    def generate_approaches(self, task: Task) -> dict:
+        logger.info("Called generate_approaches method")
         functions = [
             {
-                "name": "generate_concepts",
-                "description": "Generate concepts and ideas following TOP-TRIZ methodology for systematic innovation",
+                "name": "generate_approaches",
+                "description": "Generate approaches to solve the task following TOP-TRIZ methodology",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "concepts": {
+                        "approaches": {
                             "type": "object",
                             "properties": {
-                                "contribution_to_parent_task": {
-                                    "type": "string",
-                                    "description": "Description of how the concept contributes to solving the parent task"
-                                },
-                                "ideas": {
+                                "principles": {
                                     "type": "array",
                                     "items": { "type": "string" },
-                                    "description": "List of ideas generated to solve the problem"
+                                    "description": "TRIZ, ARIZ, TOP-TRIZ principles that should be applied to generate innovative solutions. Format: {principle_number} {principle_name}: {principle_description}"
                                 },
-                                "TOP_TRIZ_principles": {
+                                "solution_by_principles": {
                                     "type": "array",
                                     "items": { "type": "string" },
-                                    "description": "TRIZ, ARIZ, TOP-TRIZ principles that should be applied to generate innovative solutions."
+                                    "description": "Different solutions that could potentially solve the problem in format: {principle_number} {principle_name}: {solution description}"
                                 },
-                                "solution_approaches": {
-                                    "type": "array",
-                                    "items": { "type": "string" },
-                                    "description": "Different approaches that could potentially solve the problem in format: {TOP_TRIZ_principle}: {approach description}"
-                                },
-                                "resources_per_concept": {
-                                    "type": "array",
-                                    "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "concept": {
-                                            "type": "string",
-                                            "description": "Concept or idea to solve the problem"
-                                        },
-                                        "resources": {
-                                            "type": "string",
-                                            "description": "Analysis of resources required for each potential solution concept"
-                                        }
-                                    },
-                                    "required": ["concept", "resources"]
-                                    },
-                                    "description": "Analysis of resources required for each potential solution concept"
-                                }
-                            },
-                            "required": [
-                                "contribution_to_parent_task",
-                                "ideas",
-                                "TOP_TRIZ_principles",
-                                "solution_approaches",
-                                "resources_per_concept"
-                            ]
-                        }
-                    },
-                    "required": ["concepts"]
-                }
-            },
-            {
-                "name": "concept_list",
-                "description": "List of generated concepts",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "approach": {
-                            "type": "object",
-                            "properties": {
-                                "initial_problem": {
-                                    "type": "object",
-                                    "properties": {
-                                        "problem_statement": {
-                                            "type": "string",
-                                            "description": "Clear description of the initial problem to be solved"
-                                        },
-                                        "system_purpose": {
-                                            "type": "string",
-                                            "description": "Main useful function or purpose of the system"
-                                        },
-                                        "current_limitations": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                            "description": "Current limitations or drawbacks in the system"
-                                        }
-                                    },
-                                    "required": ["problem_statement", "system_purpose", "current_limitations"]
-                                },
-                                "contradictions": {
+                                "approach_list": {
                                     "type": "array",
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "improving_parameter": {
+                                            "approach_id": {
                                                 "type": "string",
-                                                "description": "Parameter we want to improve"
+                                                "description": "Unique identifier for the approach (e.g., 'A1', 'A2')."
                                             },
-                                            "worsening_parameter": {
+                                            "approach_name": {
                                                 "type": "string",
-                                                "description": "Parameter that worsens as a result"
-                                            }
-                                        },
-                                        "required": ["improving_parameter", "worsening_parameter"]
-                                    },
-                                    "description": "Technical and physical contradictions identified in the system"
-                                },
-                                "concept_list": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "concept_id": {
-                                                "type": "string",
-                                                "description": "Unique identifier for the concept (e.g., 'C1', 'C2' up to 'C5')"
+                                                "description": "Name of the approach"
                                             },
                                             "description": {
                                                 "type": "string",
-                                                "description": "Detailed description of the concept"
+                                                "description": "Detailed description of the approach"
+                                            },
+                                            "contribution_to_parent_task": {
+                                                "type": "string",
+                                                "description": "How this approach helps solve the parent task"
                                             },
                                             "applied_principles": {
                                                 "type": "array",
@@ -457,139 +421,154 @@ class OpenAIService:
                                                     "properties": {
                                                         "principle_name": {
                                                             "type": "string",
-                                                            "description": "Name of the TOP-TRIZ principle applied"
+                                                            "description": "Name of the TOP-TRIZ, TRIZ or ARIZ principle applied. Format: {principle_number}: {principle_name}"
                                                         },
                                                         "application_description": {
                                                             "type": "string",
-                                                            "description": "How the principle is applied in this concept"
+                                                            "description": "How the principle is applied in this approach"
                                                         }
                                                     },
                                                     "required": ["principle_name", "application_description"]
                                                 }
+                                            },
+                                            "resources": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string",
+                                                    "description": "Analysis of resources required for this approach"
+                                                }
                                             }
                                         },
-                                        "required": ["concept_id", "description", "applied_principles"]
+                                        "required": [
+                                            "approach_id", 
+                                            "approach_name",
+                                            "description", 
+                                            "contribution_to_parent_task", 
+                                            "applied_principles",
+                                            "resources"
+                                        ]
                                     },
-                                    "description": "List of generated concepts"
-                                },
-                                "resources_analysis": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "concept_id": {
-                                                "type": "string",
-                                                "description": "Reference to the concept"
-                                            },
-                                            "substance_resources": {
-                                                "type": "array",
-                                                "items": {"type": "string"},
-                                                "description": "Available substance resources for the concept"
-                                            },
-                                            "field_resources": {
-                                                "type": "array",
-                                                "items": {"type": "string"},
-                                                "description": "Available field resources for the concept"
-                                            },
-                                            "space_resources": {
-                                                "type": "array",
-                                                "items": {"type": "string"},
-                                                "description": "Available space resources for the concept"
-                                            },
-                                            "time_resources": {
-                                                "type": "array",
-                                                "items": {"type": "string"},
-                                                "description": "Available time resources for the concept"
-                                            }
-                                        },
-                                        "required": ["concept_id", "substance_resources", "field_resources", "space_resources", "time_resources"]
-                                    },
-                                    "description": "Analysis of available resources for each concept"
+                                    "description": "List of generated approaches. Minimum 2, maximum 5"
                                 },
                                 "evaluation_criteria": {
                                     "type": "array",
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "concept_id": {
+                                            "approach_id": {
                                                 "type": "string",
-                                                "description": "Reference to the concept"
+                                                "description": "Reference to the approach"
                                             },
                                             "ideality_score": {
-                                                "type": "number",
-                                                "description": "Score based on the Ideal Final Result (IFR) principle"
+                                                "type": "object",
+                                                "properties": {
+                                                    "score": {
+                                                        "type": "number",
+                                                        "description": "Score based on the Ideal Final Result (IFR) principle"
+                                                    },
+                                                    "reasoning": {
+                                                        "type": "string",
+                                                        "description": "Reasoning about the ideality score"
+                                                    }
+                                                },
+                                                "required": ["score", "reasoning"]
                                             },
                                             "feasibility": {
-                                                "type": "number",
-                                                "description": "Technical feasibility score (0-1)"
+                                                "type": "object",
+                                                "properties": {
+                                                    "score": {
+                                                        "type": "number",
+                                                        "minimum": 0,
+                                                        "maximum": 1,
+                                                        "description": "Technical feasibility score (0-1)"
+                                                    },
+                                                    "reasoning": {
+                                                        "type": "string",
+                                                        "description": "Reasoning about the feasibility score"
+                                                    }
+                                                },
+                                                "required": ["score", "reasoning"]
                                             },
                                             "resource_efficiency": {
-                                                "type": "number",
-                                                "description": "Score for efficient use of available resources (0-1)"
+                                                "type": "object",
+                                                "properties": {
+                                                    "score": {
+                                                        "type": "number",
+                                                        "minimum": 0,
+                                                        "maximum": 1,
+                                                        "description": "Score for efficient use of available resources (0-1)"
+                                                    },
+                                                    "reasoning": {
+                                                        "type": "string",
+                                                        "description": "Reasoning about the resource efficiency score"
+                                                    }
+                                                },
+                                                "required": ["score", "reasoning"]
                                             }
                                         },
-                                        "required": ["concept_id", "ideality_score", "feasibility", "resource_efficiency"]
+                                        "required": [
+                                            "approach_id", 
+                                            "ideality_score", 
+                                            "feasibility", 
+                                            "resource_efficiency", 
+                                        ]
                                     },
-                                    "description": "Evaluation criteria for each concept"
+                                    "description": "Evaluation criteria for each approach"
                                 }
                             },
                             "required": [
-                                "initial_problem",
-                                "contradictions",
-                                "concept_list",
-                                "resources_analysis",
+                                "principles",
+                                "solution_by_principles",
+                                "approach_list",
                                 "evaluation_criteria"
                             ]
                         }
                     },
-                    "required": ["approach"]
+                    "required": ["approaches"]
                 }
             }
         ]
 
         context = self._gather_context(task)
         prompt = f"""
-        Generate concepts and ideas to solve the following task:
+        Generate approaches to solve the following task:
         Task: {task.task}
         Ideal Final Result: {task.analysis.get('ideal_final_result', 'N/A')}
         Short Description: {task.short_description}
         Context: {context}
-        Analysis: {json.dumps(task.analysis)}
+        Analysis: {json.dumps(task.analysis, ensure_ascii=False)}
 
-        Provide a list of concepts and ideas that could potentially solve the problem.
-        Include a description of how each concept contributes to solving the parent task.
+        Provide a list of approaches that could potentially solve the problem.
+        Include a description of how each approach helps solve the parent task.
         """
         logger.debug(f"OpenAI API prompt: {prompt}")
-        results = []
-        for function in functions:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                functions=[function],
-                function_call={"name": function["name"]}
-            )
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": TRIZ_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            functions=functions,
+            function_call={"name": "generate_approaches"}
+        )
 
-            function_call = response.choices[0].message.function_call
-            if function_call:
-                result = json.loads(function_call.arguments)
-                logger.debug(f"OpenAI API response for {function['name']}: {result}")
-                results.append(result)
-            else:
-                fallback_result = {
-                    "concepts": {
-                        "contribution_to_parent_task": "Unable to generate concepts",
-                        "ideas": ["Concept generation failed"],
-                        "TOP_TRIZ_applied": False,
-                        "solution_approaches": ["Concept generation failed"],
-                        "resources_per_concept": [
-                            {
-                                "concept": "Concept generation failed",
-                                "resources": "N/A"
-                            }
-                        ]
-                    }
+        function_call = response.choices[0].message.function_call
+        if function_call:
+            result = json.loads(function_call.arguments)
+            logger.debug(f"OpenAI API response: {result}")
+            return result
+        else:
+            fallback_result = {
+                "approaches": {
+                    "principles": ["Approach generation failed"],
+                    "solution_by_principles": ["Approach generation failed"],
+                    "approach_list": ["Approach generation failed"],
+                    "evaluation_criteria": ["Approach generation failed"],
                 }
-                logger.warning(f"OpenAI API fallback response: {fallback_result}")
-                results.append(fallback_result)
-        return results
+            }
+            logger.warning(f"OpenAI API fallback response: {fallback_result}")
+            return fallback_result
+
+
+
 

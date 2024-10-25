@@ -3,7 +3,7 @@ from typing import Tuple, Optional
 from src.model.context import ContextSufficiencyResult
 from src.api.deps import get_problem_analyzer, get_db_service
 from src.model.task import Task, TaskState
-from src.schemas.task import AnalysisResult, DecompositionResult, ConceptFormationResult, MethodSelectionResult
+from src.schemas.task import AnalysisResult, DecompositionResult, ApproachFormationResult, MethodSelectionResult
 from src.schemas.user_query import UserQuery
 from src.services.problem_analyzer import ProblemAnalyzer
 from src.services.database_service import DatabaseService
@@ -120,24 +120,23 @@ async def analyze_task(task_id: str, reAnalyze: bool = False, analyzer: ProblemA
     
     return analysis_result
 
-@router.post("/{task_id}/concepts", response_model=ConceptFormationResult)
-async def generate_concepts(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
-    """Generate concepts for a specific task"""
+@router.post("/{task_id}/approaches", response_model=ApproachFormationResult)
+async def generate_approaches(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
+    """Generate approaches for a specific task"""
     task_data = db.fetch_task_by_id(task_id)
     if task_data is None:
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
     task_dict = json.loads(task_data['task_json'])
     task = Task(**task_dict)
-    concept_definition = analyzer.concept_definition(task)
+    approach_definition = analyzer.generate_approaches(task)
 
-    concept_result = ConceptFormationResult(
-        contribution_to_parent_task=concept_definition['contribution_to_parent_task'],
-        ideas=concept_definition['ideas'],
-        TOP_TRIZ_principles=concept_definition['TOP_TRIZ_principles'],
-        solution_approaches=concept_definition['solution_approaches'],
-        resources_per_concept=concept_definition['resources_per_concept']
+    approach_result = ApproachFormationResult(
+        principles=approach_definition['principles'],
+        solution_by_principles=approach_definition['solution_by_principles'],
+        approach_list=approach_definition['approach_list'],
+        evaluation_criteria=approach_definition.get('evaluation_criteria', None)
     )
-    return concept_result
+    return approach_result
 
 # TODO: add method selection
 @router.post("/{task_id}/method_selection", response_model=MethodSelectionResult)
