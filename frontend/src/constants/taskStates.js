@@ -5,15 +5,17 @@ export const TaskStates = {
   CONTEXT_GATHERED: "3. Context Gathered",
   ANALYSIS: "4. Analysis",
   TYPIFY: "5. Typify",
-  APPROACH_FORMATION: "6. Approach Formation",
-  METHOD_SELECTION: "7. Method Selection",
-  DECOMPOSITION: "8. Decomposition",
-  METHOD_APPLICATION: "9. Method Application",
-  SOLUTION_DEVELOPMENT: "10. Solution Development",
-  EVALUATION: "11. Evaluation",
-  INTEGRATION: "12. Integration",
-  OUTPUT_GENERATION: "13. Output Generation",
-  COMPLETED: "14. Completed"
+  CLARIFYING: "6. Clarifying",
+  CLARIFICATION_COMPLETE: "7. Clarification Complete",
+  APPROACH_FORMATION: "8. Approach Formation",
+  METHOD_SELECTION: "9. Method Selection",
+  DECOMPOSITION: "10. Decomposition",
+  METHOD_APPLICATION: "11. Method Application",
+  SOLUTION_DEVELOPMENT: "12. Solution Development",
+  EVALUATION: "13. Evaluation",
+  INTEGRATION: "14. Integration",
+  OUTPUT_GENERATION: "15. Output Generation",
+  COMPLETED: "16. Completed"
 };
 
   export const getStateNumber = (state) => {

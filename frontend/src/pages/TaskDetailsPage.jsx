@@ -1,19 +1,28 @@
 // src/pages/TaskDetailsPage.jsx
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2 } from 'lucide-react';
-import { 
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, Trash2 } from "lucide-react";
+import {
   LoadingSpinner,
-  ErrorDisplay} from '../components/task/TaskComponents';
-import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateApproaches, typifyTask } from '../utils/api';
-import { TaskStates, getStateColor } from '../constants/taskStates';
-import ConceptDefinition from '../components/task/ConceptDefinition';
-import TaskOverview from '../components/task/TaskOverview';
-import Analysis from '../components/task/Analysis';
-import ContextChatWindow from '../components/task/ContextChatWindow';
-import Metadata from '../components/task/Metadata';
-import ApproachFormation from '../components/task/ApproachFormation';
-import Typification from '../components/task/Typification';
+  ErrorDisplay,
+} from "../components/task/TaskComponents";
+import {
+  fetchTaskDetails,
+  updateTaskContext,
+  deleteTask,
+  analyzeTask,
+  generateApproaches,
+  typifyTask,
+  clarifyTask,
+} from "../utils/api";
+import { TaskStates, getStateColor } from "../constants/taskStates";
+import TaskOverview from "../components/task/TaskOverview";
+import Analysis from "../components/task/Analysis";
+import ContextChatWindow from "../components/task/ContextChatWindow";
+import Metadata from "../components/task/Metadata";
+import ApproachFormation from "../components/task/ApproachFormation";
+import Typification from "../components/task/Typification";
+import ClarificationSection from "../components/task/ClarificationSection";
 
 export default function TaskDetailsPage() {
   const { taskId } = useParams();
@@ -25,22 +34,34 @@ export default function TaskDetailsPage() {
   const [followUpQuestion, setFollowUpQuestion] = useState(null);
   const [isContextSufficient, setIsContextSufficient] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isStartingClarificationLoading, setIsStartingClarificationLoading] =
+    useState(false);
   const [isGeneratingConcepts, setIsGeneratingConcepts] = useState(false);
-  const [isRegeneratingApproaches, setIsRegeneratingApproaches] = useState(false);
+  const [isRegeneratingApproaches, setIsRegeneratingApproaches] =
+    useState(false);
   const [isTypifying, setIsTypifying] = useState(false);
+  const [isClarifying, setIsClarifying] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [clarificationData, setClarificationData] = useState(null);
+
+  // Add debug logging for state changes
+  useEffect(() => {
+    console.log("Task State:", task?.state);
+    console.log("Is Clarifying:", isClarifying);
+    console.log("Current Question:", currentQuestion);
+    console.log("Clarification Data:", clarificationData);
+  }, [task?.state, isClarifying, currentQuestion, clarificationData]);
 
   const loadTask = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await fetchTaskDetails(taskId);
-      console.log("Task data:", data);
       setTask(data);
       setIsContextSufficient(data.is_context_sufficient);
       if (!data.is_context_sufficient) {
         setIsChatOpen(true);
         const contextUpdate = await updateTaskContext(taskId);
-        console.log("Context update:", contextUpdate);
         setFollowUpQuestion(contextUpdate.follow_up_question);
       }
     } catch (err) {
@@ -55,25 +76,28 @@ export default function TaskDetailsPage() {
   }, [taskId]);
 
   const handleBack = () => {
-    navigate('/');
+    navigate("/");
   };
 
   const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
+    if (window.confirm("Are you sure you want to delete this task?")) {
       try {
         await deleteTask(taskId);
-        navigate('/');
+        navigate("/");
       } catch (error) {
-        setError('Failed to delete task: ' + error.message);
+        setError("Failed to delete task: " + error.message);
       }
     }
   };
 
   const handleSendMessage = async (message) => {
     try {
-      const updatedContext = await updateTaskContext(taskId, { "query": followUpQuestion, "answer": message });
+      const updatedContext = await updateTaskContext(taskId, {
+        query: followUpQuestion,
+        answer: message,
+      });
       console.log("Updated context:", updatedContext);
-      setIsContextSufficient(updatedContext.is_context_sufficient); 
+      setIsContextSufficient(updatedContext.is_context_sufficient);
       if (updatedContext.is_context_sufficient) {
         setFollowUpQuestion(null);
       } else {
@@ -82,18 +106,34 @@ export default function TaskDetailsPage() {
       const updatedTask = await fetchTaskDetails(taskId);
       setTask(updatedTask);
     } catch (error) {
-      setError('Failed to send message: ' + error.message);
+      setError("Failed to send message: " + error.message);
     }
   };
 
   const toggleChatWindow = () => {
-    setIsChatOpen(prevState => !prevState);
+    setIsChatOpen((prevState) => !prevState);
   };
 
   const handleCloseChatWindow = () => {
     setIsChatOpen(false);
   };
 
+  const handleClarification = async (message = null) => {
+    try {
+      setIsStartingClarificationLoading(true);
+
+      // If this is the initial clarification (no message), set isClarifying
+      if (!message) {
+        setIsClarifying(true);
+      }
+      await clarifyTask(taskId, message);
+      await loadTask();
+    } catch (error) {
+      setError("Failed to process clarification: " + error.message);
+    } finally {
+      setIsStartingClarificationLoading(false);
+    }
+  };
 
   // Update this part to correctly handle the user interaction and follow-up question
   const chatMessages = [
@@ -110,7 +150,7 @@ export default function TaskDetailsPage() {
       await analyzeTask(taskId, isReanalyze);
       await loadTask();
     } catch (err) {
-      setError('Failed to analyze task: ' + err.message);
+      setError("Failed to analyze task: " + err.message);
     } finally {
       setIsAnalyzing(false);
     }
@@ -122,7 +162,7 @@ export default function TaskDetailsPage() {
       await generateApproaches(taskId);
       await loadTask();
     } catch (err) {
-      setError('Failed to generate concepts: ' + err.message);
+      setError("Failed to generate concepts: " + err.message);
     } finally {
       setIsGeneratingConcepts(false);
     }
@@ -134,7 +174,7 @@ export default function TaskDetailsPage() {
       await generateApproaches(taskId);
       await loadTask();
     } catch (err) {
-      setError('Failed to regenerate approaches: ' + err.message);
+      setError("Failed to regenerate approaches: " + err.message);
     } finally {
       setIsRegeneratingApproaches(false);
     }
@@ -146,7 +186,7 @@ export default function TaskDetailsPage() {
       await typifyTask(taskId, isRetypify);
       await loadTask();
     } catch (err) {
-      setError('Failed to typify task: ' + err.message);
+      setError("Failed to typify task: " + err.message);
     } finally {
       setIsTypifying(false);
     }
@@ -156,7 +196,6 @@ export default function TaskDetailsPage() {
   if (error) return <ErrorDisplay message={error} />;
   if (!task) return <ErrorDisplay message="Task not found" />;
 
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -164,7 +203,7 @@ export default function TaskDetailsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={handleBack}
                 className="text-gray-600 hover:text-gray-900 transition-colors"
               >
@@ -174,10 +213,14 @@ export default function TaskDetailsPage() {
             </div>
             <div className="flex items-center gap-4">
               <span className="text-gray-600 mr-2">Task State:</span>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStateColor(task.state)}`}>
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${getStateColor(
+                  task.state
+                )}`}
+              >
                 {task.state}
               </span>
-              <button 
+              <button
                 onClick={handleDelete}
                 className="text-red-600 hover:text-red-700 flex items-center gap-2"
               >
@@ -201,7 +244,7 @@ export default function TaskDetailsPage() {
               toggleChatWindow={toggleChatWindow}
             />
 
-            <ContextChatWindow 
+            <ContextChatWindow
               isOpen={isChatOpen}
               messages={chatMessages}
               onSendMessage={handleSendMessage}
@@ -209,14 +252,14 @@ export default function TaskDetailsPage() {
               isContextSufficient={isContextSufficient}
             />
 
-            <Analysis 
+            <Analysis
               analysis={task.analysis}
               isContextSufficient={isContextSufficient}
               isAnalyzing={isAnalyzing}
               onAnalyze={handleAnalyze}
             />
 
-            <Typification 
+            <Typification
               typification={task.typification}
               isContextSufficient={isContextSufficient}
               isTypifying={isTypifying}
@@ -224,15 +267,16 @@ export default function TaskDetailsPage() {
               taskState={task.state}
             />
 
-            {/* <ConceptDefinition
-              concepts={task.concepts}
-              isLoading={isGeneratingConcepts}
-              onGenerateConcepts={handleGenerateConcepts}
+            <ClarificationSection
               taskState={task.state}
-              isContextSufficient={isContextSufficient}
-            /> */}
+              clarification_data={task.clarification_data}
+              onStartClarification={() => handleClarification()}
+              isStartingClarificationLoading={isStartingClarificationLoading}
+              onSendMessage={handleClarification}
+              isLoading={loading}
+            />
 
-            <ApproachFormation 
+            <ApproachFormation
               approaches={task.approaches}
               onRegenerateApproaches={handleRegenerateApproaches}
               isRegenerating={isRegeneratingApproaches}

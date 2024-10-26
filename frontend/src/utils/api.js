@@ -85,3 +85,17 @@ export const typifyTask = async (taskId, isRetypify = false) => {
     throw error;
   }
 };
+
+// Add new function
+export const clarifyTask = async (taskId, message = null) => {
+  try {
+    console.log('Sending clarification request:', { taskId, message });
+    const response = await axios.post(
+      `${API_BASE_URL}/tasks/${taskId}/clarify`, 
+      message ? { message: message } : {}  // Изменено здесь
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error('Failed to clarify task');
+  }
+};
