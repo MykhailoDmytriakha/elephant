@@ -478,6 +478,97 @@ class OpenAIService:
             fallback_result = {"error": "Unable to typify task"}
             logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
+    
+    def generate_clarifying_questions(self, task: Task) -> dict:
+        """Generate clarifying questions based on analysis and typification"""
+        functions = [{
+            "name": "generate_questions",
+            "description": "Generate clarifying questions for the task",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "questions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "question_id": {"type": "string"},
+                                "question": {"type": "string"},
+                                "purpose": {"type": "string"},
+                                "expected_value": {"type": "string"},
+                                "priority": {"type": "integer", "minimum": 1, "maximum": 5},
+                                "dependencies": {
+                                    "type": "array",
+                                    "items": {"type": "string"}
+                                }
+                            },
+                            "required": ["question_id", "question", "purpose", 
+                                    "expected_value", "priority"]
+                        }
+                    },
+                    "stop_criteria": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Conditions when to stop asking questions"
+                    }
+                },
+                "required": ["questions", "stop_criteria"]
+            }
+        }]
+
+        prompt = f"""
+        Based on the task analysis and typification:
+        
+        Analysis Results:
+        - Missing Information: {task.analysis.get('missing_information', [])}
+        - Parameters: {task.analysis.get('parameters', [])}
+        - Constraints: {task.analysis.get('constraints', [])}
+        
+        Typification:
+        {json.dumps(task.typification, indent=2)}
+        
+        Generate a set of clarifying questions that will:
+        1. Fill gaps in missing information
+        2. Understand user preferences and constraints
+        3. Validate assumptions from analysis
+        4. Gather information needed for approaches
+        
+        Questions should be:
+        - Specific and focused
+        - Prioritized by importance
+        - Dependent on previous answers where relevant
+        - Aimed at gathering actionable information
+        
+        Include stop criteria that indicate when enough information 
+        has been gathered to proceed with approaches generation.
+        """
+
+        logger.debug(f"OpenAI API prompt: {prompt}")
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            functions=functions,
+            function_call={"name": "generate_questions"}
+        )
+
+        function_call = response.choices[0].message.function_call
+        if function_call:
+            result = json.loads(function_call.arguments)
+            logger.debug(f"OpenAI API response: {result}")
+            return result
+        else:
+            fallback_result = {
+                "questions": [{
+                    "question_id": "fallback_q1",
+                    "question": "Could you provide more details about your requirements?",
+                    "purpose": "Gather basic requirements",
+                    "expected_value": "User requirements",
+                    "priority": 1
+                }],
+                "stop_criteria": ["Basic information gathered"]
+            }
+            logger.warning(f"OpenAI API fallback response: {fallback_result}")
+            return fallback_result
 
     def generate_approaches(self, task: Task) -> dict:
         logger.info("Called generate_approaches method")
@@ -772,4 +863,5 @@ class OpenAIService:
             return fallback_result
 
     
+
 

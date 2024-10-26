@@ -9,12 +9,16 @@ from src.services.problem_analyzer import ProblemAnalyzer
 from src.services.database_service import DatabaseService
 from src.model.user_interaction import UserInteraction
 import logging
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
 import json
 
 router = APIRouter()
+
+class ClarificationRequest(BaseModel):
+    message: Optional[str] = None
 
 
 # @router.post("/", response_model=Task)
@@ -114,8 +118,7 @@ async def analyze_task(task_id: str, reAnalyze: bool = False, analyzer: ProblemA
         available_resources=task.analysis.get('available_resources', []),
         required_resources=task.analysis.get('required_resources', []),
         ideal_final_result=task.analysis.get('ideal_final_result', ''),
-        missing_information=task.analysis.get('missing_information', []),
-        complexity=task.analysis.get('complexity', '')
+        missing_information=task.analysis.get('missing_information', [])
     )
     
     return analysis_result
@@ -135,6 +138,37 @@ async def typify_task(task_id: str, reTypify: bool = False, analyzer: ProblemAna
     
     analyzer.typify(task)
     return Typification(typification=task.typification)
+
+@router.post("/{task_id}/clarify", response_model=dict)
+async def clarify_for_approaches(
+    task_id: str,
+    request: ClarificationRequest,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Handle the clarification dialogue before approaches generation.
+    If message is None, generate initial questions.
+    If message is provided, process the answer and return next question.
+    """
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    
+    task_dict = json.loads(task_data['task_json'])
+    task = Task(**task_dict)
+    
+    # Check if task is in appropriate state
+    if task.state not in [TaskState.TYPIFY, TaskState.CLARIFYING]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Task must be in TYPIFY or CLARIFYING state. Current state: {task.state}"
+        )
+    
+    # Start or continue clarification dialogue
+    clarification_result = analyzer.clarify_for_approaches(task, request.message)
+    
+    return clarification_result 
 
 @router.post("/{task_id}/approaches", response_model=ApproachFormationResult)
 async def generate_approaches(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
@@ -171,4 +205,3 @@ async def decompose_task(task_id: str, analyzer: ProblemAnalyzer = Depends(get_p
 async def get_task_tree(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):
     """Get the task tree for a specific task"""
     # Implementation here
-    
