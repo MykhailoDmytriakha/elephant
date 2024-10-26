@@ -65,3 +65,23 @@ export const generateApproaches = async (taskId) => {
     throw new Error('Failed to generate approaches');
   }
 };
+
+export const typifyTask = async (taskId, isRetypify = false) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/typify${isRetypify ? '?retypify=true' : ''}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to typify task');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error typifying task:', error);
+    throw error;
+  }
+};

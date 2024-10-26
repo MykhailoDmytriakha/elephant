@@ -11,11 +11,15 @@ class Task(BaseModel):
     task: Optional[str] = Field(None, description="Description of the task")
     short_description: Optional[str] = Field(None, description="Brief description of the task")
     analysis: Dict = Field({}, description="Analysis results for the task")
+    typification: Dict = Field({}, description="Typification results for the task")
     concepts: Dict = Field({}, description="Concepts generated for the task")
     sub_tasks: List['Task'] = Field([], description="List of sub-tasks")
 
     class Config:
         from_attributes = True
+        
+class Typification(BaseModel):
+    typification: Dict = Field({}, description="Typification results for the task")
 
 class ScoreWithReasoning(BaseModel):
     score: Union[int, float]

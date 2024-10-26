@@ -183,7 +183,7 @@ export default function Analysis({
         )}
 
         {/* ETA */}
-        {analysis.eta && (
+        {/* {analysis.eta && (
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-2">
               Estimated Time of Arrival (ETA)
@@ -191,7 +191,7 @@ export default function Analysis({
             <p className="text-gray-700">Time: {analysis.eta.time}</p>
             <p className="text-gray-700">Reasoning: {analysis.eta.reasoning}</p>
           </div>
-        )}
+        )} */}
 
         {/* Complexity */}
         {analysis.complexity && (

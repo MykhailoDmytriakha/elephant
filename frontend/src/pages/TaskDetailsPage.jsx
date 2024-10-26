@@ -5,14 +5,15 @@ import { ArrowLeft, Trash2 } from 'lucide-react';
 import { 
   LoadingSpinner,
   ErrorDisplay} from '../components/task/TaskComponents';
-import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateApproaches } from '../utils/api';
-import { TaskStates } from '../constants/taskStates';
+import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateApproaches, typifyTask } from '../utils/api';
+import { TaskStates, getStateColor } from '../constants/taskStates';
 import ConceptDefinition from '../components/task/ConceptDefinition';
 import TaskOverview from '../components/task/TaskOverview';
 import Analysis from '../components/task/Analysis';
 import ContextChatWindow from '../components/task/ContextChatWindow';
 import Metadata from '../components/task/Metadata';
 import ApproachFormation from '../components/task/ApproachFormation';
+import Typification from '../components/task/Typification';
 
 export default function TaskDetailsPage() {
   const { taskId } = useParams();
@@ -26,6 +27,7 @@ export default function TaskDetailsPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGeneratingConcepts, setIsGeneratingConcepts] = useState(false);
   const [isRegeneratingApproaches, setIsRegeneratingApproaches] = useState(false);
+  const [isTypifying, setIsTypifying] = useState(false);
 
   const loadTask = async () => {
     try {
@@ -106,7 +108,7 @@ export default function TaskDetailsPage() {
     try {
       setIsAnalyzing(true);
       await analyzeTask(taskId, isReanalyze);
-      await loadTask(); // Reload task to get updated analysis
+      await loadTask();
     } catch (err) {
       setError('Failed to analyze task: ' + err.message);
     } finally {
@@ -117,19 +119,9 @@ export default function TaskDetailsPage() {
   const handleGenerateConcepts = async () => {
     try {
       setIsGeneratingConcepts(true);
-      console.log("Starting concept generation...");
-      const conceptResponse = await generateApproaches(taskId);
-      console.log("Generate concepts response:", conceptResponse);
-      
-      // Add a small delay before fetching updated task
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Fetch and log the updated task data
-      const updatedTask = await fetchTaskDetails(taskId);
-      console.log("Updated task after generating concepts:", updatedTask);
-      setTask(updatedTask);
+      await generateApproaches(taskId);
+      await loadTask();
     } catch (err) {
-      console.error("Error generating concepts:", err);
       setError('Failed to generate concepts: ' + err.message);
     } finally {
       setIsGeneratingConcepts(false);
@@ -140,11 +132,23 @@ export default function TaskDetailsPage() {
     try {
       setIsRegeneratingApproaches(true);
       await generateApproaches(taskId);
-      await loadTask(); // Reload task to get updated approaches
+      await loadTask();
     } catch (err) {
       setError('Failed to regenerate approaches: ' + err.message);
     } finally {
       setIsRegeneratingApproaches(false);
+    }
+  };
+
+  const handleTypify = async (isRetypify = false) => {
+    try {
+      setIsTypifying(true);
+      await typifyTask(taskId, isRetypify);
+      await loadTask();
+    } catch (err) {
+      setError('Failed to typify task: ' + err.message);
+    } finally {
+      setIsTypifying(false);
     }
   };
 
@@ -170,8 +174,7 @@ export default function TaskDetailsPage() {
             </div>
             <div className="flex items-center gap-4">
               <span className="text-gray-600 mr-2">Task State:</span>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                <span className="w-2 h-2 mr-2 rounded-full bg-blue-400"></span>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStateColor(task.state)}`}>
                 {task.state}
               </span>
               <button 
@@ -211,6 +214,14 @@ export default function TaskDetailsPage() {
               isContextSufficient={isContextSufficient}
               isAnalyzing={isAnalyzing}
               onAnalyze={handleAnalyze}
+            />
+
+            <Typification 
+              typification={task.typification}
+              isContextSufficient={isContextSufficient}
+              isTypifying={isTypifying}
+              onTypify={handleTypify}
+              taskState={task.state}
             />
 
             {/* <ConceptDefinition

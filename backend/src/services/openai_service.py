@@ -9,8 +9,8 @@ from src.model.task import Task
 
 logger = logging.getLogger(__name__)
 
-TRIZ_SYSTEM_PROMPT = """You are an AI assistant trained to help solve problems using TRIZ principles. Here are the 40 TRIZ principles:
-
+TRIZ_SYSTEM_PROMPT = """You are an AI assistant trained to help solve problems using TRIZ principles. 
+Here are the 40 TRIZ principles:
 1. Segmentation - Divide objects or systems into independent parts
 2. Taking Out - Extract disturbing parts or properties
 3. Local Quality - Transition from homogeneous to heterogeneous structures
@@ -50,7 +50,15 @@ TRIZ_SYSTEM_PROMPT = """You are an AI assistant trained to help solve problems u
 37. Thermal Expansion - Use thermal expansion or contraction
 38. Strong Oxidants - Use enriched atmospheres
 39. Inert Atmosphere - Replace normal environment with inert one
-40. Composite Materials - Use multiple materials instead of uniform ones"""
+40. Composite Materials - Use multiple materials instead of uniform ones
+
+Levels of complexity:
+LEVEL_1 - Simple task: Simple solution is known and easy to apply
+LEVEL_2 - Complex task: Requires adaptation of known solutions
+LEVEL_3 - Very complex task: Requires combining several approaches
+LEVEL_4 - Task with high level of innovation: Requires creation of a new solution within the current paradigm
+LEVEL_5 - Task with the highest level of innovation: Requires creation of a fundamentally new solution, possibly changing the paradigm
+"""
 
 
 class OpenAIService:
@@ -65,10 +73,13 @@ class OpenAIService:
 
     def summarize_context(self, formatted_user_interaction: str, context: str) -> str:
         logger.info("Called summarize_context method")
-        if not context and not formatted_user_interaction:
+        # Handle None values by converting to empty string
+        context_str = context or ""
+        formatted_interaction_str = formatted_user_interaction or ""
+        if not context_str and not formatted_interaction_str:
             logger.info("Context is empty. Skipping summarization.")
             return ""
-        prompt = f"Summarize the following context: \n- {context}\n- {formatted_user_interaction}"
+        prompt = f"Summarize the following context: \n- {context_str}\n- {formatted_interaction_str}"
         logger.debug(f"OpenAI API prompt: {prompt}")
         response = self.client.chat.completions.create(
             model=self.model,
@@ -81,7 +92,7 @@ class OpenAIService:
     @staticmethod
     def _gather_context(task: Task) -> str:
         contexts = []
-        current_task = task
+        current_task: Task | None = task
         while current_task:
             if current_task.context:
                 contexts.append(current_task.context)
@@ -210,30 +221,11 @@ class OpenAIService:
                                     "type": "array",
                                     "items": {"type": "string"},
                                     "description": "Information that is missing and required to solve the task"
-                                },
-                                "complexity": {
-                                    "type": "string",
-                                    "enum": ["1", "2", "3", "4", "5"],
-                                    "description": "Level of complexity of the task (1: simple, 2: low, 3: medium, 4: high, 5: very high)"
-                                },
-                                "eta": {
-                                    "type": "object",
-                                    "properties": {
-                                        "time": {
-                                            "type": "string",
-                                            "description": "Estimated time to complete the task"
-                                        },
-                                        "reasoning": {
-                                            "type": "string",
-                                            "description": "Reasoning about the estimated time to complete the task"
-                                        }
-                                    },
-                                    "required": ["time", "reasoning"]
                                 }
                             },
                             "required": ["ideal_final_result", "parameters", "constraints", "current_limitations", "contradictions", 
                                          "available_resources", "required_resources",
-                                         "missing_information", "complexity", "eta"]
+                                         "missing_information"]
                         }
                     },
                     "required": ["task", "analysis"]
@@ -270,104 +262,220 @@ class OpenAIService:
                     "available_resources": ["Unable to determine available resources"],
                     "required_resources": ["Unable to determine required resources"],
                     "ifr": "Unable to determine ideal final result",
-                    "missing_information": ["Unable to determine missing information"],
-                    "complexity": "0"
+                    "missing_information": ["Unable to determine missing information"]
                 }
             }
             logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
-
-    def decompose_task(self, task: Task) -> dict:
-        logger.info("Called decompose_task method")
-        functions = [
-            {
-                "name": "decompose_task",
-                "description": "Decompose a complex task into smaller, manageable sub-tasks with meaningful granularity.",
-                "parameters": {
+    
+    def typify_task(self, task: Task) -> dict:
+        logger.info("Called typify_task method")
+        functions: list[dict] = [{
+            "name": "typify_task",
+            "description": "Analyze and classify the task according to specific criteria",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "typification": {
                     "type": "object",
-                    "properties": {
-                        "sub_tasks": {
-                            "type": "array",
-                            "items": {
+                        "properties": {
+                            "classification": {
+                                "description": "Classification of the task according to specific criteria",
                                 "type": "object",
                                 "properties": {
-                                    "task": {
-                                        "type": "string",
-                                        "description": "The comprehensive description of the sub-task to be performed"
+                                    "nature": {
+                                        "description": "Classification of the task according to its nature",
+                                        "type": "object",
+                                        "properties": {
+                                            "primary": {"type": "string", "enum": ["ANALYTICAL", "SYNTHETIC", "OPTIMIZATION", "TRANSFORMATION"]},
+                                            "secondary": {"type": "array", "items": {"type": "string"}},
+                                            "reasoning": {"type": "string"}
+                                        },
+                                        "required": ["primary", "secondary", "reasoning"]
                                     },
-                                    "context": {
-                                        "type": "string",
-                                        "description": "Additional context for the sub-task"
+                                    "domain": {
+                                        "description": "Classification of the task according to its domain",
+                                        "type": "object",
+                                        "properties": {
+                                            "primary": {"type": "string", "enum": ["TECHNICAL", "BUSINESS", "EDUCATIONAL", "RESEARCH"]},
+                                            "aspects": {"type": "array", "items": {"type": "string"}},
+                                            "reasoning": {"type": "string"}
+                                        },
+                                        "required": ["primary", "aspects", "reasoning"]
                                     },
-                                    "complexity": {
-                                        "type": "string",
-                                        "enum": ["1", "2", "3", "4", "5"],
-                                        "description": "Estimated complexity of the sub-task (1: simple, 2: low, 3: medium, 4: high, 5: very high)"
+                                    "structure": {
+                                        "description": "Classification of the task according to its structure: LINEAR (direct path), BRANCHING (multiple options), CYCLIC (repetitive), SYSTEMIC (complex)",
+                                        "type": "object",
+                                        "properties": {
+                                            "type": {"type": "string", "enum": ["LINEAR", "BRANCHING", "CYCLIC", "SYSTEMIC"]},
+                                            "characteristics": {"type": "array", "items": {"type": "string"}},
+                                            "reasoning": {"type": "string"}
+                                        },
+                                        "required": ["type", "characteristics", "reasoning"]
                                     },
-                                    "short_description": {
-                                        "type": "string",
-                                        "description": "Short description of the sub-task"
-                                    },
-                                    "contribution_to_parent_task": {
-                                        "type": "string",
-                                        "description": "Explanation of how this sub-task contributes to achieving the overall goal of the parent task"
+                                    "complexity_level": {
+                                        "description": "Classification of the task according to its complexity level",
+                                        "type": "object",
+                                        "properties": {
+                                            "level": {"type": "string", "enum": ["LEVEL_1 (simple task: solution is known and easy to apply)", "LEVEL_2 (complex task: requires adaptation of known solutions)", "LEVEL_3 (very complex task: requires combining several approaches)", "LEVEL_4 (task with high level of innovation: requires creation of a new solution within the current paradigm)", "LEVEL_5 (task with the highest level of innovation: requires creation of a fundamentally new solution, possibly changing the paradigm)"]},
+                                            "factors": {"type": "array", "items": {"type": "string"}},
+                                            "reasoning": {"type": "string"}
+                                        },
+                                        "required": ["level", "factors", "reasoning"]
                                     }
                                 },
-                                "required": ["task", "context", "complexity", "short_description", "contribution_to_parent_task"]
+                                "required": ["nature", "domain", "structure", "complexity_level"]
                             },
-                            "description": "List of sub-tasks derived from the main task"
-                        }
-                    },
-                    "required": ["sub_tasks"]
-                }
+                            "methodology": {
+                                "description": "Classification of the task according to its methodology: TRIZ, Scientific Method, ARIZ, TOP-TRIZ, Design Thinking, Six Sigma, Agile, Systems Thinking, Lean, Theory of Constraints, Lateral Thinking, Root Cause Analysis",
+                                "type": "object",
+                                "properties": {
+                                    "primary": {"type": "string"},
+                                    "supporting": {"type": "array", "items": {"type": "string"}},
+                                    "principles": {"type": "array", "items": {"type": "string"}},
+                                    "selection_reasoning": {"type": "string"},
+                                    "application_guidelines": {"type": "array", "items": {"type": "string"}}
+                                },
+                                "required": ["primary", "supporting", "principles", "selection_reasoning", "application_guidelines"]
+                            },
+                            "system_analysis": {
+                                "description": "Analysis of the task in the context of the system hierarchy: micro - micro level (components, subsystems, system), meso - meso level (subsystems, system), macro - macro level (system)",
+                                "type": "object",
+                                "properties": {
+                                    "system_level": {"type": "string", "enum": ["micro", "meso", "macro"]},
+                                    "super_system": {
+                                        "description": "Analysis of the super system (broader context)",
+                                        "type": "object",
+                                        "properties": {
+                                            "components": {"type": "array", "items": {"type": "string"}},
+                                            "interactions": {"type": "array", "items": {"type": "string"}}
+                                        },
+                                        "required": ["components", "interactions"]
+                                    },
+                                    "system": {
+                                        "description": "Analysis of the system",
+                                        "type": "object",
+                                        "properties": {
+                                            "components": {"type": "array", "items": {"type": "string"}},
+                                            "interactions": {"type": "array", "items": {"type": "string"}}
+                                        },
+                                        "required": ["components", "interactions"]
+                                    },
+                                    "sub_systems": {
+                                        "description": "Analysis of subsystems",
+                                        "type": "object",
+                                        "properties": {
+                                            "components": {"type": "array", "items": {"type": "string"}},
+                                            "interactions": {"type": "array", "items": {"type": "string"}}
+                                        },
+                                        "required": ["components", "interactions"]
+                                    }
+                                },
+                                "required": ["system_level", "super_system", "system", "sub_systems"]
+                            },
+                            "solution_characteristics": {
+                                "description": "Analysis of the required solution characteristics",
+                                "type": "object",
+                                "properties": {
+                                    "required_resources": {"type": "array", "items": {"type": "string"}},
+                                    "key_constraints": {"type": "array", "items": {"type": "string"}},
+                                    "critical_factors": {"type": "array", "items": {"type": "string"}},
+                                    "success_criteria": {"type": "array", "items": {"type": "string"}}
+                                },
+                                "required": ["required_resources", "key_constraints", "critical_factors", "success_criteria"]
+                            },
+                            "eta": {
+                                "description": "Estimated time to complete the task",
+                                "type": "object",
+                                "properties": {"time": {"type": "string"}, "reasoning": {"type": "string"}},
+                                "required": ["time", "reasoning"]
+                            }
+                        },
+                        "required": ["classification", "methodology", "system_analysis", "solution_characteristics", "eta"]
+                    }
+                },
+                "required": ["typification"]
             }
-        ]
+        }]
 
-        context = self._gather_context(task)
-        original_complexity = task.analysis.get('complexity', '4')  # Default to high if not specified
         prompt = f"""
-        Decompose the following complex task into smaller, manageable sub-tasks:
+        You are a Problem Typization Expert. Your task is to analyze the provided analysis results and classify the problem according to specific criteria.
+        
+        Input Analysis Results:
         Task: {task.task}
-        Ideal Final Result: {task.analysis.get('ideal_final_result', 'N/A')}
-        Context: {context}
-        Analysis: {json.dumps(task.analysis, ensure_ascii=False)}
-        Concepts: {json.dumps(task.concepts, ensure_ascii=False)}
-        Original Task Complexity: {original_complexity}
+        Task description: {task.short_description}
+        Task context: {task.context}
+        Ideal Final Result: {task.analysis.get('ideal_final_result')}
+        Parameters: {task.analysis.get('parameters')}
+        Constraints: {task.analysis.get('constraints')}
+        Current Limitations: {task.analysis.get('current_limitations')}
+        Contradictions: {task.analysis.get('contradictions')}
+        Available Resources: {task.analysis.get('available_resources')}
+        Required Resources: {task.analysis.get('required_resources')}
+        Missing Information: {task.analysis.get('missing_information')}
 
-        Provide a list of sub-tasks, each with its own description, context, and complexity.
-        Ensure that each sub-task has a lower complexity than the original task (complexity {original_complexity}).
-        The complexity levels are:
-        1 - Simple
-        2 - Low complexity
-        3 - Medium complexity
-        4 - High complexity
-        5 - Very high complexity
+        Provide a comprehensive typization of this task following these steps:
+
+        1. Classification:
+            a) Nature Classification:
+                - Determine if the task is primarily ANALYTICAL, SYNTHETIC, OPTIMIZATION, or TRANSFORMATION
+                - Identify any secondary natures if the task is combined
+                - Provide clear reasoning for your classification
+            
+            b) Domain Classification:
+                - Identify the primary domain (TECHNICAL, BUSINESS, EDUCATIONAL, RESEARCH)
+                - List any additional relevant domains
+                - Explain domain relationships and why they apply
+            
+            c) Structure Classification:
+                - Determine if the task structure is LINEAR, BRANCHING, CYCLIC, or SYSTEMIC
+                - List key structural characteristics
+                - Explain why this structure applies
+            
+            d) Complexity Level Assessment:
+                - Assign a level from 1 to 5 based on TRIZ methodology
+                - List complexity factors
+                - Provide detailed reasoning for the assigned level
+
+        2. Methodology Selection:
+        - Select the most appropriate primary methodology
+        - Identify supporting methodologies
+        - List key principles to apply
+        - Explain methodology selection rationale
+        - Provide specific application guidelines
+
+        3. System Analysis:
+        - Determine the system level (micro/meso/macro)
+        - Identify super-system components and interactions
+        - List system components and their interactions
+        - Describe sub-system elements and relationships
+
+        4. Solution Characteristics:
+        - List required resources
+        - Identify key constraints
+        - Define critical success factors
+        - Establish success criteria
+
+        5. Time Estimation:
+        - Provide time estimate
+        - Explain reasoning for the estimate
+
+        Remember to be specific and provide clear reasoning for each classification and selection. Focus on practical applicability of your typization.
         """
-
         logger.debug(f"OpenAI API prompt: {prompt}")
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             functions=functions,
-            function_call={"name": "decompose_task"}
+            function_call={"name": "typify_task"}
         )
-
         function_call = response.choices[0].message.function_call
         if function_call:
             result = json.loads(function_call.arguments)
             logger.debug(f"OpenAI API response: {result}")
             return result
         else:
-            fallback_result = {
-                "sub_tasks": [
-                    {
-                        "task": "Unable to decompose task",
-                        "context": "Task decomposition failed",
-                        "complexity": "1",
-                        "short_description": "Decomposition failure"
-                    }
-                ]
-            }
+            fallback_result = {"error": "Unable to typify task"}
             logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
 
@@ -537,6 +645,7 @@ class OpenAIService:
         Short Description: {task.short_description}
         Context: {context}
         Analysis: {json.dumps(task.analysis, ensure_ascii=False)}
+        Typification: {json.dumps(task.typification, ensure_ascii=False)}
 
         Provide a list of approaches that could potentially solve the problem.
         Include a description of how each approach helps solve the parent task.
@@ -569,6 +678,98 @@ class OpenAIService:
             logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
 
+    def decompose_task(self, task: Task) -> dict:
+        logger.info("Called decompose_task method")
+        functions = [
+            {
+                "name": "decompose_task",
+                "description": "Decompose a complex task into smaller, manageable sub-tasks with meaningful granularity.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "sub_tasks": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "task": {
+                                        "type": "string",
+                                        "description": "The comprehensive description of the sub-task to be performed"
+                                    },
+                                    "context": {
+                                        "type": "string",
+                                        "description": "Additional context for the sub-task"
+                                    },
+                                    "complexity": {
+                                        "type": "string",
+                                        "enum": ["1", "2", "3", "4", "5"],
+                                        "description": "Estimated complexity of the sub-task (1: simple, 2: low, 3: medium, 4: high, 5: very high)"
+                                    },
+                                    "short_description": {
+                                        "type": "string",
+                                        "description": "Short description of the sub-task"
+                                    },
+                                    "contribution_to_parent_task": {
+                                        "type": "string",
+                                        "description": "Explanation of how this sub-task contributes to achieving the overall goal of the parent task"
+                                    }
+                                },
+                                "required": ["task", "context", "complexity", "short_description", "contribution_to_parent_task"]
+                            },
+                            "description": "List of sub-tasks derived from the main task"
+                        }
+                    },
+                    "required": ["sub_tasks"]
+                }
+            }
+        ]
 
+        context = self._gather_context(task)
+        original_complexity = task.analysis.get('complexity', '4')  # Default to high if not specified
+        prompt = f"""
+        Decompose the following complex task into smaller, manageable sub-tasks:
+        Task: {task.task}
+        Ideal Final Result: {task.analysis.get('ideal_final_result', 'N/A')}
+        Context: {context}
+        Analysis: {json.dumps(task.analysis, ensure_ascii=False)}
+        Original Task Complexity: {original_complexity}
 
+        Provide a list of sub-tasks, each with its own description, context, and complexity.
+        Ensure that each sub-task has a lower complexity than the original task (complexity {original_complexity}).
+        The complexity levels are:
+        1 - Simple
+        2 - Low complexity
+        3 - Medium complexity
+        4 - High complexity
+        5 - Very high complexity
+        """
+
+        logger.debug(f"OpenAI API prompt: {prompt}")
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            functions=functions,
+            function_call={"name": "decompose_task"}
+        )
+
+        function_call = response.choices[0].message.function_call
+        if function_call:
+            result = json.loads(function_call.arguments)
+            logger.debug(f"OpenAI API response: {result}")
+            return result
+        else:
+            fallback_result = {
+                "sub_tasks": [
+                    {
+                        "task": "Unable to decompose task",
+                        "context": "Task decomposition failed",
+                        "complexity": "1",
+                        "short_description": "Decomposition failure"
+                    }
+                ]
+            }
+            logger.warning(f"OpenAI API fallback response: {fallback_result}")
+            return fallback_result
+
+    
 

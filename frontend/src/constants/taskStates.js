@@ -4,15 +4,20 @@ export const TaskStates = {
   CONTEXT_GATHERING: "2. Context Gathering",
   CONTEXT_GATHERED: "3. Context Gathered",
   ANALYSIS: "4. Analysis",
-  APPROACH_FORMATION: "5. Approach Formation",
-  METHOD_SELECTION: "6. Method Selection",
-  DECOMPOSITION: "7. Decomposition",
-  METHOD_APPLICATION: "8. Method Application",
-  SOLUTION_DEVELOPMENT: "9. Solution Development",
-  EVALUATION: "10. Evaluation",
-  INTEGRATION: "11. Integration",
-  OUTPUT_GENERATION: "12. Output Generation",
-  COMPLETED: "13. Completed"
+  TYPIFY: "5. Typify",
+  APPROACH_FORMATION: "6. Approach Formation",
+  METHOD_SELECTION: "7. Method Selection",
+  DECOMPOSITION: "8. Decomposition",
+  METHOD_APPLICATION: "9. Method Application",
+  SOLUTION_DEVELOPMENT: "10. Solution Development",
+  EVALUATION: "11. Evaluation",
+  INTEGRATION: "12. Integration",
+  OUTPUT_GENERATION: "13. Output Generation",
+  COMPLETED: "14. Completed"
+};
+
+  export const getStateNumber = (state) => {
+    return parseInt(state?.split('.')[0]);
   };
   
   // Helper function to get state color

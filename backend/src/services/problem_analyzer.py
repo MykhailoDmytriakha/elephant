@@ -40,6 +40,12 @@ class ProblemAnalyzer:
         if not reAnalyze:
             task.update_state(TaskState.ANALYSIS)
         self.db_service.updated_task(task)
+        
+    def typify(self, task: Task):
+        typification_result = self.openai_service.typify_task(task)
+        task.typification = typification_result['typification']
+        task.update_state(TaskState.TYPIFY)
+        self.db_service.updated_task(task)
 
     def generate_approaches(self, task: Task):
         approach_definitions = self.openai_service.generate_approaches(task)

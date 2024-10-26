@@ -11,15 +11,16 @@ class TaskState(Enum):
     CONTEXT_GATHERING = "2. Context Gathering"
     CONTEXT_GATHERED = "3. Context Gathered"
     ANALYSIS = "4. Analysis"
-    APPROACH_FORMATION = "5. Approach Formation"
-    METHOD_SELECTION = "6. Method Selection"
-    DECOMPOSITION = "7. Decomposition"
-    METHOD_APPLICATION = "8. Method Application"
-    SOLUTION_DEVELOPMENT = "9. Solution Development"
-    EVALUATION = "10. Evaluation"
-    INTEGRATION = "11. Integration"
-    OUTPUT_GENERATION = "12. Output Generation"
-    COMPLETED = "13. Completed"
+    TYPIFY = "5. Typify"
+    APPROACH_FORMATION = "6. Approach Formation"
+    METHOD_SELECTION = "7. Method Selection"
+    DECOMPOSITION = "8. Decomposition"
+    METHOD_APPLICATION = "9. Method Application"
+    SOLUTION_DEVELOPMENT = "10. Solution Development"
+    EVALUATION = "11. Evaluation"
+    INTEGRATION = "12. Integration"
+    OUTPUT_GENERATION = "13. Output Generation"
+    COMPLETED = "14. Completed"
 
 
 class Task(BaseModel):
@@ -34,6 +35,7 @@ class Task(BaseModel):
     short_description: Optional[str] = ''
     user_interaction: List[UserInteraction] = Field(default_factory=list)
     analysis: Dict = Field(default_factory=dict)
+    typification: Dict = Field(default_factory=dict)
     approaches: Dict = Field(default_factory=dict)
     sub_tasks: List['Task'] = Field(default_factory=list)
     parent_task: Optional['Task'] = None
@@ -91,8 +93,9 @@ class Task(BaseModel):
         valid_transitions = {
             TaskState.NEW: [TaskState.CONTEXT_GATHERING],
             TaskState.CONTEXT_GATHERING: [TaskState.CONTEXT_GATHERED],
-            TaskState.CONTEXT_GATHERED: [TaskState.ANALYSIS],
-            TaskState.ANALYSIS: [TaskState.APPROACH_FORMATION],
+            TaskState.CONTEXT_GATHERED: [TaskState.ANALYSIS],   
+            TaskState.ANALYSIS: [TaskState.TYPIFY],
+            TaskState.TYPIFY: [TaskState.APPROACH_FORMATION],
             TaskState.APPROACH_FORMATION: [TaskState.METHOD_SELECTION],
             TaskState.METHOD_SELECTION: [TaskState.DECOMPOSITION],
             TaskState.DECOMPOSITION: [TaskState.METHOD_APPLICATION],
@@ -106,4 +109,4 @@ class Task(BaseModel):
         return new_state in valid_transitions.get(self.state, [])
 
     def to_dict(self) -> dict:
-        return json.loads(self.json(by_alias=True))
+        return json.loads(self.model_dump_json(by_alias=True))

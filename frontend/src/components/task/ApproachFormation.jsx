@@ -6,7 +6,7 @@ import { TaskStates } from "../../constants/taskStates";
 export default function ApproachFormation({ approaches, onRegenerateApproaches, isRegenerating, taskState }) {
     if (!approaches || Object.keys(approaches).length === 0) {
         console.log("No approaches found, checking if can generate");
-        const canGenerateApproaches = taskState === TaskStates.ANALYSIS;
+        const canGenerateApproaches = taskState === TaskStates.TYPIFY;
     
         if (!canGenerateApproaches) {
           console.log("Cannot generate approaches in current state");
@@ -50,7 +50,7 @@ export default function ApproachFormation({ approaches, onRegenerateApproaches, 
             className={`w-3.5 h-3.5 ${isRegenerating ? "animate-spin" : ""}`}
             style={{ minWidth: "0.875rem" }}
           />
-          {isRegenerating ? "Regenerating..." : "Regenerate"}
+          {isRegenerating ? "Reapproaching..." : "Reapproach"}
         </button>
       </div>
       

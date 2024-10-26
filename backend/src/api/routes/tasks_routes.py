@@ -3,7 +3,7 @@ from typing import Tuple, Optional
 from src.model.context import ContextSufficiencyResult
 from src.api.deps import get_problem_analyzer, get_db_service
 from src.model.task import Task, TaskState
-from src.schemas.task import AnalysisResult, DecompositionResult, ApproachFormationResult, MethodSelectionResult
+from src.schemas.task import AnalysisResult, DecompositionResult, ApproachFormationResult, MethodSelectionResult, Typification
 from src.schemas.user_query import UserQuery
 from src.services.problem_analyzer import ProblemAnalyzer
 from src.services.database_service import DatabaseService
@@ -119,6 +119,22 @@ async def analyze_task(task_id: str, reAnalyze: bool = False, analyzer: ProblemA
     )
     
     return analysis_result
+
+@router.post("/{task_id}/typify", response_model=Typification)
+async def typify_task(task_id: str, reTypify: bool = False, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
+    """Typify a specific task"""
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    task_dict = json.loads(task_data['task_json'])
+    task = Task(**task_dict)
+    
+    if not reTypify:
+        if task.state != TaskState.ANALYSIS:
+            raise HTTPException(status_code=400, detail=f"Task is not in the correct state for typification. Current state: {task.state}")
+    
+    analyzer.typify(task)
+    return Typification(typification=task.typification)
 
 @router.post("/{task_id}/approaches", response_model=ApproachFormationResult)
 async def generate_approaches(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
