@@ -8,16 +8,12 @@ export default function ClarificationChat({
   currentQuestion,
   isLoading,
   clarificationData,
+  allQuestionsAnswered
 }) {
   const [message, setMessage] = useState('');
   const chatEndRef = useRef(null);
   const chatContainerRef = useRef(null);
-
-  const scrollToBottom = () => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
+  const inputRef = useRef(null); // Add this new ref for the input element
 
   // Add this debug logging to help track the data
   useEffect(() => {
@@ -26,14 +22,23 @@ export default function ClarificationChat({
     console.log('Answers:', clarificationData?.answers);
   }, [clarificationData, currentQuestion]);
 
-  // Scroll to bottom when new messages are added
+  // Replace the previous useEffects with this single one
   useEffect(() => {
-    scrollToBottom();
-  }, [clarificationData?.answers, currentQuestion]);
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [clarificationData, currentQuestion, message]); // Scroll when content changes or message is sent
+
+  // Add new useEffect for auto-focus
+  useEffect(() => {
+    if (currentQuestion && !allQuestionsAnswered && !isLoading && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [currentQuestion, allQuestionsAnswered, isLoading]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (message.trim() && currentQuestion) {
+    if (message.trim() && currentQuestion && !allQuestionsAnswered) {
       await onSendMessage(message);
       setMessage('');
     }
@@ -131,7 +136,7 @@ export default function ClarificationChat({
         )}
 
         {/* Current question */}
-        {currentQuestion && (
+        {currentQuestion && !allQuestionsAnswered && (
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
               <MessageCircle className="w-6 h-6 text-blue-500" />
@@ -162,17 +167,18 @@ export default function ClarificationChat({
 
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input
+          ref={inputRef}
           type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Type your answer..."
-          className="flex-grow px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={isLoading}
+          placeholder={allQuestionsAnswered ? "All questions have been answered" : "Type your answer..."}
+          className="flex-grow px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          disabled={isLoading || allQuestionsAnswered}
         />
         <button
           type="submit"
-          disabled={!message.trim() || isLoading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 flex items-center gap-2"
+          disabled={!message.trim() || isLoading || allQuestionsAnswered}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <Send className="w-4 h-4" />
           {isLoading ? 'Sending...' : 'Send'}

@@ -50,28 +50,27 @@ class ProblemAnalyzer:
     def clarify_for_approaches(self, task: Task, message: Optional[str] = None) -> dict:
         """Handle the clarification dialogue before approaches generation."""
         if task.state == TaskState.TYPIFY:
-            # Initial clarification - generate questions
             questions = self.openai_service.generate_clarifying_questions(task)
             task.update_state(TaskState.CLARIFYING)
             task.clarification_data = {
                 'questions': questions['questions'],
                 'stop_criteria': questions['stop_criteria'],
                 'current_question_index': 0,
-                'answers': {}
+                'answers': {},
+                'is_complete': False  # Added is_complete flag here
             }
             self.db_service.updated_task(task)
             return {
                 'question': questions['questions'][0],
-                'is_complete': False
+                'is_complete': task.clarification_data['is_complete']  # Use from clarification_data
             }
         
         elif task.state == TaskState.CLARIFYING:
             if not message:
-                # Return current question if no message provided
                 current_q = task.clarification_data['questions'][task.clarification_data['current_question_index']]
                 return {
                     'question': current_q,
-                    'is_complete': False
+                    'is_complete': task.clarification_data['is_complete']  # Use from clarification_data
                 }
             
             # Store the answer
@@ -81,21 +80,20 @@ class ProblemAnalyzer:
             # Check if we should move to the next question
             next_index = task.clarification_data['current_question_index'] + 1
             if next_index < len(task.clarification_data['questions']):
-                # Move to next question
                 task.clarification_data['current_question_index'] = next_index
                 next_q = task.clarification_data['questions'][next_index]
                 self.db_service.updated_task(task)
                 return {
                     'question': next_q,
-                    'is_complete': False
+                    'is_complete': task.clarification_data['is_complete']  # Use from clarification_data
                 }
             else:
-                # All questions answered
+                task.clarification_data['is_complete'] = True  # Update is_complete in clarification_data
                 task.update_state(TaskState.CLARIFICATION_COMPLETE)
                 self.db_service.updated_task(task)
                 return {
                     'message': 'Clarification complete. Ready to generate approaches.',
-                    'is_complete': True,
+                    'is_complete': task.clarification_data['is_complete'],  # Use from clarification_data
                     'answers': task.clarification_data['answers']
                 }
         

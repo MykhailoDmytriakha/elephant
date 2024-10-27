@@ -54,6 +54,9 @@ export default function TaskDetailsPage() {
 
   const loadTask = async () => {
     try {
+      // Store current scroll position
+      const scrollPosition = window.scrollY;
+      
       setLoading(true);
       setError(null);
       const data = await fetchTaskDetails(taskId);
@@ -64,6 +67,14 @@ export default function TaskDetailsPage() {
         const contextUpdate = await updateTaskContext(taskId);
         setFollowUpQuestion(contextUpdate.follow_up_question);
       }
+
+      // Restore scroll position after state updates
+      requestAnimationFrame(() => {
+        window.scrollTo({
+          top: scrollPosition,
+          behavior: 'instant'
+        });
+      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -127,7 +138,15 @@ export default function TaskDetailsPage() {
         setIsClarifying(true);
       }
       await clarifyTask(taskId, message);
-      await loadTask();
+      loadTask();
+
+      // Scroll to the end of the page after the task is loaded
+      setTimeout(() => {
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
     } catch (error) {
       setError("Failed to process clarification: " + error.message);
     } finally {

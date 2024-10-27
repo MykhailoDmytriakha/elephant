@@ -113,14 +113,7 @@ async def analyze_task(task_id: str, reAnalyze: bool = False, analyzer: ProblemA
     analyzer.analyze(task, reAnalyze)
     
     # Create and return the AnalysisResult
-    analysis_result = AnalysisResult(
-        parameters_constraints=task.analysis.get('parameters_constraints', ''),
-        available_resources=task.analysis.get('available_resources', []),
-        required_resources=task.analysis.get('required_resources', []),
-        ideal_final_result=task.analysis.get('ideal_final_result', ''),
-        missing_information=task.analysis.get('missing_information', [])
-    )
-    
+    analysis_result = AnalysisResult(analysis=task.analysis)
     return analysis_result
 
 @router.post("/{task_id}/typify", response_model=Typification)
@@ -140,12 +133,7 @@ async def typify_task(task_id: str, reTypify: bool = False, analyzer: ProblemAna
     return Typification(typification=task.typification)
 
 @router.post("/{task_id}/clarify", response_model=dict)
-async def clarify_for_approaches(
-    task_id: str,
-    request: ClarificationRequest,
-    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
-    db: DatabaseService = Depends(get_db_service)
-):
+async def clarify_for_approaches(task_id: str, request: ClarificationRequest, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
     """
     Handle the clarification dialogue before approaches generation.
     If message is None, generate initial questions.

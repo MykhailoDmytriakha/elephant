@@ -3,6 +3,7 @@ import { MessageCircle, RefreshCcw } from "lucide-react";
 import { CollapsibleSection } from "./TaskComponents";
 import { TaskStates } from "../../constants/taskStates";
 import ClarificationChat from "./ClarificationChat";
+import { getStateNumber } from "../../constants/taskStates";
 
 export default function ClarificationSection({
   taskState,
@@ -14,29 +15,34 @@ export default function ClarificationSection({
 }) {
   // Only show the section when typification is complete and we're in TYPIFY state
   // or when we're already in clarification mode
-  const showSection =
-    (clarification_data &&
-      Object.keys(clarification_data).length > 0 &&
-      taskState === TaskStates.TYPIFY) ||
-    taskState === TaskStates.CLARIFYING;
+  const isTypificationStageOrLater = getStateNumber(taskState) >= getStateNumber(TaskStates.TYPIFY);
 
-  const questionIndex = clarification_data.current_question_index;
-  const currentQuestion = clarification_data.questions[questionIndex];
-
-  if (!showSection) {
+  if (!isTypificationStageOrLater) {
     return null;
   }
 
   return (
     <CollapsibleSection title="Clarification">
-      {clarification_data ? (
-        <ClarificationChat
-          isOpen={true}
-          onSendMessage={onSendMessage}
-          currentQuestion={currentQuestion}
-          isLoading={isLoading}
-          clarificationData={clarification_data}
-        />
+      {clarification_data && Object.keys(clarification_data).length > 0 ? (
+        <>
+          {/* Move variable declarations before the JSX */}
+          {(() => {
+            const questionIndex = clarification_data.current_question_index;
+            const currentQuestion = clarification_data.questions[questionIndex];
+            const allQuestionsAnswered = clarification_data.is_complete;
+            
+            return (
+              <ClarificationChat
+                isOpen={true}
+                onSendMessage={onSendMessage}
+                currentQuestion={currentQuestion}
+                isLoading={isLoading}
+                clarificationData={clarification_data}
+                allQuestionsAnswered={allQuestionsAnswered}
+              />
+            );
+          })()}
+        </>
       ) : (
         <div className="text-center py-8">
           <button

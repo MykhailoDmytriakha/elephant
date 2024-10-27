@@ -2,10 +2,18 @@ import React from 'react';
 import { RefreshCcw, Lightbulb } from "lucide-react";
 import { CollapsibleSection } from './TaskComponents';
 import { TaskStates } from "../../constants/taskStates";
+import { getStateNumber } from "../../constants/taskStates";
 
-export default function ApproachFormation({ approaches, onRegenerateApproaches, isRegenerating, taskState }) {
-    // Show component only after CLARIFYING state or if approaches exist
-    if (taskState !== TaskStates.APPROACH_FORMATION && !approaches?.approach_list?.length) {
+export default function ApproachFormation({ 
+    approaches, 
+    onRegenerateApproaches, 
+    isRegenerating, 
+    taskState 
+}) {
+    const isApproachFormationStageOrLater = getStateNumber(taskState) >= getStateNumber(TaskStates.CLARIFICATION_COMPLETE);
+    
+    // Show component only during/after APPROACH_FORMATION stage or if approaches exist
+    if (!isApproachFormationStageOrLater && !approaches?.approach_list?.length) {
         return null;
     }
 

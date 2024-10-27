@@ -32,12 +32,7 @@ class ApproachEvaluation(BaseModel):
     resource_efficiency: ScoreWithReasoning
 
 class AnalysisResult(BaseModel):
-    parameters_constraints: str = Field(..., description="Key parameters and constraints that affect the task")
-    available_resources: List[str] = Field(..., description="Details of the resources available for solving the task")
-    required_resources: List[str] = Field(..., description="Details of the resources required for solving the task")
-    ideal_final_result: str = Field(..., description="The specific goals or results expected from solving the task")
-    missing_information: List[str] = Field(..., description="Information that is missing and required to solve the task")
-    complexity: str = Field(..., description="Level of complexity of the task (1: simple, 2: low, 3: medium, 4: high, 5: very high)")
+    analysis: Dict = Field({}, description="Analysis results for the task")
 
 
 class DecompositionResult(BaseModel):
