@@ -13,58 +13,6 @@ from src.model.task import Task
 
 logger = logging.getLogger(__name__)
 
-TRIZ_SYSTEM_PROMPT = """You are an AI assistant trained to help solve problems using TRIZ principles. 
-Here are the 40 TRIZ principles:
-1. Segmentation - Divide objects or systems into independent parts
-2. Taking Out - Extract disturbing parts or properties
-3. Local Quality - Transition from homogeneous to heterogeneous structures
-4. Asymmetry - Replace symmetrical forms with asymmetrical ones
-5. Merging - Combine identical or similar objects, make operations parallel
-6. Universality - Make parts perform multiple functions
-7. Nested Doll - Place objects inside each other
-8. Anti-Weight - Compensate object's weight with lift or buoyancy
-9. Preliminary Anti-Action - Preempt negative effects with opposing action
-10. Preliminary Action - Perform required changes before needed
-11. Beforehand Cushioning - Prepare emergency means beforehand
-12. Equipotentiality - Eliminate need to raise or lower objects
-13. The Other Way Round - Invert the action or process
-14. Spheroidality - Use curves instead of straight lines
-15. Dynamics - Allow characteristics to change for optimal operation
-16. Partial or Excessive Actions - Use slightly more or less than required
-17. Another Dimension - Move into additional dimensions
-18. Mechanical Vibration - Oscillate or vibrate object
-19. Periodic Action - Use periodic or pulsating actions
-20. Continuity of Useful Action - Work continuously without idle phases
-21. Skipping - Conduct process at high speed
-22. "Blessing in Disguise" - Turn harmful factors into benefits
-23. Feedback - Introduce feedback to improve process
-24. Intermediary - Use intermediary carrier or process
-25. Self-Service - Make object serve itself and perform auxiliary functions
-26. Copying - Use simple copies instead of expensive objects
-27. Cheap Short-Living Objects - Replace expensive with cheap disposables
-28. Mechanics Substitution - Replace mechanical with other means
-29. Pneumatics and Hydraulics - Use gas and liquid parts
-30. Flexible Shells and Thin Films - Use flexible structures
-31. Porous Materials - Make objects porous or add porous elements
-32. Color Changes - Change color or transparency
-33. Homogeneity - Make interacting objects from same material
-34. Discarding and Recovering - Make parts disappear after use
-35. Parameter Changes - Change physical state, concentration, flexibility
-36. Phase Transitions - Use phase transitions
-37. Thermal Expansion - Use thermal expansion or contraction
-38. Strong Oxidants - Use enriched atmospheres
-39. Inert Atmosphere - Replace normal environment with inert one
-40. Composite Materials - Use multiple materials instead of uniform ones
-
-Levels of complexity:
-LEVEL_1 - Simple task: Simple solution is known and easy to apply
-LEVEL_2 - Complex task: Requires adaptation of known solutions
-LEVEL_3 - Very complex task: Requires combining several approaches
-LEVEL_4 - Task with high level of innovation: Requires creation of a new solution within the current paradigm
-LEVEL_5 - Task with the highest level of innovation: Requires creation of a fundamentally new solution, possibly changing the paradigm
-"""
-
-
 class OpenAIService:
     def __init__(self):
         logger.info("Initializing OpenAIService")
@@ -230,7 +178,6 @@ class OpenAIService:
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
-                # {"role": "system", "content": TRIZ_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
             functions=functions,
@@ -244,12 +191,7 @@ class OpenAIService:
             return result
         else:
             fallback_result = {
-                "approaches": {
-                    "principles": ["Approach generation failed"],
-                    "solution_by_principles": ["Approach generation failed"],
-                    "approach_list": ["Approach generation failed"],
-                    "evaluation_criteria": ["Approach generation failed"],
-                }
+                "approaches": None
             }
             logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result

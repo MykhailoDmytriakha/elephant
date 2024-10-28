@@ -105,11 +105,15 @@ class ProblemAnalyzer:
 
     def generate_approaches(self, task: Task):
         approach_definitions = self.openai_service.generate_approaches(task)
-        approaches = approach_definitions['approaches']
-        task.approaches = approaches
+        approaches = {
+            'tool_categories': approach_definitions['tool_categories'],
+            'user_preferences_matching': approach_definitions['user_preferences_matching'],
+            'tool_combinations': approach_definitions['tool_combinations']
+        }
+        task.approaches = {**approaches}
         task.update_state(TaskState.APPROACH_FORMATION)
         self.db_service.updated_task(task)
-        return approaches
+        return task.approaches
 
     def decompose(self, task: Task) -> dict:
         complexity = int(task.analysis['complexity'])

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { RefreshCcw, Lightbulb } from "lucide-react";
 import { CollapsibleSection } from "./TaskComponents";
 import { TaskStates } from "../../constants/taskStates";
@@ -10,12 +10,12 @@ export default function ApproachFormation({
   isRegenerating,
   taskState,
 }) {
+  const [activeTab, setActiveTab] = useState('tools');
+  
   const isApproachFormationStageOrLater =
-    getStateNumber(taskState) >=
-    getStateNumber(TaskStates.CLARIFICATION_COMPLETE);
+    getStateNumber(taskState) >= getStateNumber(TaskStates.CLARIFICATION_COMPLETE);
 
-  // Show component only during/after APPROACH_FORMATION stage or if approaches exist
-  if (!isApproachFormationStageOrLater && !approaches?.approach_list?.length) {
+  if (!isApproachFormationStageOrLater && !approaches?.tool_categories) {
     return null;
   }
 
@@ -45,6 +45,140 @@ export default function ApproachFormation({
     );
   }
 
+  const renderToolsAndResources = () => (
+    <div className="space-y-8">
+      {/* Analytical Tools */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Analytical Tools</h3>
+        <div className="grid grid-cols-1 gap-4">
+          {approaches.tool_categories.analytical_tools.map((tool) => (
+            <div key={tool.tool_id} className="border rounded-lg p-4 bg-white relative">
+              <div className="flex justify-between items-start mb-2">
+                <h4 className="font-medium">{tool.name}</h4>
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  {tool.tool_id}
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 mb-2">{tool.purpose}</p>
+              <div className="text-sm mb-3">
+                <strong>When to use:</strong> {tool.when_to_use}
+              </div>
+              <div className="text-sm mb-8">
+                <strong>Contribution:</strong> {tool.contribution_to_task}
+              </div>
+              <div className="mt-2 mb-6">
+                <strong className="text-sm block mb-2">Examples:</strong>
+                <ul className="space-y-1">
+                  {tool.examples.map((example, idx) => (
+                    <li key={idx} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded w-fit">
+                      {example}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <span className="absolute bottom-4 right-4 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                {tool.ease_of_use}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Practical Methods */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Practical Methods</h3>
+        <div className="grid grid-cols-1 gap-4">
+          {approaches.tool_categories.practical_methods.map((method) => (
+            <div key={method.method_id} className="border rounded-lg p-4 bg-white relative">
+              <div className="flex justify-between items-start mb-2">
+                <h4 className="font-medium">{method.name}</h4>
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  {method.method_id}
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 mb-2">{method.description}</p>
+              <div className="text-sm mb-8">
+                <strong>Best for:</strong>
+                <ul className="list-disc list-inside mt-1">
+                  {method.best_for.map((use, idx) => (
+                    <li key={idx} className="text-gray-600">{use}</li>
+                  ))}
+                </ul>
+              </div>
+              <span className="absolute bottom-4 right-4 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                {method.difficulty_level}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Frameworks */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Frameworks</h3>
+        <div className="grid grid-cols-1 gap-4">
+          {approaches.tool_categories.frameworks.map((framework) => (
+            <div key={framework.framework_id} className="border rounded-lg p-4 bg-white">
+              <div className="flex justify-between items-start mb-2">
+                <h4 className="font-medium">{framework.name}</h4>
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  {framework.framework_id}
+                </span>
+              </div>
+              <div className="text-sm text-gray-600 mb-3">
+                <strong>Structure:</strong> {framework.structure}
+              </div>
+              <div className="text-sm text-gray-600 mb-4">
+                <strong>How to use:</strong> {framework.how_to_use}
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <strong className="text-sm">Benefits:</strong>
+                  <ul className="list-disc list-inside text-sm text-gray-600">
+                    {framework.benefits.map((benefit, idx) => (
+                      <li key={idx}>{benefit}</li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div>
+                  <strong className="text-sm">Adaptation Tips:</strong>
+                  <ul className="list-disc list-inside text-sm text-gray-600">
+                    {framework.adaptation_tips.map((tip, idx) => (
+                      <li key={idx}>{tip}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tool Combinations */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Recommended Combinations</h3>
+        {approaches.tool_combinations.map((combo, idx) => (
+          <div key={idx} className="border rounded-lg p-4 bg-white">
+            <h4 className="font-medium mb-2">{combo.combination_name}</h4>
+            <p className="text-sm text-gray-600 mb-2">{combo.synergy_description}</p>
+            <div className="text-sm">
+              <strong>Use case:</strong> {combo.use_case}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {combo.tools.map((tool, idx) => (
+                <span key={idx} className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                  {tool}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <CollapsibleSection title="Approach Formation">
       <div className="relative">
@@ -60,101 +194,8 @@ export default function ApproachFormation({
           {isRegenerating ? "Reapproaching..." : "Reapproach"}
         </button>
 
-        {/* Approaches */}
-        <div className="space-y-6 mt-8">
-          <h3 className="text-lg font-medium">Proposed Approaches</h3>
-          {approaches.approach_list.map((approach) => (
-            <div key={approach.approach_id} className="border rounded-lg p-4">
-              <div className="flex justify-between items-start mb-2">
-                <h4 className="text-md font-semibold">
-                  {approach.approach_name}
-                </h4>
-                <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                  {approach.approach_id}
-                </span>
-              </div>
-              <p className="text-gray-600 mb-3">{approach.description}</p>
-
-              {/* Applied Principles */}
-              {/* <div className="mt-4">
-                            <h5 className="text-sm font-medium text-gray-500 mb-2">Applied Principles</h5>
-                            <ul className="list-disc list-inside space-y-1">
-                                {approach.applied_principles.map((principle, index) => (
-                                    <li key={index} className="text-gray-600">
-                                        <span className="font-medium">{principle.principle_name}:</span>{' '}
-                                        {principle.application_description}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div> */}
-
-              {/* Resources */}
-              <div className="mt-4">
-                <h5 className="text-sm font-medium text-gray-500 mb-2">
-                  Required Resources
-                </h5>
-                <ul className="list-disc list-inside space-y-1">
-                  {approach.resources.map((resource, index) => (
-                    <li key={index} className="text-gray-600">
-                      {resource}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Evaluation Scores */}
-              {approaches.evaluation_criteria &&
-                approaches.evaluation_criteria.map((evaluation) => {
-                  if (evaluation.approach_id === approach.approach_id) {
-                    return (
-                      <div
-                        key={evaluation.approach_id}
-                        className="mt-4 border-t pt-4"
-                      >
-                        <h5 className="text-sm font-medium text-gray-500 mb-3">
-                          Evaluation Scores
-                        </h5>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="text-sm">
-                            <div className="font-medium">Ideality</div>
-                            <div className="text-gray-600">
-                              {evaluation.ideality_score.score}/10
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {evaluation.ideality_score.reasoning}
-                            </div>
-                          </div>
-                          <div className="text-sm">
-                            <div className="font-medium">Feasibility</div>
-                            <div className="text-gray-600">
-                              {(evaluation.feasibility.score * 100).toFixed(0)}%
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {evaluation.feasibility.reasoning}
-                            </div>
-                          </div>
-                          <div className="text-sm">
-                            <div className="font-medium">
-                              Resource Efficiency
-                            </div>
-                            <div className="text-gray-600">
-                              {(
-                                evaluation.resource_efficiency.score * 100
-                              ).toFixed(0)}
-                              %
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {evaluation.resource_efficiency.reasoning}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                })}
-            </div>
-          ))}
+        <div className="mt-8">
+          {renderToolsAndResources()}
         </div>
       </div>
     </CollapsibleSection>
