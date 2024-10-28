@@ -22,8 +22,6 @@ CONTEXT_SUFFICIENT_FUNCTIONS = [
         ]
 
 def get_context_sufficient_prompt(task: Task, summarized_context: str) -> str:
-    if not summarized_context:
-        raise ValueError("Summarized context is required")
     return f"""
         Given the following problem and context, determine if the context is sufficient for analysis:
         Problem: {task.task or task.short_description}
