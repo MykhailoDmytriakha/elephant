@@ -4,7 +4,12 @@ from .database_service import DatabaseService
 from src.services.openai_service import OpenAIService, ContextSufficiencyResult
 from src.model.task import Task, TaskState
 from src.user_interaction import UserInteraction
-
+import re
+def extract_level(text):
+    match = re.search(r'LEVEL_(\d+)', text)
+    if match:
+        return int(match.group(1))
+    return None
 
 class ProblemAnalyzer:
     MAX_SUB_LEVEL = 1
@@ -115,11 +120,12 @@ class ProblemAnalyzer:
         return task.approaches
 
     def decompose(self, task: Task) -> dict:
-        complexity = int(task.analysis['complexity'])
+        level = task.typification['classification']['complexity_level']['level']
+        complexity = extract_level(level)
 
         if complexity > 1:
             print(f"Task complexity is {complexity}. Initiating decomposition.")
-            self._decompose_task(task)
+            self._decompose_task(task, complexity)
             return {"status": "decomposed", "sub_tasks": [sub_task.to_dict() for sub_task in task.sub_tasks]}
         # TODO: we could force decomposition base on user request. This could be implemented later
         else:
@@ -128,12 +134,12 @@ class ProblemAnalyzer:
             self.db_service.updated_task(task)
             return {"status": "no_decomposition_needed"}
 
-    def _decompose_task(self, task: Task):
+    def _decompose_task(self, task: Task, complexity: int):
         if self._is_max_sub_level_reached(task):
             return
 
         # Call OpenAI service to decompose the task
-        decomposed_tasks = self.openai_service.decompose_task(task)
+        decomposed_tasks = self.openai_service.decompose_task(task, complexity)
 
         # Build the task tree
         self._build_task_tree(decomposed_tasks, task)

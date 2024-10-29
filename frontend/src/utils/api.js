@@ -68,17 +68,17 @@ export const generateApproaches = async (taskId) => {
 
 export const typifyTask = async (taskId, isRetypify = false) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/typify${isRetypify ? '?retypify=true' : ''}`, {
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/typify${isRetypify ? '?retypify=true' : ''}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to typify task');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error typifying task:', error);
@@ -91,11 +91,24 @@ export const clarifyTask = async (taskId, message = null) => {
   try {
     console.log('Sending clarification request:', { taskId, message });
     const response = await axios.post(
-      `${API_BASE_URL}/tasks/${taskId}/clarify`, 
-      message ? { message: message } : {}  // Изменено здесь
+      `${API_BASE_URL}/tasks/${taskId}/clarify`,
+      message ? { message: message } : {}
     );
     return response.data;
   } catch (error) {
     throw new Error('Failed to clarify task');
+  }
+};
+
+export const decomposeTask = async (taskId, selecedApproaches, isRedecompose = false) => {
+  // verify that selecedApproach has tools, methods, frameworks
+  if (!selecedApproaches.analytical_tools || !selecedApproaches.practical_methods || !selecedApproaches.frameworks) {
+    throw new Error('Selected approach must include tools, methods, and frameworks');
+  }
+  try {
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/decompose${isRedecompose ? '?redecompose=true' : ''}`, selecedApproaches);
+    return response.data;
+  } catch (error) {
+    throw new Error('Failed to decompose task');
   }
 };

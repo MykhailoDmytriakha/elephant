@@ -11,74 +11,22 @@ export default function ApproachFormation({
   taskState,
   onSelectionChange,
   selectedItems: selectedItemsProp,
+  isDecompositionStarted
 }) {
-  const [selectedItems, setSelectedItems] = useState(selectedItemsProp || {
-    analytical_tools: [],
-    practical_methods: [],
-    frameworks: []
-  });
-  const [activeCombo, setActiveCombo] = useState(null);
-
-  useEffect(() => {
-    if (selectedItemsProp) {
-      setSelectedItems(selectedItemsProp);
-      setActiveCombo(checkActiveCombination(selectedItemsProp));
-    }
-  }, [selectedItemsProp]);
-
-  const isApproachFormationStageOrLater =
-    getStateNumber(taskState) >= getStateNumber(TaskStates.CLARIFICATION_COMPLETE);
-
-  if (!isApproachFormationStageOrLater && !approaches?.tool_categories) {
-    return null;
-  }
-
-  if (!approaches || Object.keys(approaches).length === 0) {
-    return (
-      <CollapsibleSection title="Approach Formation">
-        <div className="text-center py-8">
-          <button
-            onClick={onRegenerateApproaches}
-            disabled={isRegenerating}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
-          >
-            {isRegenerating ? (
-              <>
-                <RefreshCcw className="w-5 h-5 animate-spin" />
-                Generating Approaches...
-              </>
-            ) : (
-              <>
-                <Lightbulb className="w-5 h-5" />
-                Generate Approaches
-              </>
-            )}
-          </button>
-        </div>
-      </CollapsibleSection>
-    );
-  }
-
-  const handleSelection = (category, itemId) => {
-    setSelectedItems(prev => {
-      const newSelection = {
-        ...prev,
-        [category]: prev[category].includes(itemId)
-          ? prev[category].filter(id => id !== itemId)
-          : [...prev[category], itemId]
+  const [selectedItems, setSelectedItems] = useState(() => {
+    if (approaches?.selected_approaches) {
+      return {
+        analytical_tools: approaches.selected_approaches.analytical_tools || [],
+        practical_methods: approaches.selected_approaches.practical_methods || [],
+        frameworks: approaches.selected_approaches.frameworks || []
       };
-      
-      // Check if the new selection matches any combination
-      const matchingCombo = checkActiveCombination(newSelection);
-      setActiveCombo(matchingCombo >= 0 ? matchingCombo : null);
-      
-      if (onSelectionChange) {
-        onSelectionChange(newSelection);
-      }
-      
-      return newSelection;
-    });
-  };
+    }
+    return selectedItemsProp || {
+      analytical_tools: [],
+      practical_methods: [],
+      frameworks: []
+    };
+  });
 
   const categorizeToolId = (toolName) => {
     // Check in analytical tools
@@ -124,7 +72,94 @@ export default function ApproachFormation({
     });
   };
 
+  const [activeCombo, setActiveCombo] = useState(() => {
+    if (approaches?.selected_approaches) {
+      return checkActiveCombination({
+        analytical_tools: approaches.selected_approaches.analytical_tools || [],
+        practical_methods: approaches.selected_approaches.practical_methods || [],
+        frameworks: approaches.selected_approaches.frameworks || []
+      });
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (selectedItemsProp) {
+      setSelectedItems(selectedItemsProp);
+      setActiveCombo(checkActiveCombination(selectedItemsProp));
+    }
+  }, [selectedItemsProp]);
+
+  useEffect(() => {
+    if (approaches?.selected_approaches) {
+      const newSelectedItems = {
+        analytical_tools: approaches.selected_approaches.analytical_tools || [],
+        practical_methods: approaches.selected_approaches.practical_methods || [],
+        frameworks: approaches.selected_approaches.frameworks || []
+      };
+      setSelectedItems(newSelectedItems);
+      setActiveCombo(checkActiveCombination(newSelectedItems));
+    }
+  }, [approaches?.selected_approaches]);
+
+  const isApproachFormationStageOrLater =
+    getStateNumber(taskState) >= getStateNumber(TaskStates.CLARIFICATION_COMPLETE);
+
+  if (!isApproachFormationStageOrLater && !approaches?.tool_categories) {
+    return null;
+  }
+
+  if (!approaches || Object.keys(approaches).length === 0) {
+    return (
+      <CollapsibleSection title="Approach Formation">
+        <div className="text-center py-8">
+          <button
+            onClick={onRegenerateApproaches}
+            disabled={isRegenerating}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+          >
+            {isRegenerating ? (
+              <>
+                <RefreshCcw className="w-5 h-5 animate-spin" />
+                Generating Approaches...
+              </>
+            ) : (
+              <>
+                <Lightbulb className="w-5 h-5" />
+                Generate Approaches
+              </>
+            )}
+          </button>
+        </div>
+      </CollapsibleSection>
+    );
+  }
+
+  const handleSelection = (category, itemId) => {
+    if (isDecompositionStarted || approaches?.selected_approaches) return;
+
+    setSelectedItems(prev => {
+      const newSelection = {
+        ...prev,
+        [category]: prev[category].includes(itemId)
+          ? prev[category].filter(id => id !== itemId)
+          : [...prev[category], itemId]
+      };
+      
+      const matchingCombo = checkActiveCombination(newSelection);
+      setActiveCombo(matchingCombo >= 0 ? matchingCombo : null);
+      
+      if (onSelectionChange) {
+        onSelectionChange(newSelection);
+      }
+      
+      return newSelection;
+    });
+  };
+
   const handleCombinationClick = (tools, comboIndex) => {
+    if (approaches?.selected_approaches || isDecompositionStarted) return;
+
     setActiveCombo(comboIndex);
     const newSelection = {
       analytical_tools: [],
@@ -146,6 +181,30 @@ export default function ApproachFormation({
     }
   };
 
+  const getItemStyles = (isSelected, category) => {
+    const categoryColors = {
+      analytical_tools: {
+        selected: 'border-blue-500 ring-2 ring-blue-200 bg-blue-50',
+        badge: 'bg-blue-100 text-blue-800'
+      },
+      practical_methods: {
+        selected: 'border-green-500 ring-2 ring-green-200 bg-green-50',
+        badge: 'bg-green-100 text-green-800'
+      },
+      frameworks: {
+        selected: 'border-purple-500 ring-2 ring-purple-200 bg-purple-50',
+        badge: 'bg-purple-100 text-purple-800'
+      }
+    };
+
+    return `
+      border rounded-lg p-4 relative 
+      ${isDecompositionStarted || approaches?.selected_approaches ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:border-blue-400'} 
+      ${isSelected ? categoryColors[category].selected : 'bg-white'}
+      transition-colors
+    `;
+  };
+
   const renderToolsAndResources = () => (
     <div className="space-y-8">
       {/* Analytical Tools */}
@@ -155,11 +214,12 @@ export default function ApproachFormation({
           {approaches.tool_categories.analytical_tools.map((tool) => (
             <div 
               key={tool.tool_id} 
-              className={`border rounded-lg p-4 relative cursor-pointer hover:border-blue-400 transition-colors
-                ${selectedItems.analytical_tools.includes(tool.tool_id) 
-                  ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50' 
-                  : 'bg-white'}`}
+              className={getItemStyles(
+                selectedItems.analytical_tools.includes(tool.tool_id),
+                'analytical_tools'
+              )}
               onClick={() => handleSelection('analytical_tools', tool.tool_id)}
+              aria-disabled={isDecompositionStarted || approaches?.selected_approaches}
             >
               <div className="flex justify-between items-start mb-2">
                 <h4 className="font-medium">{tool.name}</h4>
@@ -167,7 +227,7 @@ export default function ApproachFormation({
                   {selectedItems.analytical_tools.includes(tool.tool_id) && (
                     <Check className="w-4 h-4 text-blue-500" />
                   )}
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                     {tool.tool_id}
                   </span>
                 </div>
@@ -204,19 +264,20 @@ export default function ApproachFormation({
           {approaches.tool_categories.practical_methods.map((method) => (
             <div
               key={method.method_id}
-              className={`border rounded-lg p-4 relative cursor-pointer hover:border-blue-400 transition-colors
-                ${selectedItems.practical_methods.includes(method.method_id) 
-                  ? 'border-blue-500 ring-2 ring-blue-200 bg-green-50' 
-                  : 'bg-white'}`}
+              className={getItemStyles(
+                selectedItems.practical_methods.includes(method.method_id),
+                'practical_methods'
+              )}
               onClick={() => handleSelection('practical_methods', method.method_id)}
+              aria-disabled={isDecompositionStarted || approaches?.selected_approaches}
             >
               <div className="flex justify-between items-start mb-2">
                 <h4 className="font-medium">{method.name}</h4>
                 <div className="flex items-center gap-2">
                   {selectedItems.practical_methods.includes(method.method_id) && (
-                    <Check className="w-4 h-4 text-blue-500" />
+                    <Check className="w-4 h-4 text-green-500" />
                   )}
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                     {method.method_id}
                   </span>
                 </div>
@@ -245,19 +306,20 @@ export default function ApproachFormation({
           {approaches.tool_categories.frameworks.map((framework) => (
             <div
               key={framework.framework_id}
-              className={`border rounded-lg p-4 relative cursor-pointer hover:border-blue-400 transition-colors
-                ${selectedItems.frameworks.includes(framework.framework_id) 
-                  ? 'border-blue-500 ring-2 ring-blue-200 bg-purple-50' 
-                  : 'bg-white'}`}
+              className={getItemStyles(
+                selectedItems.frameworks.includes(framework.framework_id),
+                'frameworks'
+              )}
               onClick={() => handleSelection('frameworks', framework.framework_id)}
+              aria-disabled={isDecompositionStarted || approaches?.selected_approaches}
             >
               <div className="flex justify-between items-start mb-2">
                 <h4 className="font-medium">{framework.name}</h4>
                 <div className="flex items-center gap-2">
                   {selectedItems.frameworks.includes(framework.framework_id) && (
-                    <Check className="w-4 h-4 text-blue-500" />
+                    <Check className="w-4 h-4 text-purple-500" />
                   )}
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
                     {framework.framework_id}
                   </span>
                 </div>
@@ -299,24 +361,56 @@ export default function ApproachFormation({
         {approaches.tool_combinations.map((combo, idx) => (
           <div 
             key={idx} 
-            className={`border rounded-lg p-4 transition-colors cursor-pointer
+            className={`
+              border rounded-lg p-4 transition-colors 
+              ${approaches?.selected_approaches || isDecompositionStarted
+                ? 'cursor-not-allowed opacity-75' 
+                : 'cursor-pointer hover:bg-gray-50'
+              }
               ${activeCombo === idx 
                 ? 'border-amber-500 ring-2 ring-amber-200 bg-amber-50'
-                : 'bg-white hover:bg-gray-50'
-              }`}
+                : 'bg-white'
+              }
+            `}
             onClick={() => handleCombinationClick(combo.tools, idx)}
+            aria-disabled={approaches?.selected_approaches || isDecompositionStarted}
           >
-            <h4 className="font-medium mb-2">{combo.combination_name}</h4>
+            <div className="flex justify-between items-start mb-2">
+              <h4 className="font-medium">{combo.combination_name}</h4>
+              <div className="flex items-center gap-2">
+                {activeCombo === idx && (
+                  <Check className="w-4 h-4 text-amber-500" />
+                )}
+              </div>
+            </div>
             <p className="text-sm text-gray-600 mb-2">{combo.synergy_description}</p>
-            <div className="text-sm">
+            <div className="text-sm mb-4">
               <strong>Use case:</strong> {combo.use_case}
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {combo.tools.map((tool, idx) => (
-                <span key={idx} className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                  {tool}
-                </span>
-              ))}
+            <div className="flex flex-wrap gap-2">
+              {combo.tools.map((tool, toolIdx) => {
+                const toolInfo = categorizeToolId(tool);
+                const isSelected = toolInfo && (
+                  (toolInfo.category === 'analytical_tools' && selectedItems.analytical_tools.includes(toolInfo.id)) ||
+                  (toolInfo.category === 'practical_methods' && selectedItems.practical_methods.includes(toolInfo.id)) ||
+                  (toolInfo.category === 'frameworks' && selectedItems.frameworks.includes(toolInfo.id))
+                );
+                
+                return (
+                  <span 
+                    key={toolIdx} 
+                    className={`
+                      text-xs px-2 py-1 rounded
+                      ${isSelected 
+                        ? 'bg-amber-100 text-amber-800' 
+                        : 'bg-gray-100 text-gray-600'
+                      }
+                    `}
+                  >
+                    {tool}
+                  </span>
+                );
+              })}
             </div>
           </div>
         ))}

@@ -1,28 +1,18 @@
 // src/pages/TaskDetailsPage.jsx
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2 } from "lucide-react";
-import {
-  LoadingSpinner,
-  ErrorDisplay,
-} from "../components/task/TaskComponents";
-import {
-  fetchTaskDetails,
-  updateTaskContext,
-  deleteTask,
-  analyzeTask,
-  generateApproaches,
-  typifyTask,
-  clarifyTask,
-} from "../utils/api";
-import { TaskStates, getStateColor } from "../constants/taskStates";
-import TaskOverview from "../components/task/TaskOverview";
-import Analysis from "../components/task/Analysis";
-import ContextChatWindow from "../components/task/ContextChatWindow";
-import Metadata from "../components/task/Metadata";
-import ApproachFormation from "../components/task/ApproachFormation";
-import Typification from "../components/task/Typification";
-import ClarificationSection from "../components/task/ClarificationSection";
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Trash2 } from 'lucide-react';
+import { LoadingSpinner, ErrorDisplay } from '../components/task/TaskComponents';
+import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateApproaches, typifyTask, clarifyTask, decomposeTask } from '../utils/api';
+import { TaskStates, getStateColor } from '../constants/taskStates';
+import TaskOverview from '../components/task/TaskOverview';
+import Analysis from '../components/task/Analysis';
+import ContextChatWindow from '../components/task/ContextChatWindow';
+import Metadata from '../components/task/Metadata';
+import ApproachFormation from '../components/task/ApproachFormation';
+import Typification from '../components/task/Typification';
+import ClarificationSection from '../components/task/ClarificationSection';
+import Decomposition from '../components/task/Decomposition';
 
 export default function TaskDetailsPage() {
   const { taskId } = useParams();
@@ -34,29 +24,34 @@ export default function TaskDetailsPage() {
   const [followUpQuestion, setFollowUpQuestion] = useState(null);
   const [isContextSufficient, setIsContextSufficient] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isStartingClarificationLoading, setIsStartingClarificationLoading] =
-    useState(false);
+  const [isStartingClarificationLoading, setIsStartingClarificationLoading] = useState(false);
   const [isGeneratingConcepts, setIsGeneratingConcepts] = useState(false);
-  const [isRegeneratingApproaches, setIsRegeneratingApproaches] =
-    useState(false);
+  const [isRegeneratingApproaches, setIsRegeneratingApproaches] = useState(false);
   const [isTypifying, setIsTypifying] = useState(false);
   const [isClarifying, setIsClarifying] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [clarificationData, setClarificationData] = useState(null);
+  const [isDecomposing, setIsDecomposing] = useState(false);
+  const [selectedApproachItems, setSelectedApproachItems] = useState({
+    analytical_tools: [],
+    practical_methods: [],
+    frameworks: []
+  });
+  const [isDecompositionStarted, setIsDecompositionStarted] = useState(false);
 
   // Add debug logging for state changes
   useEffect(() => {
-    console.log("Task State:", task?.state);
-    console.log("Is Clarifying:", isClarifying);
-    console.log("Current Question:", currentQuestion);
-    console.log("Clarification Data:", clarificationData);
+    console.log('Task State:', task?.state);
+    console.log('Is Clarifying:', isClarifying);
+    console.log('Current Question:', currentQuestion);
+    console.log('Clarification Data:', clarificationData);
   }, [task?.state, isClarifying, currentQuestion, clarificationData]);
 
   const loadTask = async () => {
     try {
       // Store current scroll position
       const scrollPosition = window.scrollY;
-      
+
       setLoading(true);
       setError(null);
       const data = await fetchTaskDetails(taskId);
@@ -72,7 +67,7 @@ export default function TaskDetailsPage() {
       requestAnimationFrame(() => {
         window.scrollTo({
           top: scrollPosition,
-          behavior: 'instant'
+          behavior: 'instant',
         });
       });
     } catch (err) {
@@ -87,16 +82,16 @@ export default function TaskDetailsPage() {
   }, [taskId]);
 
   const handleBack = () => {
-    navigate("/");
+    navigate('/');
   };
 
   const handleDelete = async () => {
-    if (window.confirm("Are you sure you want to delete this task?")) {
+    if (window.confirm('Are you sure you want to delete this task?')) {
       try {
         await deleteTask(taskId);
-        navigate("/");
+        navigate('/');
       } catch (error) {
-        setError("Failed to delete task: " + error.message);
+        setError('Failed to delete task: ' + error.message);
       }
     }
   };
@@ -107,7 +102,7 @@ export default function TaskDetailsPage() {
         query: followUpQuestion,
         answer: message,
       });
-      console.log("Updated context:", updatedContext);
+      console.log('Updated context:', updatedContext);
       setIsContextSufficient(updatedContext.is_context_sufficient);
       if (updatedContext.is_context_sufficient) {
         setFollowUpQuestion(null);
@@ -117,7 +112,7 @@ export default function TaskDetailsPage() {
       const updatedTask = await fetchTaskDetails(taskId);
       setTask(updatedTask);
     } catch (error) {
-      setError("Failed to send message: " + error.message);
+      setError('Failed to send message: ' + error.message);
     }
   };
 
@@ -144,11 +139,11 @@ export default function TaskDetailsPage() {
       setTimeout(() => {
         window.scrollTo({
           top: document.body.scrollHeight,
-          behavior: 'smooth'
+          behavior: 'smooth',
         });
       }, 100);
     } catch (error) {
-      setError("Failed to process clarification: " + error.message);
+      setError('Failed to process clarification: ' + error.message);
     } finally {
       setIsStartingClarificationLoading(false);
     }
@@ -156,11 +151,13 @@ export default function TaskDetailsPage() {
 
   // Update this part to correctly handle the user interaction and follow-up question
   const chatMessages = [
-    ...(task?.user_interaction || []).map(interaction => [
-      { role: 'assistant', content: interaction.query },
-      { role: 'user', content: interaction.answer }
-    ]).flat(),
-    ...(followUpQuestion ? [{ role: 'assistant', content: followUpQuestion }] : [])
+    ...(task?.user_interaction || [])
+      .map((interaction) => [
+        { role: 'assistant', content: interaction.query },
+        { role: 'user', content: interaction.answer },
+      ])
+      .flat(),
+    ...(followUpQuestion ? [{ role: 'assistant', content: followUpQuestion }] : []),
   ];
 
   const handleAnalyze = async (isReanalyze = false) => {
@@ -169,7 +166,7 @@ export default function TaskDetailsPage() {
       await analyzeTask(taskId, isReanalyze);
       await loadTask();
     } catch (err) {
-      setError("Failed to analyze task: " + err.message);
+      setError('Failed to analyze task: ' + err.message);
     } finally {
       setIsAnalyzing(false);
     }
@@ -181,7 +178,7 @@ export default function TaskDetailsPage() {
       await generateApproaches(taskId);
       await loadTask();
     } catch (err) {
-      setError("Failed to generate concepts: " + err.message);
+      setError('Failed to generate concepts: ' + err.message);
     } finally {
       setIsGeneratingConcepts(false);
     }
@@ -193,7 +190,7 @@ export default function TaskDetailsPage() {
       await generateApproaches(taskId);
       await loadTask();
     } catch (err) {
-      setError("Failed to regenerate approaches: " + err.message);
+      setError('Failed to regenerate approaches: ' + err.message);
     } finally {
       setIsRegeneratingApproaches(false);
     }
@@ -205,10 +202,28 @@ export default function TaskDetailsPage() {
       await typifyTask(taskId, isRetypify);
       await loadTask();
     } catch (err) {
-      setError("Failed to typify task: " + err.message);
+      setError('Failed to typify task: ' + err.message);
     } finally {
       setIsTypifying(false);
     }
+  };
+
+  const handleDecompose = async (selectedApproachItems, isRedecompose = false) => {
+    try {
+      setIsDecomposing(true);
+      setIsDecompositionStarted(true);
+      await decomposeTask(taskId, selectedApproachItems, isRedecompose);
+      await loadTask();
+    } catch (err) {
+      setError('Failed to decompose task: ' + err.message);
+      setIsDecompositionStarted(false);
+    } finally {
+      setIsDecomposing(false);
+    }
+  };
+
+  const handleApproachSelectionChange = (selections) => {
+    setSelectedApproachItems(selections);
   };
 
   if (loading) return <LoadingSpinner />;
@@ -232,13 +247,7 @@ export default function TaskDetailsPage() {
             </div>
             <div className="flex items-center gap-4">
               <span className="text-gray-600 mr-2">Task State:</span>
-              <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${getStateColor(
-                  task.state
-                )}`}
-              >
-                {task.state}
-              </span>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStateColor(task.state)}`}>{task.state}</span>
               <button
                 onClick={handleDelete}
                 className="text-red-600 hover:text-red-700 flex items-center gap-2"
@@ -300,6 +309,17 @@ export default function TaskDetailsPage() {
               onRegenerateApproaches={handleRegenerateApproaches}
               isRegenerating={isRegeneratingApproaches}
               taskState={task.state}
+              onSelectionChange={handleApproachSelectionChange}
+              selectedItems={selectedApproachItems}
+              isDecompositionStarted={isDecompositionStarted}
+            />
+
+            <Decomposition
+              task={task}
+              taskState={task.state}
+              isDecomposing={isDecomposing}
+              onDecompose={handleDecompose}
+              selectedItems={selectedApproachItems}
             />
           </div>
 

@@ -196,7 +196,7 @@ class OpenAIService:
             logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
 
-    def decompose_task(self, task: Task) -> dict:
+    def decompose_task(self, task: Task, complexity: int) -> dict:
         logger.info("Called decompose_task method")
         functions = [
             {
@@ -221,7 +221,7 @@ class OpenAIService:
                                     "complexity": {
                                         "type": "string",
                                         "enum": ["1", "2", "3", "4", "5"],
-                                        "description": "Estimated complexity of the sub-task (1: simple, 2: low, 3: medium, 4: high, 5: very high)"
+                                        "description": "Estimated complexity of the sub-task (1: simple task: solution is known and easy to apply, 2: complex task: requires adaptation of known solutions, 3: very complex task: requires combining several approaches, 4: task with high level of innovation: requires creation of a new solution within the current paradigm, 5: task with the highest level of innovation: requires creation of a fundamentally new solution, possibly changing the paradigm)"
                                     },
                                     "short_description": {
                                         "type": "string",
@@ -243,23 +243,22 @@ class OpenAIService:
         ]
 
         context = self._gather_context(task)
-        original_complexity = task.analysis.get('complexity', '4')  # Default to high if not specified
         prompt = f"""
         Decompose the following complex task into smaller, manageable sub-tasks:
         Task: {task.task}
         Ideal Final Result: {task.analysis.get('ideal_final_result', 'N/A')}
         Context: {context}
         Analysis: {json.dumps(task.analysis, ensure_ascii=False)}
-        Original Task Complexity: {original_complexity}
+        Original Task Complexity: {complexity}
 
         Provide a list of sub-tasks, each with its own description, context, and complexity.
-        Ensure that each sub-task has a lower complexity than the original task (complexity {original_complexity}).
+        Ensure that each sub-task has a lower complexity than the original task (complexity {complexity}).
         The complexity levels are:
-        1 - Simple
-        2 - Low complexity
-        3 - Medium complexity
-        4 - High complexity
-        5 - Very high complexity
+        1 - Level 1 (simple task: solution is known and easy to apply)
+        2 - Level 2 (complex task: requires adaptation of known solutions)
+        3 - Level 3 (very complex task: requires combining several approaches)
+        4 - Level 4 (task with high level of innovation: requires creation of a new solution within the current paradigm)
+        5 - Level 5 (task with the highest level of innovation: requires creation of a fundamentally new solution, possibly changing the paradigm)
         """
 
         logger.debug(f"OpenAI API prompt: {prompt}")

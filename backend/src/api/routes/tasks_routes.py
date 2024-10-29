@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Tuple, Optional
 from src.model.context import ContextSufficiencyResult
 from src.api.deps import get_problem_analyzer, get_db_service
@@ -10,6 +10,7 @@ from src.services.database_service import DatabaseService
 from src.model.user_interaction import UserInteraction
 import logging
 from pydantic import BaseModel
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,14 @@ router = APIRouter()
 
 class ClarificationRequest(BaseModel):
     message: Optional[str] = None
+
+class SelectedTools(BaseModel):
+    analytical_tools: List[str]
+    practical_methods: List[str]
+    frameworks: List[str]
+    
+    class Config:
+        extra = "allow"
 
 
 # @router.post("/", response_model=Task)
@@ -169,17 +178,30 @@ async def generate_approaches(task_id: str, analyzer: ProblemAnalyzer = Depends(
     analyzer.generate_approaches(task)
     return task.approaches
 
-# TODO: add method selection
-@router.post("/{task_id}/method_selection", response_model=MethodSelectionResult)
-async def method_selection(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):
-    """Select a method for a specific task"""
-    # Implementation here
-
     
-@router.post("/{task_id}/decompose", response_model=DecompositionResult)
-async def decompose_task(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):
+@router.post("/{task_id}/decompose")
+async def decompose_task(
+    task_id: str,
+    selected_tools: SelectedTools,
+    redecompose: bool = False,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
     """Decompose a specific task into sub-tasks"""
-    # Implementation here
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    task_dict = json.loads(task_data['task_json'])
+    task = Task(**task_dict)
+    
+    task.approaches['selected_approaches'] = selected_tools.model_dump()
+    task.update_state(TaskState.METHOD_SELECTION)
+    db.updated_task(task)
+    
+    analyzer.decompose(task)
+    
+    return task.sub_tasks
+    
 
 
 @router.get("/{task_id}/tree", response_model=Task)
