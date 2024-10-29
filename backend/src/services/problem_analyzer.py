@@ -107,7 +107,6 @@ class ProblemAnalyzer:
         approach_definitions = self.openai_service.generate_approaches(task)
         approaches = {
             'tool_categories': approach_definitions['tool_categories'],
-            'user_preferences_matching': approach_definitions['user_preferences_matching'],
             'tool_combinations': approach_definitions['tool_combinations']
         }
         task.approaches = {**approaches}

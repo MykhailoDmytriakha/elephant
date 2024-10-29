@@ -16,7 +16,7 @@ GENERATE_APPROACHES_FUNCTIONS = [
                         "items": {
                             "type": "object",
                             "properties": {
-                                "tool_id": {"type": "string", "description": "Unique identifier for the tool: A1, A2, A3, etc."},
+                                "tool_id": {"type": "string", "description": "Unique identifier for the tool: T1, T2, T3, etc."},
                                 "name": {"type": "string"},
                                 "purpose": {"type": "string"},
                                 "when_to_use": {"type": "string"},
@@ -39,7 +39,7 @@ GENERATE_APPROACHES_FUNCTIONS = [
                         "items": {
                             "type": "object",
                             "properties": {
-                                "method_id": {"type": "string", "description": "Unique identifier for the method: P1, P2, P3, etc."},
+                                "method_id": {"type": "string", "description": "Unique identifier for the method: M1, M2, M3, etc."},
                                 "name": {"type": "string"},
                                 "description": {"type": "string"},
                                 "best_for": {
@@ -77,38 +77,8 @@ GENERATE_APPROACHES_FUNCTIONS = [
                         },
                         "description": "Structured approaches and frameworks, at least 3"
                     }
-                }
-            },
-            "user_preferences_matching": {
-                "type": "object",
-                "properties": {
-                    "recommended_tools": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "tool_id": {"type": "string"},
-                                "match_reason": {"type": "string"},
-                                "alignment_with_preferences": {"type": "string"}
-                            },
-                            "required": ["tool_id", "match_reason", "alignment_with_preferences"]
-                        }
-                    },
-                    "alternative_options": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "tool_id": {"type": "string"},
-                                "trade_offs": {
-                                    "type": "array",
-                                    "items": {"type": "string"}
-                                }
-                            },
-                            "required": ["tool_id", "trade_offs"]
-                        }
-                    }
-                }
+                },
+                "required": ["analytical_tools", "practical_methods", "frameworks"]
             },
             "tool_combinations": {
                 "type": "array",
@@ -119,7 +89,7 @@ GENERATE_APPROACHES_FUNCTIONS = [
                         "tools": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "Array of tool IDs in sequence: analytical tool (A1-A3), practical method (P1-P3), framework (F1-F3). Example: [A1, P1, F1]"
+                            "description": "Array of tool IDs in sequence: analytical tool (T1-T3), practical method (M1-M3), framework (F1-F3). Example: [T1, M1, F1]"
                         },
                         "synergy_description": {"type": "string"},
                         "use_case": {"type": "string"}
