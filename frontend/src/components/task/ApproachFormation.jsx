@@ -51,6 +51,8 @@ export default function ApproachFormation({
   };
 
   const checkActiveCombination = (currentSelection) => {
+    if (!approaches?.tool_combinations) return -1;
+
     return approaches.tool_combinations.findIndex(combo => {
       const currentTools = new Set([
         ...currentSelection.analytical_tools,
@@ -73,14 +75,13 @@ export default function ApproachFormation({
   };
 
   const [activeCombo, setActiveCombo] = useState(() => {
-    if (approaches?.selected_approaches) {
-      return checkActiveCombination({
-        analytical_tools: approaches.selected_approaches.analytical_tools || [],
-        practical_methods: approaches.selected_approaches.practical_methods || [],
-        frameworks: approaches.selected_approaches.frameworks || []
-      });
-    }
-    return null;
+    if (!approaches?.selected_approaches) return null;
+
+    return checkActiveCombination({
+      analytical_tools: approaches.selected_approaches.analytical_tools || [],
+      practical_methods: approaches.selected_approaches.practical_methods || [],
+      frameworks: approaches.selected_approaches.frameworks || []
+    });
   });
 
   useEffect(() => {

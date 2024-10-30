@@ -26,22 +26,28 @@ class TaskState(Enum):
 
 
 class Task(BaseModel):
+    # core fields
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     sub_level: int = 0
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
-    state: TaskState = Field(default=TaskState.NEW)
-    context: Optional[str] = None
-    is_context_sufficient: bool = False
+    # task fields
     task: Optional[str] = None
     short_description: Optional[str] = ''
+    state: TaskState = Field(default=TaskState.NEW)
+    is_context_sufficient: bool = False
+    context: Optional[str] = None
+    complexity: Optional[int] = None
+    contribution_to_parent_task: Optional[str] = None
+    # analysis fields
     user_interaction: List[UserInteraction] = Field(default_factory=list)
     analysis: Dict = Field(default_factory=dict)
     typification: Dict = Field(default_factory=dict)
     clarification_data: Dict = Field(default_factory=dict)
     approaches: Dict = Field(default_factory=dict)
-    sub_tasks: List['Task'] = Field(default_factory=list)
-    parent_task: Optional['Task'] = None
+    # decomposition fields
+    sub_tasks: List[str] = Field(default_factory=list)
+    parent_task: Optional[str] = None
     
     def __init__(self, **data):
         super().__init__(**data)
@@ -103,7 +109,7 @@ class Task(BaseModel):
             TaskState.CLARIFICATION_COMPLETE: [TaskState.APPROACH_FORMATION],
             TaskState.APPROACH_FORMATION: [TaskState.METHOD_SELECTION],
             TaskState.METHOD_SELECTION: [TaskState.DECOMPOSITION],
-            TaskState.DECOMPOSITION: [TaskState.METHOD_APPLICATION],
+            TaskState.DECOMPOSITION: [TaskState.METHOD_APPLICATION, TaskState.METHOD_SELECTION, TaskState.APPROACH_FORMATION],
             TaskState.METHOD_APPLICATION: [TaskState.SOLUTION_DEVELOPMENT],
             TaskState.SOLUTION_DEVELOPMENT: [TaskState.EVALUATION],
             TaskState.EVALUATION: [TaskState.INTEGRATION],

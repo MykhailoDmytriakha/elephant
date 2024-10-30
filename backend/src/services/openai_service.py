@@ -223,6 +223,10 @@ class OpenAIService:
                                         "enum": ["1", "2", "3", "4", "5"],
                                         "description": "Estimated complexity of the sub-task (1: simple task: solution is known and easy to apply, 2: complex task: requires adaptation of known solutions, 3: very complex task: requires combining several approaches, 4: task with high level of innovation: requires creation of a new solution within the current paradigm, 5: task with the highest level of innovation: requires creation of a fundamentally new solution, possibly changing the paradigm)"
                                     },
+                                    "eta_to_complete": {
+                                        "type": "string",
+                                        "description": "Estimated time to complete the sub-task"
+                                    },
                                     "short_description": {
                                         "type": "string",
                                         "description": "Short description of the sub-task"

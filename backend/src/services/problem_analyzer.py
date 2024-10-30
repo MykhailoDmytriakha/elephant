@@ -9,7 +9,7 @@ def extract_level(text):
     match = re.search(r'LEVEL_(\d+)', text)
     if match:
         return int(match.group(1))
-    return None
+    raise ValueError(f"No level found in text: {text}")
 
 class ProblemAnalyzer:
     MAX_SUB_LEVEL = 1
@@ -48,6 +48,8 @@ class ProblemAnalyzer:
         
     def typify(self, task: Task):
         typification_result = self.openai_service.typify_task(task)
+        complexity_level = typification_result['typification']['classification']['complexity_level']['level']
+        task.complexity = extract_level(complexity_level)
         task.typification = typification_result['typification']
         task.update_state(TaskState.TYPIFY)
         self.db_service.updated_task(task)
@@ -120,17 +122,20 @@ class ProblemAnalyzer:
         return task.approaches
 
     def decompose(self, task: Task) -> dict:
-        level = task.typification['classification']['complexity_level']['level']
-        complexity = extract_level(level)
+        if task.complexity is None:
+            level = task.typification['classification']['complexity_level']['level']
+            complexity = extract_level(level)
+        else:
+            complexity = task.complexity
 
         if complexity > 1:
             print(f"Task complexity is {complexity}. Initiating decomposition.")
             self._decompose_task(task, complexity)
-            return {"status": "decomposed", "sub_tasks": [sub_task.to_dict() for sub_task in task.sub_tasks]}
+            return {"status": "decomposed"}
         # TODO: we could force decomposition base on user request. This could be implemented later
         else:
             print(f"Task complexity is {complexity}. No decomposition needed.")
-            task.update_state(TaskState.DECOMPOSED)
+            task.update_state(TaskState.DECOMPOSITION)
             self.db_service.updated_task(task)
             return {"status": "no_decomposition_needed"}
 
@@ -146,21 +151,22 @@ class ProblemAnalyzer:
 
         print(f"Task '{task.short_description}' decomposed into {len(task.sub_tasks)} sub-tasks.")
 
-        task.update_state(TaskState.DECOMPOSED)
+        task.update_state(TaskState.DECOMPOSITION)
         self.db_service.updated_task(task)
 
-        for sub_task in task.sub_tasks:
-            self.decompose(sub_task)
+        # for sub_task in task.sub_tasks:
+        #     self.decompose(sub_task)
 
     def _build_task_tree(self, task_data: Dict[str, Any], parent_task: Task):
+        parent_task.sub_tasks = []
         for sub_task_info in task_data.get('sub_tasks', []):
             sub_task = Task.create_new(sub_task_info['task'], sub_task_info['context'])
             sub_task.sub_level = parent_task.sub_level + 1
             sub_task.short_description = sub_task_info['short_description']
-            sub_task.analysis['complexity'] = sub_task_info['complexity']
-            sub_task.concepts['contribution_to_parent_task'] = sub_task_info['contribution_to_parent_task']
-            sub_task.parent_task = parent_task
-            parent_task.sub_tasks.append(sub_task)
+            sub_task.complexity = sub_task_info['complexity']
+            sub_task.contribution_to_parent_task = sub_task_info['contribution_to_parent_task']
+            sub_task.parent_task = parent_task.id
+            parent_task.sub_tasks.append(sub_task.id)
             self.db_service.insert_task(sub_task)
 
             # Recursively build sub-tasks if they exist

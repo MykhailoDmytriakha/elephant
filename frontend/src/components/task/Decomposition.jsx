@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Split, RefreshCcw } from "lucide-react";
 import { CollapsibleSection } from './TaskComponents';
 import { TaskStates, getStateNumber } from '../../constants/taskStates';
+import { fetchTaskDetails } from '../../utils/api';
 
 export default function Decomposition({
   task,
@@ -10,9 +11,31 @@ export default function Decomposition({
   onDecompose,
   selectedItems,
 }) {
+  const [subtaskDetails, setSubtaskDetails] = useState([]);
+  const [isLoadingSubtasks, setIsLoadingSubtasks] = useState(false);
+
+  useEffect(() => {
+    const loadSubtaskDetails = async () => {
+      if (!task.sub_tasks?.length) return;
+      
+      setIsLoadingSubtasks(true);
+      try {
+        const details = await Promise.all(
+          task.sub_tasks.map(taskId => fetchTaskDetails(taskId))
+        );
+        setSubtaskDetails(details);
+      } catch (error) {
+        console.error('Failed to fetch subtask details:', error);
+      } finally {
+        setIsLoadingSubtasks(false);
+      }
+    };
+
+    loadSubtaskDetails();
+  }, [task.sub_tasks]);
+
   const isApproachFormationStageOrLater = getStateNumber(taskState) >= getStateNumber(TaskStates.APPROACH_FORMATION);
 
-  const decomposition = task.decomposition;
   if (task.approaches?.selected_approaches) {
     selectedItems = task.approaches.selected_approaches;
   }
@@ -23,12 +46,12 @@ export default function Decomposition({
     selectedItems.practical_methods?.length > 0 && 
     selectedItems.frameworks?.length > 0;
 
-  if (!isApproachFormationStageOrLater && !decomposition) {
+  if (!isApproachFormationStageOrLater && !task.sub_tasks || !task.approaches?.selected_approaches) {
     return null;
   }
 
   // Check if decomposition is empty object or null/undefined
-  if (!decomposition || Object.keys(decomposition).length === 0) {
+  if (!task.sub_tasks || Object.keys(task.sub_tasks).length === 0) {
     return (
       <CollapsibleSection title="Decomposition">
         <div className="text-center py-8">
@@ -64,7 +87,7 @@ export default function Decomposition({
     <CollapsibleSection title="Decomposition Results">
       <div className="relative">
         <button
-          onClick={() => onDecompose(true)}
+          onClick={() => onDecompose(selectedItems, true)}
           disabled={isDecomposing}
           className="absolute right-0 -top-1 inline-flex items-center justify-center gap-1.5 px-6 py-1.5 text-sm bg-gray-50 text-blue-600 rounded-md hover:bg-blue-50 hover:text-blue-700 transition-all shadow-sm disabled:bg-gray-50 disabled:text-gray-400 w-[160px]"
         >
@@ -77,61 +100,31 @@ export default function Decomposition({
 
         <div className="space-y-6 mt-8">
           {/* Subtasks */}
-          {decomposition.subtasks?.length > 0 && (
+          {task.sub_tasks?.length > 0 && (
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">
                 Subtasks
               </h3>
               <div className="space-y-4">
-                {decomposition.subtasks.map((subtask, index) => (
-                  <div key={index} className="border rounded-lg p-4 bg-white">
-                    <h4 className="font-medium mb-2">{subtask.title}</h4>
-                    <p className="text-sm text-gray-600 mb-2">{subtask.description}</p>
-                    {subtask.dependencies?.length > 0 && (
-                      <div className="mt-2">
-                        <strong className="text-sm text-gray-500">Dependencies:</strong>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {subtask.dependencies.map((dep, idx) => (
-                            <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                              {dep}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                {isLoadingSubtasks ? (
+                  <div className="text-center py-4">
+                    <RefreshCcw className="w-5 h-5 animate-spin mx-auto" />
+                    <p className="text-sm text-gray-500 mt-2">Loading subtasks...</p>
                   </div>
-                ))}
+                ) : (
+                  subtaskDetails.map((subtask, index) => (
+                    <div key={subtask.id || index} className="border rounded-lg p-4 bg-white">
+                      <h4 className="font-medium mb-2">{subtask.task}</h4>
+                      <p className="text-sm text-gray-600 mb-2">{subtask.short_description}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
 
-          {/* Dependencies Graph */}
-          {decomposition.dependencies_graph && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">
-                Dependencies Graph
-              </h3>
-              <pre className="bg-gray-50 p-4 rounded-lg text-sm overflow-x-auto">
-                {decomposition.dependencies_graph}
-              </pre>
-            </div>
-          )}
-
           {/* Execution Order */}
-          {decomposition.execution_order?.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">
-                Suggested Execution Order
-              </h3>
-              <ol className="list-decimal list-inside space-y-1">
-                {decomposition.execution_order.map((step, index) => (
-                  <li key={index} className="text-gray-700">
-                    {step}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
+          {/* TODO: Add execution order */}
         </div>
       </div>
     </CollapsibleSection>
