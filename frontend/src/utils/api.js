@@ -90,24 +90,15 @@ export const generateApproaches = async (taskId) => {
 
 export const typifyTask = async (taskId, isRetypify = false) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/typify${isRetypify ? '?retypify=true' : ''}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to typify task');
-    }
-
-    return await response.json();
+    const response = await axios.post(
+      `${API_BASE_URL}/tasks/${taskId}/typify${isRetypify ? '?retypify=true' : ''}`
+    );
+    return response.data;
   } catch (error) {
     handleApiError(error, 'Failed to typify task');
   }
 };
 
-// Add new function
 export const clarifyTask = async (taskId, message = null) => {
   try {
     console.log('Sending clarification request:', { taskId, message });
@@ -127,7 +118,10 @@ export const decomposeTask = async (taskId, selecedApproaches, isRedecompose = f
     throw new Error('Selected approach must include tools, methods, and frameworks');
   }
   try {
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/decompose${isRedecompose ? '?redecompose=true' : ''}`, selecedApproaches);
+    const response = await axios.post(
+      `${API_BASE_URL}/tasks/${taskId}/decompose${isRedecompose ? '?redecompose=true' : ''}`,
+      selecedApproaches
+    );
     return response.data;
   } catch (error) {
     handleApiError(error, 'Failed to decompose task');

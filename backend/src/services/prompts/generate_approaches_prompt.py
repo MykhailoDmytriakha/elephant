@@ -4,7 +4,7 @@ from src.model.task import Task
 GENERATE_APPROACHES_FUNCTIONS = [
 {
     "name": "generate_approaches",
-    "description": "Generate practical tools and methods based on task typification",
+    "description": "Generate practical tools and methods based on task typification and suggest effective combinations",
     "parameters": {
         "type": "object",
         "properties": {
@@ -32,7 +32,9 @@ GENERATE_APPROACHES_FUNCTIONS = [
                             },
                             "required": ["tool_id", "name", "purpose", "when_to_use", "contribution_to_task", "ease_of_use", "examples"]
                         },
-                        "description": "Tools for analysis and understanding, at least 3"
+                        "description": "Tools for analysis and understanding, exactly 3 tools required",
+                        "minItems": 3,
+                        "maxItems": 5
                     },
                     "practical_methods": {
                         "type": "array",
@@ -53,7 +55,9 @@ GENERATE_APPROACHES_FUNCTIONS = [
                             },
                             "required": ["method_id", "name", "description", "best_for", "difficulty_level"]
                         },
-                        "description": "Practical methods and techniques, at least 3"
+                        "description": "Practical methods and techniques, exactly 3 methods required",
+                        "minItems": 3,
+                        "maxItems": 5
                     },
                     "frameworks": {
                         "type": "array",
@@ -75,7 +79,9 @@ GENERATE_APPROACHES_FUNCTIONS = [
                             },
                             "required": ["framework_id", "name", "structure", "how_to_use", "benefits", "adaptation_tips"]
                         },
-                        "description": "Structured approaches and frameworks, at least 3"
+                        "description": "Structured approaches and frameworks, exactly 3 frameworks required",
+                        "minItems": 3,
+                        "maxItems": 5
                     }
                 },
                 "required": ["analytical_tools", "practical_methods", "frameworks"]
@@ -89,25 +95,28 @@ GENERATE_APPROACHES_FUNCTIONS = [
                         "tools": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "Array of tool IDs in sequence: analytical tool (T1-T3), practical method (M1-M3), framework (F1-F3). Example: [T1, M1, F1]"
+                            "description": "Array of tool IDs in sequence: analytical tool (T1-T3), practical method (M1-M3), framework (F1-F3)",
+                            "minItems": 3,
+                            "maxItems": 3
                         },
                         "synergy_description": {"type": "string"},
                         "use_case": {"type": "string"}
                     },
                     "required": ["combination_name", "tools", "synergy_description", "use_case"]
-                }
+                },
+                "description": "Recommended combinations of tools, methods, and frameworks, at least 3 combinations required",
+                "minItems": 3,
+                "maxItems": 5
             }
         },
-        "required": ["tool_categories", "user_preferences_matching", "tool_combinations"]
+        "required": ["tool_categories", "tool_combinations"]
     }
-}
-]
+}]
 
 def get_generate_approaches_prompt(task: Task, context: str) -> str:
-    # todo: implement this
     return f"""
-        Based on the task's characteristics and user preferences, suggest practical tools and methods
-        that will help solve the task effectively - think of these as equipment for the journey.
+        Based on the task's characteristics and user preferences, suggest practical tools, methods, and frameworks
+        that will help solve the task effectively. Then create effective combinations of these tools.
         
         Task: {task.task}
         Context: {context}
@@ -120,41 +129,22 @@ def get_generate_approaches_prompt(task: Task, context: str) -> str:
         - Complexity Level: {task.typification['classification']['complexity_level']['level']}
 
         User Context and Preferences:
-        {json.dumps(task.clarification_data['answers'], ensure_ascii=False)}
+        {json.dumps(task.clarification_data.get('answers', {}), ensure_ascii=False)}
 
-        Suggest three categories of tools:
+        Requirements:
+        1. Provide analytical tools (T1-T3)
+        2. Provide practical methods (M1-M3)
+        3. Provide frameworks (F1-F3)
+        4. Create at least 3 effective combinations using these tools
+        
+        For each combination:
+        - Include exactly one tool from each category (1 analytical tool, 1 method, 1 framework)
+        - Explain how they work together (synergy)
+        - Provide a specific use case
 
-        1. Analytical Tools
-           - What tools will help understand and analyze the problem?
-           - Include both simple and advanced options
-           - Specify when each tool is most useful
-           - Provide real examples of usage
-
-        2. Practical Methods
-           - What concrete techniques can be applied?
-           - Include methods for different skill levels
-           - Explain how each method helps
-           - Highlight when to use each method
-
-        3. Frameworks
-           - What structured approaches can guide the work?
-           - How can they be adapted to this specific case?
-           - What benefits does each framework provide?
-           - Include tips for effective use
-           
-        Consider user preferences:
-        - Match tools to user's experience level
-        - Consider available resources
-        - Account for time constraints
-        - Provide alternatives for different scenarios
-
-        For each tool/method:
-        - Be specific about its purpose and value
-        - Explain why it's suitable for this task
-        - Indicate difficulty level and learning curve
-        - Suggest how it can be combined with others
-
-        The goal is to give the user a practical toolset they can choose from,
-        like selecting the right equipment for a journey. Each tool should have
-        a clear purpose and be immediately applicable.
+        Make sure all tools are:
+        - Specific to the task and domain
+        - Matched to user's experience level
+        - Practical and immediately applicable
+        - Well-integrated with each other
         """

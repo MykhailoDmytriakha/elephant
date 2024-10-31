@@ -46,7 +46,18 @@ export default function Decomposition({
     selectedItems.practical_methods?.length > 0 && 
     selectedItems.frameworks?.length > 0;
 
-  if (!isApproachFormationStageOrLater && !task.sub_tasks || !task.approaches?.selected_approaches) {
+  // Only show decomposition if we're in/past approach formation stage OR if subtasks already exist
+  if (!isApproachFormationStageOrLater && !task.sub_tasks) {
+    return null;
+  }
+
+  // Only show if approaches have been selected or hasRequiredSelections is true
+  if (!task.approaches?.selected_approaches && !hasRequiredSelections) {
+    return null;
+  }
+
+  // Only show if all required selections (TMF) are made
+  if (!hasRequiredSelections) {
     return null;
   }
 
