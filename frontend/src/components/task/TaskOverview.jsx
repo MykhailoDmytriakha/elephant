@@ -1,14 +1,91 @@
+// src/components/task/TaskOverview.jsx
 import React from "react";
-import { MessageCircle, AlertCircle, X } from "lucide-react";
+import { MessageCircle, AlertCircle, X, Send } from "lucide-react";
 import { CollapsibleSection } from "./TaskComponents";
 import { TaskStates } from "../../constants/taskStates";
+
+const ChatMessage = ({ message, isUser }) => (
+  <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`max-w-[80%] p-3 rounded-lg ${
+      isUser 
+        ? 'bg-blue-600 text-white rounded-br-none' 
+        : 'bg-gray-100 text-gray-900 rounded-bl-none'
+    }`}>
+      {message.content || message.message}
+    </div>
+  </div>
+);
+
+const ContextChat = ({ messages = [], onSendMessage, disabled = false }) => {
+  const [newMessage, setNewMessage] = React.useState('');
+  const messagesEndRef = React.useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  React.useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (newMessage.trim()) {
+      onSendMessage(newMessage);
+      setNewMessage('');
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-4">
+      <div className="p-4 max-h-96 overflow-y-auto">
+        {messages.map((msg, index) => (
+          <ChatMessage
+            key={index}
+            message={msg}
+            isUser={msg.role === 'user'}
+          />
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+      
+      <form onSubmit={handleSubmit} className="border-t border-gray-200 p-4">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder={disabled ? "Context gathering completed" : "Type your message..."}
+            className={`flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              disabled ? 'bg-gray-100' : 'bg-white'
+            }`}
+            disabled={disabled}
+          />
+          <button
+            type="submit"
+            disabled={disabled || !newMessage.trim()}
+            className={`px-4 py-2 rounded-lg transition-colors flex items-center justify-center ${
+              disabled || !newMessage.trim()
+                ? 'bg-gray-300 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+          >
+            <Send className="w-5 h-5" />
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
 
 const TaskOverview = ({
   task,
   isContextSufficient,
-  isChatOpen,
-  toggleChatWindow,
+  chatMessages,
+  onSendMessage,
 }) => {
+  const [isChatVisible, setIsChatVisible] = React.useState(!isContextSufficient);
+
   return (
     <CollapsibleSection title="Overview">
       <div className="space-y-4">
@@ -32,10 +109,11 @@ const TaskOverview = ({
             </p>
             {isContextSufficient && (
               <button
-                onClick={toggleChatWindow}
+                onClick={() => setIsChatVisible(!isChatVisible)}
                 className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
+                {/* {isChatVisible ? 'Hide Chat' : 'Show Chat'} */}
               </button>
             )}
           </div>
@@ -50,14 +128,11 @@ const TaskOverview = ({
                 <h4 className="text-sm font-medium text-yellow-800">
                   Additional Context Needed
                 </h4>
-                {/* <p className="text-sm text-yellow-700">
-                  What specific time period should we analyze?
-                </p> */}
                 <button
-                  onClick={toggleChatWindow}
+                  onClick={() => setIsChatVisible(!isChatVisible)}
                   className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors"
                 >
-                  {isChatOpen ? (
+                  {isChatVisible ? (
                     <>
                       <X className="w-5 h-5" />
                       <span>Hide Conversation</span>
@@ -72,6 +147,14 @@ const TaskOverview = ({
               </div>
             </div>
           </div>
+        )}
+
+        {isChatVisible && (
+          <ContextChat
+            messages={chatMessages}
+            onSendMessage={onSendMessage}
+            disabled={isContextSufficient}
+          />
         )}
       </div>
     </CollapsibleSection>

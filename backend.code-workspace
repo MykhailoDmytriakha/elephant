@@ -4,9 +4,6 @@
 			"path": "backend"
 		},
 		{
-			"path": "docs"
-		},
-		{
 			"path": "data"
 		}
 	],

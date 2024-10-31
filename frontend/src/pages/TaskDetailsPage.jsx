@@ -4,10 +4,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { LoadingSpinner, ErrorDisplay } from '../components/task/TaskComponents';
 import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateApproaches, typifyTask, clarifyTask, decomposeTask } from '../utils/api';
-import { TaskStates, getStateColor } from '../constants/taskStates';
+import { getStateColor } from '../constants/taskStates';
 import TaskOverview from '../components/task/TaskOverview';
 import Analysis from '../components/task/Analysis';
-import ContextChatWindow from '../components/task/ContextChatWindow';
 import Metadata from '../components/task/Metadata';
 import ApproachFormation from '../components/task/ApproachFormation';
 import Typification from '../components/task/Typification';
@@ -20,9 +19,7 @@ export default function TaskDetailsPage() {
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [followUpQuestion, setFollowUpQuestion] = useState(null);
-  const [isContextSufficient, setIsContextSufficient] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isStartingClarificationLoading, setIsStartingClarificationLoading] = useState(false);
   const [isGeneratingConcepts, setIsGeneratingConcepts] = useState(false);
@@ -39,37 +36,16 @@ export default function TaskDetailsPage() {
   });
   const [isDecompositionStarted, setIsDecompositionStarted] = useState(false);
 
-  // Add debug logging for state changes
-  useEffect(() => {
-    console.log('Task State:', task?.state);
-    console.log('Is Clarifying:', isClarifying);
-    console.log('Current Question:', currentQuestion);
-    console.log('Clarification Data:', clarificationData);
-  }, [task?.state, isClarifying, currentQuestion, clarificationData]);
-
   const loadTask = async () => {
     try {
-      // Store current scroll position
-      const scrollPosition = window.scrollY;
-
       setLoading(true);
       setError(null);
-      const data = await fetchTaskDetails(taskId);
-      setTask(data);
-      setIsContextSufficient(data.is_context_sufficient);
-      if (!data.is_context_sufficient) {
-        setIsChatOpen(true);
+      const task = await fetchTaskDetails(taskId);
+      setTask(task);
+      if (!task.is_context_sufficient) {
         const contextUpdate = await updateTaskContext(taskId);
         setFollowUpQuestion(contextUpdate.follow_up_question);
       }
-
-      // Restore scroll position after state updates
-      requestAnimationFrame(() => {
-        window.scrollTo({
-          top: scrollPosition,
-          behavior: 'instant',
-        });
-      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -102,26 +78,16 @@ export default function TaskDetailsPage() {
         query: followUpQuestion,
         answer: message,
       });
-      console.log('Updated context:', updatedContext);
-      setIsContextSufficient(updatedContext.is_context_sufficient);
-      if (updatedContext.is_context_sufficient) {
+      const updatedTask = await fetchTaskDetails(taskId);
+      setTask(updatedTask);
+      if (updatedTask.is_context_sufficient) {
         setFollowUpQuestion(null);
       } else {
         setFollowUpQuestion(updatedContext.follow_up_question);
       }
-      const updatedTask = await fetchTaskDetails(taskId);
-      setTask(updatedTask);
     } catch (error) {
       setError('Failed to send message: ' + error.message);
     }
-  };
-
-  const toggleChatWindow = () => {
-    setIsChatOpen((prevState) => !prevState);
-  };
-
-  const handleCloseChatWindow = () => {
-    setIsChatOpen(false);
   };
 
   const handleClarification = async (message = null) => {
@@ -134,14 +100,6 @@ export default function TaskDetailsPage() {
       }
       await clarifyTask(taskId, message);
       loadTask();
-
-      // Scroll to the end of the page after the task is loaded
-      setTimeout(() => {
-        window.scrollTo({
-          top: document.body.scrollHeight,
-          behavior: 'smooth',
-        });
-      }, 100);
     } catch (error) {
       setError('Failed to process clarification: ' + error.message);
     } finally {
@@ -266,30 +224,22 @@ export default function TaskDetailsPage() {
           {/* Main Content */}
           <div className="col-span-2 space-y-6">
             <TaskOverview
-              task={task}
-              isContextSufficient={isContextSufficient}
-              isChatOpen={isChatOpen}
-              toggleChatWindow={toggleChatWindow}
-            />
-
-            <ContextChatWindow
-              isOpen={isChatOpen}
-              messages={chatMessages}
-              onSendMessage={handleSendMessage}
-              onClose={handleCloseChatWindow}
-              isContextSufficient={isContextSufficient}
+                task={task}
+                isContextSufficient={task.is_context_sufficient}
+                chatMessages={chatMessages}
+                onSendMessage={handleSendMessage}
             />
 
             <Analysis
               analysis={task.analysis}
-              isContextSufficient={isContextSufficient}
+              isContextSufficient={task.is_context_sufficient}
               isAnalyzing={isAnalyzing}
               onAnalyze={handleAnalyze}
             />
 
             <Typification
               typification={task.typification}
-              isContextSufficient={isContextSufficient}
+              isContextSufficient={task.is_context_sufficient}
               isTypifying={isTypifying}
               onTypify={handleTypify}
               taskState={task.state}
