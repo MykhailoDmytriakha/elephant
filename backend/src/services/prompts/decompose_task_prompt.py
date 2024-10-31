@@ -21,10 +21,16 @@ DECOMPOSE_TASK_FUNCTIONS = [
                             "type": "string",
                             "description": "Additional context for the sub-task"
                         },
-                        "complexity": {
+                        "complexity_level": {
+                            "description": "Classification of the task according to its complexity level",
                             "type": "string",
-                            "enum": ["1", "2", "3", "4", "5"],
-                            "description": "Estimated complexity of the sub-task (1: simple task: solution is known and easy to apply, 2: complex task: requires adaptation of known solutions, 3: very complex task: requires combining several approaches, 4: task with high level of innovation: requires creation of a new solution within the current paradigm, 5: task with the highest level of innovation: requires creation of a fundamentally new solution, possibly changing the paradigm)"
+                            "enum": [
+                                "LEVEL_1 (simple task: solution is known and easy to apply)",
+                                "LEVEL_2 (complex task: requires adaptation of known solutions)",
+                                "LEVEL_3 (very complex task: requires combining several approaches)",
+                                "LEVEL_4 (task with high level of innovation: requires creation of a new solution within the current paradigm)",
+                                "LEVEL_5 (task with the highest level of innovation: requires creation of a fundamentally new solution, possibly changing the paradigm)"
+                            ]
                         },
                         "eta_to_complete": {
                             "type": "string",
@@ -37,33 +43,37 @@ DECOMPOSE_TASK_FUNCTIONS = [
                         "contribution_to_parent_task": {
                             "type": "string",
                             "description": "Explanation of how this sub-task contributes to achieving the overall goal of the parent task"
+                        },
+                        "order": {
+                            "type": "integer",
+                            "description": "The execution order of this sub-task (1-based indexing)"
                         }
                     },
-                    "required": ["task", "context", "complexity", "short_description", "contribution_to_parent_task"]
-                },
-                "description": "List of sub-tasks derived from the main task"
+                    "required": ["task", "context", "complexity", "short_description", "contribution_to_parent_task", "order"]
+                }
             }
-        },
-        "required": ["sub_tasks"]
+        }
     }
 }]
 
 
-def get_decompose_task_prompt(task: Task, context: str, complexity: int) -> str:
+def get_decompose_task_prompt(task: Task, context: str) -> str:
     return f"""
         Decompose the following complex task into smaller, manageable sub-tasks:
         Task: {task.task}
         Ideal Final Result: {task.analysis.get('ideal_final_result', 'N/A')}
         Context: {context}
         Analysis: {json.dumps(task.analysis, ensure_ascii=False)}
-        Original Task Complexity: {complexity}
+        Original Task Complexity: {task.level}
         Task Typification: {json.dumps(task.typification, ensure_ascii=False)}
         Task Approaches: {json.dumps(task.approaches, ensure_ascii=False)}
 
-        Provide a list of sub-tasks, each with its own description, context, and complexity that helps to achieve the ideal final result.
-        Ensure that each sub-task has a lower complexity than the original task complexity.
-        Those sub-tasks should be as independent as possible and match context and analysis.
-        There is typification and approaches for the task, so use them to create sub-tasks.
+        Provide an ordered list of sub-tasks, each with its own description, context, and complexity that helps to achieve the ideal final result.
+        Requirements:
+        1. Each sub-task must have a lower complexity than the original task complexity
+        2. Sub-tasks should be as independent as possible and match context and analysis
+        3. Assign an order number to each sub-task indicating its execution sequence
+        4. Use the provided typification and approaches to create appropriate sub-tasks
         ---
         The complexity levels are:
         1 - Level 1 (simple task: solution is known and easy to apply)

@@ -5,6 +5,10 @@ from src.services.openai_service import OpenAIService, ContextSufficiencyResult
 from src.model.task import Task, TaskState
 from src.user_interaction import UserInteraction
 import re
+import logging
+
+logger = logging.getLogger(__name__)
+
 def extract_level(text):
     match = re.search(r'LEVEL_(\d+)', text)
     if match:
@@ -12,7 +16,7 @@ def extract_level(text):
     raise ValueError(f"No level found in text: {text}")
 
 class ProblemAnalyzer:
-    MAX_SUB_LEVEL = 1
+    MAX_SUB_LEVEL = 2
 
     def __init__(self, openai_service: OpenAIService, db_service: DatabaseService):
         self.openai_service = openai_service
@@ -78,7 +82,6 @@ class ProblemAnalyzer:
         analysis_result = self.openai_service.analyze_task(task)
 
         # Update task with analysis results
-        task.task = analysis_result['task']
         task.analysis = analysis_result['analysis']
         
         if not reAnalyze:
@@ -90,6 +93,7 @@ class ProblemAnalyzer:
     def typify(self, task: Task):
         typification_result = self.openai_service.typify_task(task)
         complexity_level = typification_result['typification']['classification']['complexity_level']['level']
+        task.level = complexity_level
         task.complexity = extract_level(complexity_level)
         task.typification = typification_result['typification']
         task.update_state(TaskState.TYPIFY)
@@ -162,16 +166,21 @@ class ProblemAnalyzer:
         self.db_service.updated_task(task)
         return task.approaches
 
-    def decompose(self, task: Task) -> dict:
+    def decompose(self, task: Task, redecompose: bool = False) -> dict:
+        if redecompose:
+            #  we neew to delete all sub-tasks recursively in like a tree
+            for sub_task in task.sub_tasks:
+                self.db_service.delete_task_by_id(sub_task)
+            task.sub_tasks = []
+            self.db_service.updated_task(task)
         if task.complexity is None:
-            level = task.typification['classification']['complexity_level']['level']
-            complexity = extract_level(level)
+            complexity = extract_level(task.level)
         else:
             complexity = task.complexity
 
         if complexity > 1:
             print(f"Task complexity is {complexity}. Initiating decomposition.")
-            self._decompose_task(task, complexity)
+            self._decompose_task(task)
             return {"status": "decomposed"}
         # TODO: we could force decomposition base on user request. This could be implemented later
         else:
@@ -180,12 +189,12 @@ class ProblemAnalyzer:
             self.db_service.updated_task(task)
             return {"status": "no_decomposition_needed"}
 
-    def _decompose_task(self, task: Task, complexity: int):
+    def _decompose_task(self, task: Task):
         if self._is_max_sub_level_reached(task):
             return
 
         # Call OpenAI service to decompose the task
-        decomposed_tasks = self.openai_service.decompose_task(task, complexity)
+        decomposed_tasks = self.openai_service.decompose_task(task)
 
         # Build the task tree
         self._build_task_tree(decomposed_tasks, task)
@@ -199,12 +208,13 @@ class ProblemAnalyzer:
         #     self.decompose(sub_task)
 
     def _build_task_tree(self, task_data: Dict[str, Any], parent_task: Task):
-        parent_task.sub_tasks = []
         for sub_task_info in task_data.get('sub_tasks', []):
             sub_task = Task.create_new(sub_task_info['task'], sub_task_info['context'])
+            sub_task.order = sub_task_info['order']
             sub_task.sub_level = parent_task.sub_level + 1
             sub_task.short_description = sub_task_info['short_description']
-            sub_task.complexity = sub_task_info['complexity']
+            sub_task.level = sub_task_info['complexity_level']
+            sub_task.complexity = extract_level(sub_task.level)
             sub_task.contribution_to_parent_task = sub_task_info['contribution_to_parent_task']
             sub_task.parent_task = parent_task.id
             parent_task.sub_tasks.append(sub_task.id)
@@ -216,6 +226,6 @@ class ProblemAnalyzer:
 
     def _is_max_sub_level_reached(self, task: Task) -> bool:
         if task.sub_level >= self.MAX_SUB_LEVEL:
-            print(f"Reached maximum sub-task level ({task.sub_level}). Skipping further decomposition.")
+            logger.warning(f"Reached maximum sub-task level ({task.sub_level}). Skipping further decomposition.")
             return True
         return False

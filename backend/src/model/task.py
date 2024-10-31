@@ -38,6 +38,7 @@ class Task(BaseModel):
     state: TaskState = Field(default=TaskState.NEW)
     is_context_sufficient: bool = False
     context: Optional[str] = None
+    level: Optional[str] = None
     complexity: Optional[int] = None
     contribution_to_parent_task: Optional[str] = None
     # analysis fields
@@ -49,6 +50,7 @@ class Task(BaseModel):
     # decomposition fields
     sub_tasks: List[str] = Field(default_factory=list)
     parent_task: Optional[str] = None
+    order: Optional[int] = None
     
     def __init__(self, **data):
         super().__init__(**data)
@@ -70,6 +72,7 @@ class Task(BaseModel):
     @classmethod
     def create_new(cls, task: str = '', context: str = ''):
         return cls(
+            state=TaskState.NEW,
             task=task,
             context=context,
             sub_level=0,

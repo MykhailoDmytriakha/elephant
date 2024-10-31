@@ -123,10 +123,18 @@ export default function Decomposition({
                     <p className="text-sm text-gray-500 mt-2">Loading subtasks...</p>
                   </div>
                 ) : (
-                  subtaskDetails.map((subtask, index) => (
-                    <div key={subtask.id || index} className="border rounded-lg p-4 bg-white">
-                      <h4 className="font-medium mb-2">{subtask.task}</h4>
-                      <p className="text-sm text-gray-600 mb-2">{subtask.short_description}</p>
+                  [...subtaskDetails]
+                    .sort((a, b) => (a.order || 0) - (b.order || 0))
+                    .map((subtask, index) => (
+                    <div key={subtask.id || index} className="border rounded-lg p-4 bg-white relative">
+                      <div className="absolute -left-2 -top-2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                        {subtask.order || index + 1}
+                      </div>
+                      <h4 className="font-medium mb-2">{subtask.short_description}</h4>
+                      <p className="text-sm text-gray-600 mb-2">{subtask.task}</p>
+                      {subtask.level && (
+                        <p className="text-sm text-gray-600 mb-2">Complexity: {subtask.level}</p>
+                      )}
                     </div>
                   ))
                 )}

@@ -5,10 +5,6 @@ ANALYZE_TASK_FUNCTIONS = [
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "task": {
-                            "type": "string",
-                            "description": "A refined and comprehensive task definition based on the original query and context, including clear objectives, scope, and any relevant constraints or requirements"
-                        },
                         "analysis": {
                             "type": "object",
                             "properties": {
@@ -70,7 +66,7 @@ ANALYZE_TASK_FUNCTIONS = [
                                          "missing_information"]
                         }
                     },
-                    "required": ["task", "analysis"]
+                    "required": ["analysis"]
                 }
             }
         ]

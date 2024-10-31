@@ -81,11 +81,11 @@ export default function TaskDetailsPage() {
         query: followUpQuestion,
         answer: message,
       });
-      
+
       // Load the updated task
       const updatedTask = await fetchTaskDetails(taskId);
       setTask(updatedTask);
-      
+
       // Update followUpQuestion based on context sufficiency
       if (updatedTask.is_context_sufficient) {
         setFollowUpQuestion(null);
@@ -199,10 +199,22 @@ export default function TaskDetailsPage() {
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <h1 className="text-2xl font-bold text-gray-900">Task Details</h1>
+              {task.parent_task && (
+                <button
+                  onClick={() => navigate(`/tasks/${task.parent_task}`)}
+                  className="ml-4 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Parent Task
+                </button>
+              )}
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4"> 
+              {/* Task State */}
               <span className="text-gray-600 mr-2">Task State:</span>
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStateColor(task.state)}`}>{task.state}</span>
+
+              {/* Delete Button */}
               <button
                 onClick={handleDelete}
                 className="text-red-600 hover:text-red-700 flex items-center gap-2"

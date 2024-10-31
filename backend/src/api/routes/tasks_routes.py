@@ -229,7 +229,7 @@ async def decompose_task(
     task.update_state(TaskState.METHOD_SELECTION)
     db.updated_task(task)
     
-    analyzer.decompose(task)
+    analyzer.decompose(task, redecompose)
     
     return task.sub_tasks
     

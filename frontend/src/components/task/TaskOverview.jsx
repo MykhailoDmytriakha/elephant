@@ -127,7 +127,7 @@ const TaskOverview = ({ task, followUpQuestion, onSendMessage }) => {
         {task.task && (
           <div>
             <h3 className="text-sm font-medium text-gray-500">Task</h3>
-            <p className="mt-1 text-gray-900">{task.task}</p>
+            <p className="mt-1 text-gray-900 whitespace-pre-line">{task.task}</p>
           </div>
         )}
 

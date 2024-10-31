@@ -1,10 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { InfoCard, StatusBadge, ProgressBar } from './TaskComponents';
+import { RefreshCcw } from "lucide-react";
+import { fetchTaskDetails } from '../../utils/api';
 
 export default function Metadata({ task }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [subtaskDetails, setSubtaskDetails] = useState([]);
+  const [isLoadingSubtasks, setIsLoadingSubtasks] = useState(false);
+
+  useEffect(() => {
+    const loadSubtaskDetails = async () => {
+      if (!task.sub_tasks?.length) return;
+      
+      setIsLoadingSubtasks(true);
+      try {
+        const details = await Promise.all(
+          task.sub_tasks.map(taskId => fetchTaskDetails(taskId))
+        );
+        setSubtaskDetails(details);
+      } catch (error) {
+        console.error('Failed to fetch subtask details:', error);
+      } finally {
+        setIsLoadingSubtasks(false);
+      }
+    };
+
+    loadSubtaskDetails();
+  }, [task.sub_tasks]);
 
   return (
     <div className="sticky top-4">
@@ -46,6 +70,12 @@ export default function Metadata({ task }) {
               {new Date(task.updated_at).toLocaleString()}
             </p>
           </div>
+          {task.sub_level !== undefined && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Sub Level</h3>
+              <p className="mt-1 text-gray-900">{task.sub_level}</p>
+            </div>
+          )}
           {task.progress !== undefined && (
             <div>
               <h3 className="text-sm font-medium text-gray-500">Progress</h3>
@@ -56,18 +86,27 @@ export default function Metadata({ task }) {
             <div>
               <h3 className="text-sm font-medium text-gray-500">Sub Tasks</h3>
               <div className="mt-2 space-y-2">
-                {task.sub_tasks.map(subTask => (
-                  <div 
-                    key={subTask.id}
-                    onClick={() => navigate(`/tasks/${subTask.id}`)}
-                    className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <StatusBadge state={subTask.state} />
-                    </div>
-                    <p className="text-sm text-gray-900">{subTask.short_description}</p>
+                {isLoadingSubtasks ? (
+                  <div className="text-center py-4">
+                    <RefreshCcw className="w-5 h-5 animate-spin mx-auto" />
+                    <p className="text-sm text-gray-500 mt-2">Loading subtasks...</p>
                   </div>
-                ))}
+                ) : (
+                  [...subtaskDetails]
+                    .sort((a, b) => (a.order || 0) - (b.order || 0))
+                    .map((subTask, index) => (
+                      <div 
+                        key={subTask.id}
+                        onClick={() => navigate(`/tasks/${subTask.id}`)}
+                        className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors relative"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <StatusBadge state={subTask.state} />
+                        </div>
+                        <p className="text-sm text-gray-900">{subTask.short_description}</p>
+                      </div>
+                  ))
+                )}
               </div>
             </div>
           )}

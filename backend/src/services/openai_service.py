@@ -50,7 +50,9 @@ class OpenAIService:
         while current_task:
             if current_task.context:
                 contexts.append(current_task.context)
-            current_task = current_task.parent_task
+            # TODO: we need to get from parent context field if it is not None
+            # current_task = current_task.parent_task
+            current_task = None
         return "\n".join(contexts) if contexts else ""
     
     def is_context_sufficient(self, task: Task) -> ContextSufficiencyResult:
@@ -129,7 +131,6 @@ class OpenAIService:
         else:
             fallback_result = {
                 "error": "Unable to formulate task",
-                "task": "Unable to formulate task",
                 "analysis": {
                     "parameters_constraints": "Unable to determine parameters and constraints",
                     "available_resources": ["Unable to determine available resources"],
@@ -224,12 +225,12 @@ class OpenAIService:
             logger.warning(f"OpenAI API fallback response: {fallback_result}")
             return fallback_result
 
-    def decompose_task(self, task: Task, complexity: int) -> dict:
+    def decompose_task(self, task: Task) -> dict:
         logger.info("Called decompose_task method")
         functions = DECOMPOSE_TASK_FUNCTIONS
 
         context = self._gather_context(task)
-        prompt = get_decompose_task_prompt(task, context, complexity)
+        prompt = get_decompose_task_prompt(task, context)
 
         logger.debug(f"OpenAI API prompt: {prompt}")
         response = self.client.chat.completions.create(
