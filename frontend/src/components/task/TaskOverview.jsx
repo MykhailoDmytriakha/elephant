@@ -1,41 +1,30 @@
 // src/components/task/TaskOverview.jsx
-import React, { useMemo } from "react";
-import { MessageCircle, AlertCircle, X, Send } from "lucide-react";
-import { CollapsibleSection } from "./TaskComponents";
-import { TaskStates } from "../../constants/taskStates";
-
-const getMessageContent = (message) => {
-  if (!message) return '';
-  return message.content || message.message || '';
-};
+import React, { useState, useEffect, useMemo } from 'react';
+import { MessageCircle, AlertCircle, X, Send } from 'lucide-react';
+import { CollapsibleSection } from './TaskComponents';
+import { TaskStates } from '../../constants/taskStates';
 
 const ChatMessage = ({ message, isUser }) => (
   <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-    <div className={`max-w-[80%] p-3 rounded-lg ${
-      isUser 
-        ? 'bg-blue-600 text-white rounded-br-none' 
-        : 'bg-gray-100 text-gray-900 rounded-bl-none'
-    }`}>
-      {getMessageContent(message)}
-    </div>
+    <div className={`max-w-[80%] p-3 rounded-lg ${isUser ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-100 text-gray-900 rounded-bl-none'}`}>{message.content || message.message}</div>
   </div>
 );
 
 const ContextChat = ({ messages = [], onSendMessage, disabled = false }) => {
-  const [newMessage, setNewMessage] = React.useState('');
+  const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = React.useRef(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (newMessage.trim()) {
+    if (newMessage.trim() && !disabled) {
       onSendMessage(newMessage);
       setNewMessage('');
     }
@@ -53,27 +42,24 @@ const ContextChat = ({ messages = [], onSendMessage, disabled = false }) => {
         ))}
         <div ref={messagesEndRef} />
       </div>
-      
-      <form onSubmit={handleSubmit} className="border-t border-gray-200 p-4">
+
+      <form
+        onSubmit={handleSubmit}
+        className="border-t border-gray-200 p-4"
+      >
         <div className="flex gap-2">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder={disabled ? "Context gathering completed" : "Type your message..."}
-            className={`flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              disabled ? 'bg-gray-100' : 'bg-white'
-            }`}
+            placeholder={disabled ? 'Context gathering completed' : 'Type your message...'}
+            className={`flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${disabled ? 'bg-gray-100' : 'bg-white'}`}
             disabled={disabled}
           />
           <button
             type="submit"
             disabled={disabled || !newMessage.trim()}
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-              disabled || !newMessage.trim()
-                ? 'bg-gray-300 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-            }`}
+            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${disabled || !newMessage.trim() ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
           >
             <Send className="w-5 h-5" />
           </button>
@@ -83,18 +69,14 @@ const ContextChat = ({ messages = [], onSendMessage, disabled = false }) => {
   );
 };
 
-const TaskOverview = ({
-  task,
-  followUpQuestion,
-  onSendMessage,
-}) => {
-  //Todo: get isContextSufficient from task
-
+const TaskOverview = ({ task, followUpQuestion, onSendMessage }) => {
   const [isChatVisible, setIsChatVisible] = React.useState(!task.is_context_sufficient);
+  const [localMessages, setLocalMessages] = useState([]);
+  const [isMessagePending, setIsMessagePending] = useState(false);
 
-  // Move chatMessages logic here
+  // Combine server messages with local pending messages
   const chatMessages = useMemo(() => {
-    return [
+    const serverMessages = [
       ...(task?.user_interaction || [])
         .map((interaction) => [
           { role: 'assistant', content: interaction.query },
@@ -103,7 +85,36 @@ const TaskOverview = ({
         .flat(),
       ...(followUpQuestion ? [{ role: 'assistant', content: followUpQuestion }] : []),
     ];
-  }, [task?.user_interaction, followUpQuestion]);
+
+    // Only add local messages that aren't yet in server messages
+    const pendingMessages = localMessages.filter((localMsg) => !serverMessages.some((serverMsg) => serverMsg.content === localMsg.content && serverMsg.role === localMsg.role));
+
+    return [...serverMessages, ...pendingMessages];
+  }, [task?.user_interaction, followUpQuestion, localMessages]);
+
+  // Reset local messages when task is updated
+  useEffect(() => {
+    if (!isMessagePending) {
+      setLocalMessages([]);
+    }
+  }, [task, isMessagePending]);
+
+  const handleSendMessage = async (message) => {
+    try {
+      setIsMessagePending(true);
+      // Immediately add the message to local state
+      setLocalMessages((prev) => [...prev, { role: 'user', content: message }]);
+
+      // Send to server
+      await onSendMessage(message);
+    } catch (error) {
+      // If there's an error, remove the message from local state
+      setLocalMessages((prev) => prev.filter((msg) => msg.content !== message));
+      // Could add error handling here if needed
+    } finally {
+      setIsMessagePending(false);
+    }
+  };
 
   return (
     <CollapsibleSection title="Overview">
@@ -123,9 +134,7 @@ const TaskOverview = ({
         <div>
           <h3 className="text-sm font-medium text-gray-500">Context</h3>
           <div className="flex items-start justify-between gap-4">
-            <p className="mt-1 text-gray-900 flex-grow whitespace-pre-line">
-              {task.context || "No context provided"}
-            </p>
+            <p className="mt-1 text-gray-900 flex-grow whitespace-pre-line">{task.context || 'No context provided'}</p>
             {task.is_context_sufficient && (
               <button
                 onClick={() => setIsChatVisible(!isChatVisible)}
@@ -137,15 +146,12 @@ const TaskOverview = ({
           </div>
         </div>
 
-        {(!task.is_context_sufficient ||
-          task.state === TaskStates.CONTEXT_GATHERING) && (
+        {(!task.is_context_sufficient || task.state === TaskStates.CONTEXT_GATHERING) && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
               <div>
-                <h4 className="text-sm font-medium text-yellow-800">
-                  Additional Context Needed
-                </h4>
+                <h4 className="text-sm font-medium text-yellow-800">Additional Context Needed</h4>
                 <button
                   onClick={() => setIsChatVisible(!isChatVisible)}
                   className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors"
@@ -170,8 +176,8 @@ const TaskOverview = ({
         {isChatVisible && (
           <ContextChat
             messages={chatMessages}
-            onSendMessage={onSendMessage}
-            disabled={task.is_context_sufficient}
+            onSendMessage={handleSendMessage}
+            disabled={task.is_context_sufficient || isMessagePending}
           />
         )}
       </div>

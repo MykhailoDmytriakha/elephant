@@ -34,7 +34,7 @@ export default function TaskDetailsPage() {
   const [selectedApproachItems, setSelectedApproachItems] = useState({
     analytical_tools: [],
     practical_methods: [],
-    frameworks: []
+    frameworks: [],
   });
   const [isDecompositionStarted, setIsDecompositionStarted] = useState(false);
   const [isFormulating, setIsFormulating] = useState(false);
@@ -81,8 +81,12 @@ export default function TaskDetailsPage() {
         query: followUpQuestion,
         answer: message,
       });
+      
+      // Load the updated task
       const updatedTask = await fetchTaskDetails(taskId);
       setTask(updatedTask);
+      
+      // Update followUpQuestion based on context sufficiency
       if (updatedTask.is_context_sufficient) {
         setFollowUpQuestion(null);
       } else {
@@ -90,20 +94,21 @@ export default function TaskDetailsPage() {
       }
     } catch (error) {
       setError('Failed to send message: ' + error.message);
+      throw error; // Propagate error to allow component to handle it
     }
   };
 
   const handleFormulate = async (isReformulate = false) => {
     try {
-        setIsFormulating(true);
-        await formulate_task(taskId);
-        await loadTask();
+      setIsFormulating(true);
+      await formulate_task(taskId);
+      await loadTask();
     } catch (err) {
-        setError('Failed to formulate task: ' + err.message);
+      setError('Failed to formulate task: ' + err.message);
     } finally {
-        setIsFormulating(false);
+      setIsFormulating(false);
     }
-};
+  };
 
   const handleClarification = async (message = null) => {
     try {
