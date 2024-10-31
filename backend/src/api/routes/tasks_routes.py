@@ -35,7 +35,26 @@ class SelectedTools(BaseModel):
 # async def create_task(user_query: UserQuery, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):
 #     """Create a new task based on user query"""
 #     # TODO: do not implemet yet. Keeping it for future, maybe it make sense to create task manualy by user
-
+@router.delete("/", response_model=dict)
+async def delete_all_tasks(db: DatabaseService = Depends(get_db_service)):
+    """Delete all tasks"""
+    db.delete_all_tasks()
+    return {"message": "All tasks deleted successfully"}
+ 
+@router.delete("/{task_id}", response_model=dict)
+async def delete_task(task_id: str, db: DatabaseService = Depends(get_db_service)):
+    """Delete a specific task by ID"""
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    
+    # Delete the task from the database
+    success = db.delete_task_by_id(task_id)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to delete task with ID {task_id}")
+    
+    return {"message": f"Task with ID {task_id} has been successfully deleted"}
 
 @router.get("/{task_id}", response_model=Task)
 async def get_task(task_id: str, db: DatabaseService = Depends(get_db_service)):
@@ -75,32 +94,37 @@ async def update_task_context(task_id: str, user_interaction: Optional[UserInter
         db.updated_task(task)
         return analyzer.clarify_context(task)
     
-@router.delete("/", response_model=dict)
-async def delete_all_tasks(db: DatabaseService = Depends(get_db_service)):
-    """Delete all tasks"""
-    db.delete_all_tasks()
-    return {"message": "All tasks deleted successfully"}
- 
-@router.delete("/{task_id}", response_model=dict)
-async def delete_task(task_id: str, db: DatabaseService = Depends(get_db_service)):
-    """Delete a specific task by ID"""
+@router.post("/{task_id}/formulate", response_model=ContextSufficiencyResult)
+async def formulate_task(
+    task_id: str,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
+    """Endpoint to explicitly trigger task formulation"""
     task_data = db.fetch_task_by_id(task_id)
     if task_data is None:
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
     
-    # Delete the task from the database
-    success = db.delete_task_by_id(task_id)
+    task = Task(**json.loads(task_data['task_json']))
     
-    if not success:
-        raise HTTPException(status_code=500, detail=f"Failed to delete task with ID {task_id}")
+    if task.state != TaskState.CONTEXT_GATHERED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Task must be in CONTEXT_GATHERED state. Current state: {task.state}"
+        )
     
-    return {"message": f"Task with ID {task_id} has been successfully deleted"}
+    result = analyzer.process_context(task)
+    return result
 
 
 @router.post("/{task_id}/analyze", response_model=AnalysisResult)
-async def analyze_task(task_id: str, reAnalyze: bool = False, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
+async def analyze_task(
+    task_id: str, 
+    reAnalyze: bool = False, 
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
     """Analyze a specific task"""
-    # Fetch the task from the database
     task_data = db.fetch_task_by_id(task_id)
     
     if task_data is None:
@@ -110,13 +134,20 @@ async def analyze_task(task_id: str, reAnalyze: bool = False, analyzer: ProblemA
     task_dict = json.loads(task_data['task_json'])
     task = Task(**task_dict)
     
-    # Check if the task is in the correct state for analysis, unless force is True
+    # Check if the task is in the correct state for analysis
     if not reAnalyze:
-        if task.state == TaskState.NEW or task.state == TaskState.CONTEXT_GATHERING:
-            raise HTTPException(status_code=400, detail=f"Task is not in the correct state for analysis. Current state: {task.state}")
+        valid_states = [TaskState.TASK_FORMATION, TaskState.CONTEXT_GATHERED]
+        if task.state not in valid_states:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Task is not in the correct state for analysis. Current state: {task.state}"
+            )
         
-        if task.state != TaskState.CONTEXT_GATHERED or task.is_context_sufficient == False:
-            raise HTTPException(status_code=400, detail=f"Task is not in the correct state for analysis. Current state: {task.state}")
+        if not task.is_context_sufficient:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Task context is not sufficient for analysis"
+            )
     
     # Perform the analysis
     analyzer.analyze(task, reAnalyze)

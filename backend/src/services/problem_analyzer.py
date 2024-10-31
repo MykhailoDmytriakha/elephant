@@ -19,10 +19,10 @@ class ProblemAnalyzer:
         self.db_service = db_service
 
     def clarify_context(self, task: Task) -> ContextSufficiencyResult:
+        """Initial context gathering method"""
         task.update_state(TaskState.CONTEXT_GATHERING)
         result = self.openai_service.is_context_sufficient(task)
         
-        # Ensure result has the expected structure
         if not isinstance(result, dict) or 'is_context_sufficient' not in result:
             return {"is_context_sufficient": False, "follow_up_question": "Could you please provide more context about the task?"}
             
@@ -32,18 +32,59 @@ class ProblemAnalyzer:
             task.context = summarized_context
             task.update_state(TaskState.CONTEXT_GATHERED)
             self.db_service.updated_task(task)
+            
+            # After context is gathered, process it to formulate the task
+            return self.process_context(task)
                     
         return result
 
+    def process_context(self, task: Task) -> ContextSufficiencyResult:
+        """Process gathered context and formulate task"""
+        if task.state != TaskState.CONTEXT_GATHERED:
+            return {
+                "is_context_sufficient": False,
+                "follow_up_question": "Context gathering is not complete"
+            }
+
+        # Formulate the task based on gathered context
+        formulation = self.openai_service.formulate_task(task)
+        task.task = formulation["task"]
+
+        if formulation["is_context_sufficient"]:
+            task.update_state(TaskState.TASK_FORMATION)
+            self.db_service.updated_task(task)
+            
+            return {
+                "is_context_sufficient": True,
+                "follow_up_question": "Task has been formulated successfully. Ready for analysis."
+            }
+        else:
+            task.is_context_sufficient = False
+            task.update_state(TaskState.CONTEXT_GATHERING)
+            self.db_service.updated_task(task)
+            return {
+                "is_context_sufficient": False,
+                "follow_up_question": formulation.get(
+                    "follow_up_question",
+                    "Additional context needed for task formulation"
+                )
+            }
+
     def analyze(self, task: Task, reAnalyze: bool = False):
+        """Analyze the task and update its state"""
         if self._is_max_sub_level_reached(task):
             return
+            
         analysis_result = self.openai_service.analyze_task(task)
 
+        # Update task with analysis results
         task.task = analysis_result['task']
         task.analysis = analysis_result['analysis']
+        
         if not reAnalyze:
+            # Only update state if this is not a re-analysis
             task.update_state(TaskState.ANALYSIS)
+        
         self.db_service.updated_task(task)
         
     def typify(self, task: Task):

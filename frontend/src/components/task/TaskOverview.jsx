@@ -1,8 +1,13 @@
 // src/components/task/TaskOverview.jsx
-import React from "react";
+import React, { useMemo } from "react";
 import { MessageCircle, AlertCircle, X, Send } from "lucide-react";
 import { CollapsibleSection } from "./TaskComponents";
 import { TaskStates } from "../../constants/taskStates";
+
+const getMessageContent = (message) => {
+  if (!message) return '';
+  return message.content || message.message || '';
+};
 
 const ChatMessage = ({ message, isUser }) => (
   <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -11,7 +16,7 @@ const ChatMessage = ({ message, isUser }) => (
         ? 'bg-blue-600 text-white rounded-br-none' 
         : 'bg-gray-100 text-gray-900 rounded-bl-none'
     }`}>
-      {message.content || message.message}
+      {getMessageContent(message)}
     </div>
   </div>
 );
@@ -64,7 +69,7 @@ const ContextChat = ({ messages = [], onSendMessage, disabled = false }) => {
           <button
             type="submit"
             disabled={disabled || !newMessage.trim()}
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center justify-center ${
+            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
               disabled || !newMessage.trim()
                 ? 'bg-gray-300 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -80,11 +85,25 @@ const ContextChat = ({ messages = [], onSendMessage, disabled = false }) => {
 
 const TaskOverview = ({
   task,
-  isContextSufficient,
-  chatMessages,
+  followUpQuestion,
   onSendMessage,
 }) => {
-  const [isChatVisible, setIsChatVisible] = React.useState(!isContextSufficient);
+  //Todo: get isContextSufficient from task
+
+  const [isChatVisible, setIsChatVisible] = React.useState(!task.is_context_sufficient);
+
+  // Move chatMessages logic here
+  const chatMessages = useMemo(() => {
+    return [
+      ...(task?.user_interaction || [])
+        .map((interaction) => [
+          { role: 'assistant', content: interaction.query },
+          { role: 'user', content: interaction.answer },
+        ])
+        .flat(),
+      ...(followUpQuestion ? [{ role: 'assistant', content: followUpQuestion }] : []),
+    ];
+  }, [task?.user_interaction, followUpQuestion]);
 
   return (
     <CollapsibleSection title="Overview">
@@ -107,19 +126,18 @@ const TaskOverview = ({
             <p className="mt-1 text-gray-900 flex-grow whitespace-pre-line">
               {task.context || "No context provided"}
             </p>
-            {isContextSufficient && (
+            {task.is_context_sufficient && (
               <button
                 onClick={() => setIsChatVisible(!isChatVisible)}
                 className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
-                {/* {isChatVisible ? 'Hide Chat' : 'Show Chat'} */}
               </button>
             )}
           </div>
         </div>
 
-        {(!isContextSufficient ||
+        {(!task.is_context_sufficient ||
           task.state === TaskStates.CONTEXT_GATHERING) && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
@@ -153,7 +171,7 @@ const TaskOverview = ({
           <ContextChat
             messages={chatMessages}
             onSendMessage={onSendMessage}
-            disabled={isContextSufficient}
+            disabled={task.is_context_sufficient}
           />
         )}
       </div>

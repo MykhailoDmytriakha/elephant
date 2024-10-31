@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { LoadingSpinner, ErrorDisplay } from '../components/task/TaskComponents';
 import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateApproaches, typifyTask, clarifyTask, decomposeTask } from '../utils/api';
-import { getStateColor } from '../constants/taskStates';
+import { getStateColor, TaskStates } from '../constants/taskStates';
 import TaskOverview from '../components/task/TaskOverview';
 import Analysis from '../components/task/Analysis';
 import Metadata from '../components/task/Metadata';
@@ -12,6 +12,8 @@ import ApproachFormation from '../components/task/ApproachFormation';
 import Typification from '../components/task/Typification';
 import ClarificationSection from '../components/task/ClarificationSection';
 import Decomposition from '../components/task/Decomposition';
+import TaskFormulation from '../components/task/TaskFormulation';
+import { formulate_task } from '../utils/api';
 
 export default function TaskDetailsPage() {
   const { taskId } = useParams();
@@ -35,6 +37,7 @@ export default function TaskDetailsPage() {
     frameworks: []
   });
   const [isDecompositionStarted, setIsDecompositionStarted] = useState(false);
+  const [isFormulating, setIsFormulating] = useState(false);
 
   const loadTask = async () => {
     try {
@@ -90,6 +93,18 @@ export default function TaskDetailsPage() {
     }
   };
 
+  const handleFormulate = async (isReformulate = false) => {
+    try {
+        setIsFormulating(true);
+        await formulate_task(taskId);
+        await loadTask();
+    } catch (err) {
+        setError('Failed to formulate task: ' + err.message);
+    } finally {
+        setIsFormulating(false);
+    }
+};
+
   const handleClarification = async (message = null) => {
     try {
       setIsStartingClarificationLoading(true);
@@ -107,17 +122,6 @@ export default function TaskDetailsPage() {
     }
   };
 
-  // Update this part to correctly handle the user interaction and follow-up question
-  const chatMessages = [
-    ...(task?.user_interaction || [])
-      .map((interaction) => [
-        { role: 'assistant', content: interaction.query },
-        { role: 'user', content: interaction.answer },
-      ])
-      .flat(),
-    ...(followUpQuestion ? [{ role: 'assistant', content: followUpQuestion }] : []),
-  ];
-
   const handleAnalyze = async (isReanalyze = false) => {
     try {
       setIsAnalyzing(true);
@@ -127,18 +131,6 @@ export default function TaskDetailsPage() {
       setError('Failed to analyze task: ' + err.message);
     } finally {
       setIsAnalyzing(false);
-    }
-  };
-
-  const handleGenerateConcepts = async () => {
-    try {
-      setIsGeneratingConcepts(true);
-      await generateApproaches(taskId);
-      await loadTask();
-    } catch (err) {
-      setError('Failed to generate concepts: ' + err.message);
-    } finally {
-      setIsGeneratingConcepts(false);
     }
   };
 
@@ -224,10 +216,16 @@ export default function TaskDetailsPage() {
           {/* Main Content */}
           <div className="col-span-2 space-y-6">
             <TaskOverview
-                task={task}
-                isContextSufficient={task.is_context_sufficient}
-                chatMessages={chatMessages}
-                onSendMessage={handleSendMessage}
+              task={task}
+              followUpQuestion={followUpQuestion}
+              onSendMessage={handleSendMessage}
+            />
+
+            <TaskFormulation
+              task={task}
+              isContextGathered={task.state === TaskStates.CONTEXT_GATHERED}
+              onFormulate={handleFormulate}
+              isFormulating={isFormulating}
             />
 
             <Analysis

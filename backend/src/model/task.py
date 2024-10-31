@@ -10,6 +10,7 @@ class TaskState(Enum):
     NEW = "1. New"
     CONTEXT_GATHERING = "2. Context Gathering"
     CONTEXT_GATHERED = "3. Context Gathered"
+    TASK_FORMATION = "3.5. Task Formation"
     ANALYSIS = "4. Analysis"
     TYPIFY = "5. Typify"
     CLARIFYING = "6. Clarifying"
@@ -102,7 +103,8 @@ class Task(BaseModel):
         valid_transitions = {
             TaskState.NEW: [TaskState.CONTEXT_GATHERING],
             TaskState.CONTEXT_GATHERING: [TaskState.CONTEXT_GATHERED],
-            TaskState.CONTEXT_GATHERED: [TaskState.ANALYSIS],   
+            TaskState.CONTEXT_GATHERED: [TaskState.TASK_FORMATION],
+            TaskState.TASK_FORMATION: [TaskState.ANALYSIS],  # Changed this
             TaskState.ANALYSIS: [TaskState.TYPIFY],
             TaskState.TYPIFY: [TaskState.CLARIFYING],
             TaskState.CLARIFYING: [TaskState.CLARIFICATION_COMPLETE],
