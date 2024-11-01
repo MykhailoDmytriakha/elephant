@@ -1,13 +1,51 @@
 from src.model.task import Task
+# src/services/prompts/formulate_task_prompt.py
 FORMULATE_TASK_FUNCTIONS = [{
     "name": "formulate_task",
-    "description": "Formulate a clear task definition based on context and interactions",
+    "description": "Formulate a clear task definition and scope based on context and interactions",
     "parameters": {
         "type": "object",
         "properties": {
             "task": {
                 "type": "string",
                 "description": "Clear and comprehensive task definition"
+            },
+            "scope": {
+                "type": "object",
+                "properties": {
+                    "boundaries": {
+                        "type": "object",
+                        "properties": {
+                            "includes": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "What is included in this task's scope"
+                            },
+                            "excludes": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "What is explicitly excluded from this task's scope"
+                            }
+                        },
+                        "required": ["includes", "excludes"]
+                    },
+                    "constraints": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Key constraints and limitations"
+                    },
+                    "dependencies": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "External dependencies and requirements"
+                    },
+                    "deliverables": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Expected outputs and deliverables"
+                    }
+                },
+                "required": ["boundaries", "constraints", "dependencies", "deliverables"]
             },
             "is_context_sufficient": {
                 "type": "boolean",
@@ -18,7 +56,7 @@ FORMULATE_TASK_FUNCTIONS = [{
                 "description": "Question to ask if more context is needed"
             }
         },
-        "required": ["task", "is_context_sufficient", "follow_up_question"]
+        "required": ["task", "scope", "is_context_sufficient", "follow_up_question"]
     }
 }]
 

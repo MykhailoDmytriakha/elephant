@@ -70,12 +70,20 @@ export default function Metadata({ task }) {
               {new Date(task.updated_at).toLocaleString()}
             </p>
           </div>
-          {task.sub_level !== undefined && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Sub Level</h3>
-              <p className="mt-1 text-gray-900">{task.sub_level}</p>
-            </div>
-          )}
+          <div className="grid grid-cols-2 gap-4">
+            {task.sub_level !== undefined && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Sub Level</h3>
+                <p className="mt-1 text-gray-900">{task.sub_level}</p>
+              </div>
+            )}
+            {task.complexity !== undefined && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Complexity</h3>
+                <p className="mt-1 text-gray-900">{task.complexity}</p>
+              </div>
+            )}
+          </div>
           {task.progress !== undefined && (
             <div>
               <h3 className="text-sm font-medium text-gray-500">Progress</h3>

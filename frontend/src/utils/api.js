@@ -91,7 +91,7 @@ export const generateApproaches = async (taskId) => {
 export const typifyTask = async (taskId, isRetypify = false) => {
   try {
     const response = await axios.post(
-      `${API_BASE_URL}/tasks/${taskId}/typify${isRetypify ? '?retypify=true' : ''}`
+      `${API_BASE_URL}/tasks/${taskId}/typify${isRetypify ? '?reTypify=true' : ''}`
     );
     return response.data;
   } catch (error) {

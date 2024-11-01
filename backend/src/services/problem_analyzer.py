@@ -23,12 +23,16 @@ class ProblemAnalyzer:
         self.db_service = db_service
 
     def clarify_context(self, task: Task) -> ContextSufficiencyResult:
+        if task.is_context_sufficient:
+            task.update_state(TaskState.CONTEXT_GATHERED)
+            return {"is_context_sufficient": True, "follow_up_question": "I understand your task. Let's proceed with the analysis."}
+        
         """Initial context gathering method"""
         task.update_state(TaskState.CONTEXT_GATHERING)
         result = self.openai_service.is_context_sufficient(task)
         
         if not isinstance(result, dict) or 'is_context_sufficient' not in result:
-            return {"is_context_sufficient": False, "follow_up_question": "Could you please provide more context about the task?"}
+            return {"is_context_sufficient": False, "follow_up_question": "Could you please provide more details about what you're trying to accomplish?"}
             
         if result["is_context_sufficient"]:
             task.is_context_sufficient = True
@@ -47,12 +51,13 @@ class ProblemAnalyzer:
         if task.state != TaskState.CONTEXT_GATHERED:
             return {
                 "is_context_sufficient": False,
-                "follow_up_question": "Context gathering is not complete"
+                "follow_up_question": "We need more information about your task. Could you elaborate?"
             }
 
         # Formulate the task based on gathered context
         formulation = self.openai_service.formulate_task(task)
         task.task = formulation["task"]
+        task.scope = formulation["scope"]
 
         if formulation["is_context_sufficient"]:
             task.update_state(TaskState.TASK_FORMATION)
@@ -60,7 +65,7 @@ class ProblemAnalyzer:
             
             return {
                 "is_context_sufficient": True,
-                "follow_up_question": "Task has been formulated successfully. Ready for analysis."
+                "follow_up_question": "I understand your task. Let's proceed with the analysis."
             }
         else:
             task.is_context_sufficient = False
@@ -70,7 +75,7 @@ class ProblemAnalyzer:
                 "is_context_sufficient": False,
                 "follow_up_question": formulation.get(
                     "follow_up_question",
-                    "Additional context needed for task formulation"
+                    "Could you provide more details about your requirements?"
                 )
             }
 
@@ -88,6 +93,9 @@ class ProblemAnalyzer:
             # Only update state if this is not a re-analysis
             task.update_state(TaskState.ANALYSIS)
         
+        if task.complexity == 1 or (task.level and "LEVEL_1" in task.level):
+            task.update_state(TaskState.CLARIFICATION_COMPLETE)
+        
         self.db_service.updated_task(task)
         
     def typify(self, task: Task):
@@ -95,6 +103,7 @@ class ProblemAnalyzer:
         complexity_level = typification_result['typification']['classification']['complexity_level']['level']
         task.level = complexity_level
         task.complexity = extract_level(complexity_level)
+        task.eta_to_complete = typification_result['typification']['eta']['time']
         task.typification = typification_result['typification']
         task.update_state(TaskState.TYPIFY)
         self.db_service.updated_task(task)
@@ -195,6 +204,7 @@ class ProblemAnalyzer:
 
         # Call OpenAI service to decompose the task
         decomposed_tasks = self.openai_service.decompose_task(task)
+        task.decomposed_tasks = decomposed_tasks['sub_tasks']
 
         # Build the task tree
         self._build_task_tree(decomposed_tasks, task)
@@ -210,19 +220,23 @@ class ProblemAnalyzer:
     def _build_task_tree(self, task_data: Dict[str, Any], parent_task: Task):
         for sub_task_info in task_data.get('sub_tasks', []):
             sub_task = Task.create_new(sub_task_info['task'], sub_task_info['context'])
-            sub_task.order = sub_task_info['order']
-            sub_task.sub_level = parent_task.sub_level + 1
             sub_task.short_description = sub_task_info['short_description']
+            sub_task.sub_level = parent_task.sub_level + 1
             sub_task.level = sub_task_info['complexity_level']
             sub_task.complexity = extract_level(sub_task.level)
+            sub_task.order = sub_task_info['order']
             sub_task.contribution_to_parent_task = sub_task_info['contribution_to_parent_task']
+            sub_task.eta_to_complete = sub_task_info['eta']['time']
+            sub_task.scope = sub_task_info['scope']
             sub_task.parent_task = parent_task.id
+            sub_task.is_context_sufficient = True
+            sub_task.update_state(TaskState.CONTEXT_GATHERED)
             parent_task.sub_tasks.append(sub_task.id)
             self.db_service.insert_task(sub_task)
 
             # Recursively build sub-tasks if they exist
-            if 'sub_tasks' in sub_task_info:
-                self._build_task_tree(sub_task_info, sub_task)
+            # if 'sub_tasks' in sub_task_info:
+            #     self._build_task_tree(sub_task_info, sub_task)
 
     def _is_max_sub_level_reached(self, task: Task) -> bool:
         if task.sub_level >= self.MAX_SUB_LEVEL:

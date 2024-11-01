@@ -114,37 +114,86 @@ GENERATE_APPROACHES_FUNCTIONS = [
 }]
 
 def get_generate_approaches_prompt(task: Task, context: str) -> str:
-    return f"""
-        Based on the task's characteristics and user preferences, suggest practical tools, methods, and frameworks
-        that will help solve the task effectively. Then create effective combinations of these tools.
-        
-        Task: {task.task}
-        Context: {context}
-        Analysis: {task.analysis}
-        Typification: {task.typification}
+    if task.complexity == 1 or (task.level and "LEVEL_1" in task.level):
+        return f"""
+            Based on the task's characteristics, suggest specific, practical tools, methods, and frameworks
+            that will help achieve the final result effectively. Focus on real-world, proven approaches.
+            
+            Task: {task.task}
+            Short Description: {task.short_description}
+            Context: {context}
+            Level: {task.level}
+            Complexity: {task.complexity}
+            Contribution to Parent Task: {task.contribution_to_parent_task}
+            Scope: {task.scope}
+            Analysis: {task.analysis}
 
-        Task Nature (from typification):
-        - Primary: {task.typification['classification']['nature']['primary']}
-        - Domain: {task.typification['classification']['domain']['primary']}
-        - Complexity Level: {task.typification['classification']['complexity_level']['level']}
+            APPROACHES RULES:
+            1. Stay strictly within defined scope boundaries
+            2. Do not approach aspects listed in "Explicitly Excludes"
+            3. Consider only available resources and realistic constraints
+            4. Focus on concrete, measurable deliverables
+            5. Suggest only proven tools with demonstrated success
+            6. Prioritize tools that directly contribute to the final result
+            
+            Requirements:
+            1. First, provide exactly 3 tools for each category:
+            - Analytical tools (T1-T3): Focus on specific software, techniques, or methodologies that are currently available
+            - Practical methods (M1-M3): Include step-by-step processes that have been proven in similar contexts
+            - Frameworks (F1-F3): Suggest established frameworks with documented success cases
 
-        User Context and Preferences:
-        {json.dumps(task.clarification_data.get('answers', {}), ensure_ascii=False)}
+            2. Then, create exactly 3 effective combinations where:
+            - Each combination must include one tool from each category
+            - Provide concrete examples of successful implementation
+            - Include specific metrics or indicators of success
+            - Explain exactly how this combination leads to the desired result
 
-        Requirements:
-        1. Provide analytical tools (T1-T3)
-        2. Provide practical methods (M1-M3)
-        3. Provide frameworks (F1-F3)
-        4. Create at least 3 effective combinations using these tools
-        
-        For each combination:
-        - Include exactly one tool from each category (1 analytical tool, 1 method, 1 framework)
-        - Explain how they work together (synergy)
-        - Provide a specific use case
+            Make sure all tools and combinations are:
+            - Currently available and accessible
+            - Have documented success cases
+            - Include specific implementation steps
+            - Provide measurable outcomes
+            - Consider resource constraints
 
-        Make sure all tools are:
-        - Specific to the task and domain
-        - Matched to user's experience level
-        - Practical and immediately applicable
-        - Well-integrated with each other
-        """
+            Important: You must provide both tool categories AND tool combinations in your response.
+            The tool combinations should reference the tools you defined using their IDs (T1-T3, M1-M3, F1-F3).
+            For each tool, include at least one real-world example of successful implementation.
+            """
+    else:
+        return f"""
+            Based on the task's characteristics and user preferences, suggest practical tools, methods, and frameworks
+            that will help solve the task effectively. Then create effective combinations of these tools.
+            
+            Task: {task.task}
+            Context: {context}
+            Analysis: {task.analysis}
+            Typification: {task.typification}
+
+            Task Nature (from typification):
+            - Primary: {task.typification['classification']['nature']['primary']}
+            - Domain: {task.typification['classification']['domain']['primary']}
+            - Complexity Level: {task.typification['classification']['complexity_level']['level']}
+
+            User Context and Preferences:
+            {json.dumps(task.clarification_data.get('answers', {}), ensure_ascii=False)}
+
+            Requirements:
+            1. First, provide exactly 3 tools for each category:
+            - Analytical tools (T1-T3)
+            - Practical methods (M1-M3)
+            - Frameworks (F1-F3)
+
+            2. Then, create exactly 3 effective combinations where:
+            - Each combination must include one tool from each category
+            - Explain how they work together (synergy)
+            - Provide a specific use case for the combination
+
+            Make sure all tools and combinations are:
+            - Specific to the task and domain
+            - Matched to user's experience level
+            - Practical and immediately applicable
+            - Well-integrated with each other
+
+            Important: You must provide both tool categories AND tool combinations in your response.
+            The tool combinations should reference the tools you defined using their IDs (T1-T3, M1-M3, F1-F3).
+            """

@@ -119,6 +119,21 @@ const TaskOverview = ({ task, followUpQuestion, onSendMessage }) => {
   return (
     <CollapsibleSection title="Overview">
       <div className="space-y-4">
+        {task.sub_level > 0 && (
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-200 text-blue-700 text-sm font-medium">{task.sub_level}</span>
+              <span className="text-sm text-blue-700 font-medium">Subtask Level</span>
+            </div>
+            {task.contribution_to_parent_task && (
+              <div className="text-sm text-blue-800">
+                <span className="font-medium">Contribution to Parent Task:</span>
+                <p className="mt-1">{task.contribution_to_parent_task}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         <div>
           <h3 className="text-sm font-medium text-gray-500">Description</h3>
           <p className="mt-1 text-gray-900">{task.short_description}</p>
@@ -128,6 +143,20 @@ const TaskOverview = ({ task, followUpQuestion, onSendMessage }) => {
           <div>
             <h3 className="text-sm font-medium text-gray-500">Task</h3>
             <p className="mt-1 text-gray-900 whitespace-pre-line">{task.task}</p>
+          </div>
+        )}
+
+        {task.level && (
+          <div>
+            <h3 className="text-sm font-medium text-gray-500">Level</h3>
+            <p className="mt-1 text-gray-900">{task.level}</p>
+          </div>
+        )}
+
+        {task.eta_to_complete && (
+          <div>
+            <h3 className="text-sm font-medium text-gray-500">ETA to Complete</h3>
+            <p className="mt-1 text-gray-900">{task.eta_to_complete}</p>
           </div>
         )}
 

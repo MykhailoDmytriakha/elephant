@@ -113,9 +113,8 @@ class OpenAIService:
     def analyze_task(self, task: Task) -> dict:
         logger.info("Called analyze_task method")
         functions = ANALYZE_TASK_FUNCTIONS
-
         context = self._gather_context(task)
-        prompt = get_analyze_task_prompt(task_description=task.task or task.short_description or "", context=context)
+        prompt = get_analyze_task_prompt(task_description=task.task or task.short_description or "", context=context, scope=task.scope or {})
         logger.debug(f"OpenAI API prompt: {prompt}")
         response = self.client.chat.completions.create(
             model=self.model,

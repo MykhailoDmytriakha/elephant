@@ -421,7 +421,9 @@ export default function ApproachFormation({
 
   return (
     <CollapsibleSection title="Approach Formation">
-      <div className="relative">
+      <div 
+        className={`relative ${isRegenerating ? 'pointer-events-none opacity-50' : ''}`}
+      >
         <button
           onClick={onRegenerateApproaches}
           disabled={isRegenerating}

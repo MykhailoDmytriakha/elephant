@@ -14,6 +14,7 @@ import ClarificationSection from '../components/task/ClarificationSection';
 import Decomposition from '../components/task/Decomposition';
 import TaskFormulation from '../components/task/TaskFormulation';
 import { formulate_task } from '../utils/api';
+import Breadcrumbs from '../components/task/Breadcrumbs';
 
 export default function TaskDetailsPage() {
   const { taskId } = useParams();
@@ -188,40 +189,31 @@ export default function TaskDetailsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-200">
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="h-16 flex items-center">
               <button
                 onClick={handleBack}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className="mr-4 text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">Task Details</h1>
-              {task.parent_task && (
+              <div className="flex-1">
+                <Breadcrumbs task={task} />
+                <h1 className="text-2xl font-bold text-gray-900 mt-1">Task Details</h1>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-gray-600 mr-2">Task State:</span>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStateColor(task.state)}`}>{task.state}</span>
                 <button
-                  onClick={() => navigate(`/tasks/${task.parent_task}`)}
-                  className="ml-4 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  onClick={handleDelete}
+                  className="text-red-600 hover:text-red-700 flex items-center gap-2"
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Parent Task
+                  <Trash2 className="w-5 h-5" />
+                  Delete
                 </button>
-              )}
-            </div>
-            <div className="flex items-center gap-4"> 
-              {/* Task State */}
-              <span className="text-gray-600 mr-2">Task State:</span>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStateColor(task.state)}`}>{task.state}</span>
-
-              {/* Delete Button */}
-              <button
-                onClick={handleDelete}
-                className="text-red-600 hover:text-red-700 flex items-center gap-2"
-              >
-                <Trash2 className="w-5 h-5" />
-                Delete
-              </button>
+              </div>
             </div>
           </div>
         </div>
@@ -238,12 +230,14 @@ export default function TaskDetailsPage() {
               onSendMessage={handleSendMessage}
             />
 
-            <TaskFormulation
-              task={task}
-              isContextGathered={task.state === TaskStates.CONTEXT_GATHERED}
-              onFormulate={handleFormulate}
-              isFormulating={isFormulating}
-            />
+            {task.sub_level === 0 && (
+              <TaskFormulation
+                task={task}
+                isContextGathered={task.state === TaskStates.CONTEXT_GATHERED}
+                onFormulate={handleFormulate}
+                isFormulating={isFormulating}
+              />
+            )}
 
             <Analysis
               analysis={task.analysis}
@@ -252,22 +246,26 @@ export default function TaskDetailsPage() {
               onAnalyze={handleAnalyze}
             />
 
-            <Typification
-              typification={task.typification}
-              isContextSufficient={task.is_context_sufficient}
-              isTypifying={isTypifying}
-              onTypify={handleTypify}
-              taskState={task.state}
-            />
+            {task.complexity > 1 && (
+              <Typification
+                typification={task.typification}
+                isContextSufficient={task.is_context_sufficient}
+                isTypifying={isTypifying}
+                onTypify={handleTypify}
+                taskState={task.state}
+              />
+            )}
 
-            <ClarificationSection
-              taskState={task.state}
-              clarification_data={task.clarification_data}
-              onStartClarification={() => handleClarification()}
-              isStartingClarificationLoading={isStartingClarificationLoading}
-              onSendMessage={handleClarification}
-              isLoading={loading}
-            />
+            {task.complexity > 1 && (
+              <ClarificationSection
+                taskState={task.state}
+                clarification_data={task.clarification_data}
+                onStartClarification={() => handleClarification()}
+                isStartingClarificationLoading={isStartingClarificationLoading}
+                onSendMessage={handleClarification}
+                isLoading={loading}
+              />
+            )}
 
             <ApproachFormation
               approaches={task.approaches}
@@ -279,18 +277,32 @@ export default function TaskDetailsPage() {
               isDecompositionStarted={isDecompositionStarted}
             />
 
-            <Decomposition
-              task={task}
-              taskState={task.state}
-              isDecomposing={isDecomposing}
-              onDecompose={handleDecompose}
-              selectedItems={selectedApproachItems}
-            />
+            {task.complexity > 1 && (
+              <Decomposition
+                task={task}
+                taskState={task.state}
+                isDecomposing={isDecomposing}
+                onDecompose={handleDecompose}
+                selectedItems={selectedApproachItems}
+              />
+            )}
+
+            {/* {task.complexity === 1 && (
+              <SolutionDevelopment
+                task={task}
+                taskState={task.state}
+                isDecomposing={isDecomposing}
+                onDecompose={handleDecompose}
+                selectedItems={selectedApproachItems}
+              />
+            )} */}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <Metadata task={task} />
+            <div className="sticky top-24">
+              <Metadata task={task} />
+            </div>
           </div>
         </div>
       </div>

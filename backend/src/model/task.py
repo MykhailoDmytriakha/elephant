@@ -40,7 +40,9 @@ class Task(BaseModel):
     context: Optional[str] = None
     level: Optional[str] = None
     complexity: Optional[int] = None
+    eta_to_complete: Optional[str] = None
     contribution_to_parent_task: Optional[str] = None
+    scope: Optional[dict] = Field(default_factory=dict, description="Task scope definition")
     # analysis fields
     user_interaction: List[UserInteraction] = Field(default_factory=list)
     analysis: Dict = Field(default_factory=dict)
@@ -49,6 +51,7 @@ class Task(BaseModel):
     approaches: Dict = Field(default_factory=dict)
     # decomposition fields
     sub_tasks: List[str] = Field(default_factory=list)
+    decomposed_tasks: List[Dict] = Field(default_factory=list)
     parent_task: Optional[str] = None
     order: Optional[int] = None
     
@@ -104,11 +107,11 @@ class Task(BaseModel):
 
         # Define valid state transitions
         valid_transitions = {
-            TaskState.NEW: [TaskState.CONTEXT_GATHERING],
+            TaskState.NEW: [TaskState.CONTEXT_GATHERING, TaskState.CONTEXT_GATHERED],
             TaskState.CONTEXT_GATHERING: [TaskState.CONTEXT_GATHERED],
-            TaskState.CONTEXT_GATHERED: [TaskState.TASK_FORMATION],
-            TaskState.TASK_FORMATION: [TaskState.ANALYSIS],  # Changed this
-            TaskState.ANALYSIS: [TaskState.TYPIFY],
+            TaskState.CONTEXT_GATHERED: [TaskState.TASK_FORMATION, TaskState.ANALYSIS],
+            TaskState.TASK_FORMATION: [TaskState.ANALYSIS],
+            TaskState.ANALYSIS: [TaskState.TYPIFY, TaskState.CLARIFICATION_COMPLETE],
             TaskState.TYPIFY: [TaskState.CLARIFYING],
             TaskState.CLARIFYING: [TaskState.CLARIFICATION_COMPLETE],
             TaskState.CLARIFICATION_COMPLETE: [TaskState.APPROACH_FORMATION],
