@@ -4,6 +4,7 @@ from src.model.task import Task
 CONTEXT_SUFFICIENT_FUNCTIONS = [
     {
         "name": "context_analysis",
+        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {

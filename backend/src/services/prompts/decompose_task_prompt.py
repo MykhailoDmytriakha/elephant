@@ -5,6 +5,7 @@ DECOMPOSE_TASK_FUNCTIONS = [
 {
     "name": "decompose_task",
     "description": "Decompose a complex task into smaller sub-tasks with clear scopes",
+    "strict": True,
     "parameters": {
         "type": "object",
         "properties": {

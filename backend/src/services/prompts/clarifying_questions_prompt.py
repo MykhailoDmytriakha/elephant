@@ -4,6 +4,7 @@ import json
 CLARIFYING_QUESTIONS_FUNCTIONS = [{
             "name": "generate_questions",
             "description": "Generate clarifying questions for the task",
+            "strict": True,
             "parameters": {
                 "type": "object",
                 "properties": {

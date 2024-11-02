@@ -3,6 +3,7 @@ from src.model.task import Task
 FORMULATE_TASK_FUNCTIONS = [{
     "name": "formulate_task",
     "description": "Formulate a clear task definition and scope based on context and interactions",
+    "strict": True,
     "parameters": {
         "type": "object",
         "properties": {

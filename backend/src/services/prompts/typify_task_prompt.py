@@ -3,6 +3,7 @@ from src.model.task import Task
 TYPIFY_TASK_FUNCTIONS = [{
             "name": "typify_task",
             "description": "Analyze and classify the task according to specific criteria",
+            "strict": True,
             "parameters": {
                 "type": "object",
                 "properties": {

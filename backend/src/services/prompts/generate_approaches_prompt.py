@@ -5,6 +5,7 @@ GENERATE_APPROACHES_FUNCTIONS = [
 {
     "name": "generate_approaches",
     "description": "Generate practical tools and methods based on task typification and suggest effective combinations",
+    "strict": True,
     "parameters": {
         "type": "object",
         "properties": {
