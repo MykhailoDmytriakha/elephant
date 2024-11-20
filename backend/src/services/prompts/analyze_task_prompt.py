@@ -5,7 +5,6 @@ ANALYZE_TASK_FUNCTIONS = [
     {
         "name": "analyze_task",
         "description": "Analyze the given task and context within defined scope boundaries.",
-        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
@@ -73,6 +72,14 @@ ANALYZE_TASK_FUNCTIONS = [
             },
             "required": ["analysis"]
         }
+    }
+]
+
+ANALYZE_TASK_TOOLS = [
+     {
+        "type": "function",
+        "function": ANALYZE_TASK_FUNCTIONS[0],
+        "strict": True
     }
 ]
 

@@ -3,7 +3,6 @@ from src.model.task import Task
 TYPIFY_TASK_FUNCTIONS = [{
             "name": "typify_task",
             "description": "Analyze and classify the task according to specific criteria",
-            "strict": True,
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -128,6 +127,14 @@ TYPIFY_TASK_FUNCTIONS = [{
                 "required": ["typification"]
             }
         }]
+
+TYPIFY_TASK_TOOLS = [
+    {
+        "type": "function",
+        "function": TYPIFY_TASK_FUNCTIONS[0],
+        "strict": True
+    }
+]
 
 def get_typify_task_prompt(task: Task) -> str:
     return f"""

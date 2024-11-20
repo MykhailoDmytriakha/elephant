@@ -246,7 +246,7 @@ export default function TaskDetailsPage() {
               onAnalyze={handleAnalyze}
             />
 
-            {task.complexity > 1 && (
+            {(task.complexity == null || task.complexity > 1) && (
               <Typification
                 typification={task.typification}
                 isContextSufficient={task.is_context_sufficient}

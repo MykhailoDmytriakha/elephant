@@ -4,7 +4,6 @@ import json
 CLARIFYING_QUESTIONS_FUNCTIONS = [{
             "name": "generate_questions",
             "description": "Generate clarifying questions for the task",
-            "strict": True,
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -36,6 +35,14 @@ CLARIFYING_QUESTIONS_FUNCTIONS = [{
                 "required": ["questions", "stop_criteria"]
             }
         }]
+
+CLARIFYING_QUESTIONS_TOOLS = [
+    {
+        "type": "function",
+        "function": CLARIFYING_QUESTIONS_FUNCTIONS[0],
+        "strict": True
+    }
+]
 
 def get_clarifying_questions_prompt(task: Task) -> str:
     return f"""

@@ -5,7 +5,6 @@ DECOMPOSE_TASK_FUNCTIONS = [
 {
     "name": "decompose_task",
     "description": "Decompose a complex task into smaller sub-tasks with clear scopes",
-    "strict": True,
     "parameters": {
         "type": "object",
         "properties": {
@@ -104,6 +103,14 @@ DECOMPOSE_TASK_FUNCTIONS = [
         "required": ["sub_tasks"]
     }
 }]
+
+DECOMPOSE_TASK_TOOLS = [
+    {
+        "type": "function",
+        "function": DECOMPOSE_TASK_FUNCTIONS[0],
+        "strict": True
+    }
+]
 
 def get_decompose_task_prompt(task: Task, context: str) -> str:
     return f"""

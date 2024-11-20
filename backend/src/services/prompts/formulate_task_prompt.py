@@ -3,7 +3,6 @@ from src.model.task import Task
 FORMULATE_TASK_FUNCTIONS = [{
     "name": "formulate_task",
     "description": "Formulate a clear task definition and scope based on context and interactions",
-    "strict": True,
     "parameters": {
         "type": "object",
         "properties": {
@@ -60,6 +59,14 @@ FORMULATE_TASK_FUNCTIONS = [{
         "required": ["task", "scope", "is_context_sufficient", "follow_up_question"]
     }
 }]
+
+FORMULATE_TASK_TOOLS = [
+    {
+        "type": "function",
+        "function": FORMULATE_TASK_FUNCTIONS[0],
+        "strict": True
+    }
+]
 
 def get_formulate_task_prompt(task: Task) -> str:
     return f"""

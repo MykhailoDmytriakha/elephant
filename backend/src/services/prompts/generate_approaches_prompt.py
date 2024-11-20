@@ -5,7 +5,6 @@ GENERATE_APPROACHES_FUNCTIONS = [
 {
     "name": "generate_approaches",
     "description": "Generate practical tools and methods based on task typification and suggest effective combinations",
-    "strict": True,
     "parameters": {
         "type": "object",
         "properties": {
@@ -113,6 +112,14 @@ GENERATE_APPROACHES_FUNCTIONS = [
         "required": ["tool_categories", "tool_combinations"]
     }
 }]
+
+GENERATE_APPROACHES_TOOLS = [
+    {
+        "type": "function",
+        "function": GENERATE_APPROACHES_FUNCTIONS[0],
+        "strict": True
+    }
+]
 
 def get_generate_approaches_prompt(task: Task, context: str) -> str:
     if task.complexity == 1 or (task.level and "LEVEL_1" in task.level):

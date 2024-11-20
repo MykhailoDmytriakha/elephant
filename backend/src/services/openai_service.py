@@ -3,13 +3,13 @@ import logging
 from typing import TypedDict
 from src.model.context import ContextSufficiencyResult
 from openai import OpenAI
-from src.services.prompts.analyze_task_prompt import ANALYZE_TASK_FUNCTIONS, get_analyze_task_prompt
-from src.services.prompts.typify_task_prompt import TYPIFY_TASK_FUNCTIONS, get_typify_task_prompt
-from src.services.prompts.clarifying_questions_prompt import CLARIFYING_QUESTIONS_FUNCTIONS, get_clarifying_questions_prompt
-from src.services.prompts.context_sufficient_prompt import CONTEXT_SUFFICIENT_FUNCTIONS, get_context_sufficient_prompt
-from src.services.prompts.generate_approaches_prompt import GENERATE_APPROACHES_FUNCTIONS, get_generate_approaches_prompt
-from src.services.prompts.decompose_task_prompt import DECOMPOSE_TASK_FUNCTIONS, get_decompose_task_prompt
-from src.services.prompts.formulate_task_prompt import FORMULATE_TASK_FUNCTIONS, get_formulate_task_prompt
+from src.services.prompts.analyze_task_prompt import ANALYZE_TASK_FUNCTIONS, ANALYZE_TASK_TOOLS, get_analyze_task_prompt
+from src.services.prompts.typify_task_prompt import TYPIFY_TASK_FUNCTIONS, TYPIFY_TASK_TOOLS, get_typify_task_prompt
+from src.services.prompts.clarifying_questions_prompt import CLARIFYING_QUESTIONS_FUNCTIONS, CLARIFYING_QUESTIONS_TOOLS, get_clarifying_questions_prompt
+from src.services.prompts.context_sufficient_prompt import CONTEXT_SUFFICIENT_FUNCTIONS, CONTEXT_SUFFICIENT_TOOLS, get_context_sufficient_prompt
+from src.services.prompts.generate_approaches_prompt import GENERATE_APPROACHES_FUNCTIONS, GENERATE_APPROACHES_TOOLS, get_generate_approaches_prompt
+from src.services.prompts.decompose_task_prompt import DECOMPOSE_TASK_FUNCTIONS, DECOMPOSE_TASK_TOOLS, get_decompose_task_prompt
+from src.services.prompts.formulate_task_prompt import FORMULATE_TASK_FUNCTIONS, FORMULATE_TASK_TOOLS, get_formulate_task_prompt
 from src.core.config import settings
 from src.model.task import Task
 
@@ -57,7 +57,6 @@ class OpenAIService:
     
     def is_context_sufficient(self, task: Task) -> ContextSufficiencyResult:
         logger.info("Called is_context_sufficient method")
-        functions = CONTEXT_SUFFICIENT_FUNCTIONS
 
         summarized_context = self.summarize_context(task.formatted_user_interaction, task.context) if not task.is_context_sufficient else (task.context or "")
         prompt = get_context_sufficient_prompt(task, summarized_context)
@@ -65,12 +64,12 @@ class OpenAIService:
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            functions=functions,
-            function_call={"name": "context_analysis"}
+            tools=CONTEXT_SUFFICIENT_TOOLS,
+            tool_choice={"type": "function", "function": {"name":"context_analysis"}}
         )
-        function_call = response.choices[0].message.function_call
-        if function_call:
-            result = json.loads(function_call.arguments)
+        function = response.choices[0].message.tool_calls[0].function
+        if function:
+            result = json.loads(function.arguments)
             logger.debug(f"OpenAI API response: {result}")
             return ContextSufficiencyResult(
                 is_context_sufficient=result["is_context_sufficient"],
@@ -86,19 +85,18 @@ class OpenAIService:
 
     def formulate_task(self, task: Task) -> dict:
         """Formulate clear task definition based on gathered context"""
-        functions = FORMULATE_TASK_FUNCTIONS
         prompt = get_formulate_task_prompt(task)
 
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            functions=functions,
-            function_call={"name": "formulate_task"}
+            tools=FORMULATE_TASK_TOOLS,
+            tool_choice={"type": "function", "function": {"name":"formulate_task"}}
         )
 
-        function_call = response.choices[0].message.function_call
-        if function_call:
-            result = json.loads(function_call.arguments)
+        function = response.choices[0].message.tool_calls[0].function
+        if function:
+            result = json.loads(function.arguments)
             logger.debug(f"OpenAI API response: {result}")
             return result
         else:
@@ -112,19 +110,18 @@ class OpenAIService:
 
     def analyze_task(self, task: Task) -> dict:
         logger.info("Called analyze_task method")
-        functions = ANALYZE_TASK_FUNCTIONS
         context = self._gather_context(task)
         prompt = get_analyze_task_prompt(task_description=task.task or task.short_description or "", context=context, scope=task.scope or {})
         logger.debug(f"OpenAI API prompt: {prompt}")
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            functions=functions,
-            function_call={"name": "analyze_task"}
+            tools = ANALYZE_TASK_TOOLS,
+            tool_choice={"type": "function", "function": {"name":"analyze_task"}}
         )
-        function_call = response.choices[0].message.function_call
-        if function_call:
-            result = json.loads(function_call.arguments)
+        function = response.choices[0].message.tool_calls[0].function
+        if function:
+            result = json.loads(function.arguments)
             logger.debug(f"OpenAI API response: {result}")
             return result
         else:
@@ -143,19 +140,18 @@ class OpenAIService:
     
     def typify_task(self, task: Task) -> dict:
         logger.info("Called typify_task method")
-        functions = TYPIFY_TASK_FUNCTIONS
 
         prompt = get_typify_task_prompt(task)
         logger.debug(f"OpenAI API prompt: {prompt}")
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            functions=functions,
-            function_call={"name": "typify_task"}
+            tools=TYPIFY_TASK_TOOLS,
+            tool_choice={"type": "function", "function": {"name":"typify_task"}}
         )
-        function_call = response.choices[0].message.function_call
-        if function_call:
-            result = json.loads(function_call.arguments)
+        function = response.choices[0].message.tool_calls[0].function
+        if function:
+            result = json.loads(function.arguments)
             logger.debug(f"OpenAI API response: {result}")
             return result
         else:
@@ -165,7 +161,6 @@ class OpenAIService:
     
     def generate_clarifying_questions(self, task: Task) -> dict:
         """Generate clarifying questions based on analysis and typification"""
-        functions = CLARIFYING_QUESTIONS_FUNCTIONS
 
         prompt = get_clarifying_questions_prompt(task)
 
@@ -173,13 +168,13 @@ class OpenAIService:
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            functions=functions,
-            function_call={"name": "generate_questions"}
+            tools=CLARIFYING_QUESTIONS_TOOLS,
+            tool_choice={"type": "function", "function": {"name":"generate_questions"}}
         )
 
-        function_call = response.choices[0].message.function_call
-        if function_call:
-            result = json.loads(function_call.arguments)
+        function = response.choices[0].message.tool_calls[0].function
+        if function:
+            result = json.loads(function.arguments)
             logger.debug(f"OpenAI API response: {result}")
             return result
         else:
@@ -198,23 +193,20 @@ class OpenAIService:
 
     def generate_approaches(self, task: Task) -> dict:
         logger.info("Called generate_approaches method")
-        functions = GENERATE_APPROACHES_FUNCTIONS
 
         context = self._gather_context(task)
         prompt = get_generate_approaches_prompt(task, context)
         logger.debug(f"OpenAI API prompt: {prompt}")
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "user", "content": prompt},
-            ],
-            functions=functions,
-            function_call={"name": "generate_approaches"}
+            messages=[{"role": "user", "content": prompt},],
+            tools=GENERATE_APPROACHES_TOOLS,
+            tool_choice={"type": "function", "function": {"name":"generate_approaches"}}
         )
 
-        function_call = response.choices[0].message.function_call
-        if function_call:
-            result = json.loads(function_call.arguments)
+        function = response.choices[0].message.tool_calls[0].function
+        if function:
+            result = json.loads(function.arguments)
             logger.debug(f"OpenAI API response: {result}")
             return result
         else:
@@ -226,7 +218,6 @@ class OpenAIService:
 
     def decompose_task(self, task: Task) -> dict:
         logger.info("Called decompose_task method")
-        functions = DECOMPOSE_TASK_FUNCTIONS
 
         context = self._gather_context(task)
         prompt = get_decompose_task_prompt(task, context)
@@ -235,13 +226,13 @@ class OpenAIService:
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            functions=functions,
-            function_call={"name": "decompose_task"}
+            tools=DECOMPOSE_TASK_TOOLS,
+            tool_choice={"type": "function", "function": {"name":"decompose_task"}}
         )
 
-        function_call = response.choices[0].message.function_call
-        if function_call:
-            result = json.loads(function_call.arguments)
+        function = response.choices[0].message.tool_calls[0].function
+        if function:
+            result = json.loads(function.arguments)
             logger.debug(f"OpenAI API response: {result}")
             return result
         else:

@@ -4,7 +4,6 @@ from src.model.task import Task
 CONTEXT_SUFFICIENT_FUNCTIONS = [
     {
         "name": "context_analysis",
-        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
@@ -40,6 +39,14 @@ CONTEXT_SUFFICIENT_FUNCTIONS = [
             },
             "required": ["is_context_sufficient", "gathered_information", "follow_up_question", "scope_alignment"]
         }
+    }
+]
+
+CONTEXT_SUFFICIENT_TOOLS = [
+    {
+        "type": "function",
+        "function": CONTEXT_SUFFICIENT_FUNCTIONS[0],
+        "strict": True
     }
 ]
 
