@@ -1,5 +1,21 @@
 # Elephant Project TODO List
 
+## Further Improvements for Context Gathering (Medium Priority)
+- [ ] Add structured context gathering with specific question categories
+  - [ ] Create predefined question sequences based on task type
+  - [ ] Implement multi-turn conversation strategy
+  - [ ] Add ability to skip or branch question sequences
+- [ ] Implement caching for OpenAI context evaluation
+  - [ ] Add ability to reuse previous context evaluations to reduce API calls
+  - [ ] Optimize when API calls are made during context checking
+- [ ] Enhance AI feedback with examples
+  - [ ] Show sample responses to guide users on what information is helpful
+  - [ ] Add tooltips explaining why certain information is needed
+- [ ] Create admin panel for reviewing and improving context gathering
+  - [ ] Add logging for all context interactions
+  - [ ] Create UI for analyzing context gathering effectiveness
+  - [ ] Implement feedback loop for improving prompts based on results
+
 ## Critical Issues
 
 ### Performance Optimization (High Priority)
@@ -11,12 +27,35 @@
   - [ ] Modify OpenAI service to use async/await pattern
   - [ ] Update API endpoints to return immediately and process in background
 - [ ] Add loading indicators during API processing in TaskDetailsPage
-- [ ] Implement caching for OpenAI responses to reduce API calls
-  - [ ] Add Redis or in-memory cache for OpenAI responses
-  - [ ] Add cache invalidation strategy for task updates
 - [ ] Optimize database fetch operations for faster response times
   - [ ] Add indexes to frequently queried fields in SQLite DB
   - [ ] Implement query optimization in database_service.py
+
+### State Management Improvements (High Priority)
+- [ ] Enhance state validation and feedback mechanisms
+  - [ ] Update API utilities to verify if operations were actually performed
+  - [ ] Add validation in frontend to detect when operations fail silently
+  - [ ] Return appropriate HTTP error codes (400) instead of silent failures with 200 OK
+- [ ] Improve API endpoint state validation
+  - [ ] Modify API endpoints to explicitly check and validate state transitions
+  - [ ] Add explicit error messages when state transitions are invalid
+  - [ ] Create a helper function to validate state transitions across all endpoints
+- [ ] Implement detailed logging for state transitions
+  - [ ] Add transaction logs for all state changes
+  - [ ] Log both successful and failed state transition attempts
+  - [ ] Include contextual information about why transitions failed
+- [ ] Create UI state-action validation
+  - [ ] Add checks in UI components to disable actions based on current state
+  - [ ] Add tooltips explaining why actions are disabled
+  - [ ] Synchronize frontend button states with backend state transition rules
+- [ ] Implement state flow visualization tool
+  - [ ] Create admin/debug panel showing current state and allowed transitions
+  - [ ] Add visual representation of the state machine
+  - [ ] Create endpoint to retrieve allowed state transitions for a task
+- [ ] Add comprehensive state transition testing
+  - [ ] Create tests for all valid and invalid state transitions
+  - [ ] Test frontend and backend state synchronization
+  - [ ] Add regression tests for fixed state transition bugs
 
 ## Frontend Tasks
 
