@@ -1,0 +1,23 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "npm: start",
+            "type": "npm",
+            "script": "start",
+            "path": "frontend/",
+            "problemMatcher": [],
+            "detail": "Start React development server",
+            "isBackground": true,
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "options": {
+                "env": {
+                    "BROWSER": "none"
+                }
+            }
+        }
+    ]
+} 

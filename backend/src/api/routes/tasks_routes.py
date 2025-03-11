@@ -124,53 +124,57 @@ async def analyze_task(
     analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
     db: DatabaseService = Depends(get_db_service)
 ):
-    """Analyze a specific task"""
+    """Analyze a task to determine its type and complexity"""
     task_data = db.fetch_task_by_id(task_id)
-    
     if task_data is None:
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
     
-    # Convert the JSON string to a dictionary and create a Task object
+    # Convert task_data to Task object
     task_dict = json.loads(task_data['task_json'])
     task = Task(**task_dict)
     
-    # Check if the task is in the correct state for analysis
-    if not reAnalyze:
-        valid_states = [TaskState.TASK_FORMATION, TaskState.CONTEXT_GATHERED]
-        if task.state not in valid_states:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Task is not in the correct state for analysis. Current state: {task.state}"
-            )
-        
-        if not task.is_context_sufficient:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Task context is not sufficient for analysis"
-            )
-    
-    # Perform the analysis
-    analyzer.analyze(task, reAnalyze)
-    
-    # Create and return the AnalysisResult
-    analysis_result = AnalysisResult(analysis=task.analysis)
-    return analysis_result
+    if task.state == TaskState.NEW or reAnalyze:
+        try:
+            # Analyze the task
+            analyzer.analyze(task, reAnalyze)
+            task.state = TaskState.ANALYSIS
+            db.updated_task(task)
+            # Update progress to 25% after analysis
+            db.update_user_query_progress(task_id, 25.0)
+            # Create and return the AnalysisResult
+            analysis_result = AnalysisResult(analysis=task.analysis)
+            return analysis_result
+        except Exception as e:
+            logger.error(f"Error analyzing task: {e}")
+            raise HTTPException(status_code=500, detail=f"Error analyzing task: {str(e)}")
+    else:
+        return AnalysisResult(analysis=task.analysis)
 
 @router.post("/{task_id}/typify", response_model=Typification)
 async def typify_task(task_id: str, reTypify: bool = False, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
-    """Typify a specific task"""
+    """Typify a task to determine its type and complexity"""
     task_data = db.fetch_task_by_id(task_id)
     if task_data is None:
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    
+    # Convert task_data to Task object
     task_dict = json.loads(task_data['task_json'])
     task = Task(**task_dict)
     
-    if not reTypify:
-        if task.state != TaskState.ANALYSIS:
-            raise HTTPException(status_code=400, detail=f"Task is not in the correct state for typification. Current state: {task.state}")
-    
-    analyzer.typify(task)
-    return Typification(typification=task.typification)
+    if task.state == TaskState.ANALYSIS or reTypify:
+        try:
+            # Typify the task
+            analyzer.typify(task)
+            task.state = TaskState.TYPIFY
+            db.updated_task(task)
+            # Update progress to 50% after typification
+            db.update_user_query_progress(task_id, 50.0)
+            return Typification(typification=task.typification)
+        except Exception as e:
+            logger.error(f"Error typifying task: {e}")
+            raise HTTPException(status_code=500, detail=f"Error typifying task: {str(e)}")
+    else:
+        return Typification(typification=task.typification)
 
 @router.post("/{task_id}/clarify", response_model=dict)
 async def clarify_for_approaches(task_id: str, request: ClarificationRequest, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
@@ -218,20 +222,30 @@ async def decompose_task(
     analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
     db: DatabaseService = Depends(get_db_service)
 ):
-    """Decompose a specific task into sub-tasks"""
+    """Decompose a task into subtasks"""
     task_data = db.fetch_task_by_id(task_id)
     if task_data is None:
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    
+    # Convert task_data to Task object
     task_dict = json.loads(task_data['task_json'])
     task = Task(**task_dict)
     
-    task.approaches['selected_approaches'] = selected_tools.model_dump()
-    task.update_state(TaskState.METHOD_SELECTION)
-    db.updated_task(task)
-    
-    analyzer.decompose(task, redecompose)
-    
-    return task.sub_tasks
+    if task.state == TaskState.METHOD_SELECTION or redecompose:
+        try:
+            task.approaches['selected_approaches'] = selected_tools.dict()
+            # Decompose the task
+            analyzer.decompose(task, redecompose)
+            task.state = TaskState.DECOMPOSITION
+            db.updated_task(task)
+            # Update progress to 100% after decomposition
+            db.update_user_query_progress(task_id, 100.0)
+            return task.sub_tasks
+        except Exception as e:
+            logger.error(f"Error decomposing task: {e}")
+            raise HTTPException(status_code=500, detail=f"Error decomposing task: {str(e)}")
+    else:
+        return task.sub_tasks
     
 
 

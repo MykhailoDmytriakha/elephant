@@ -1,0 +1,46 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: FastAPI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "src.main:app",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/backend",
+            "jinja": true,
+            "envFile": "${workspaceFolder}/backend/.env"
+        },
+        {
+            "name": "Start React App",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/frontend",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["start"],
+            "env": {
+                "BROWSER": "chrome"
+            },
+            "serverReadyAction": {
+                "pattern": "Local:\\s+http://localhost:(\\d+)",
+                "uriFormat": "http://localhost:%s",
+                "action": "openExternally"
+            }
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Full Stack: FastAPI + React",
+            "configurations": ["Python Debugger: FastAPI", "Start React App"],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "fullstack",
+                "order": 1
+            }
+        }
+    ]
+}

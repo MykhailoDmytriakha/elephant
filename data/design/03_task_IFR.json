@@ -1,0 +1,72 @@
+{
+    "documentation": {
+        "process": "task_scope_alignment",
+        "description": "Process to align task requirements with scope to determine the ideal final result",
+        "stages": [
+            {
+                "name": "alignment_analysis",
+                "inputs": ["final_task", "final_scope"],
+                "outputs": ["alignment_assessment"],
+                "possible_outcomes": [
+                    "fully_aligned",
+                    "partial_alignment",
+                    "misaligned"
+                ]
+            },
+            {
+                "name": "ifr_definition",
+                "inputs": ["alignment_assessment"],
+                "outputs": ["draft_ifr"],
+                "possible_outcomes": [
+                    "ifr_defined",
+                    "needs_refinement"
+                ]
+            },
+            {
+                "name": "ifr_validation",
+                "inputs": ["draft_ifr"],
+                "outputs": ["final_ifr"],
+                "possible_outcomes": [
+                    "ifr_approved",
+                    "revision_needed"
+                ]
+            }
+        ],
+        "flow_controls": {
+            "partial_alignment": {
+                "return_to": "alignment_analysis"
+            },
+            "misaligned": {
+                "return_to": "alignment_analysis"
+            },
+            "needs_refinement": {
+                "return_to": "ifr_definition"
+            },
+            "revision_needed": {
+                "return_to": "ifr_definition"
+            }
+        }
+    },
+    "object_example": {
+        "final_task": "Provide a comprehensive overview of how the internet works, including general information, interesting facts, schemas, and illustrations.",
+        "final_scope": {
+            "what": ["...", "..."],
+            "why": ["...", "..."],
+            "who": ["...", "..."],
+            "where": ["...", "..."],
+            "when": ["...", "..."],
+            "how": ["...", "..."]
+        },
+        "alignment_assessment": {
+            "alignment_score": "... number from 0 to 1",
+            "alignment_notes": ["...", "..."]
+        },
+        "final_ifr": {
+            "ideal_final_result": "...",
+            "success_criteria": ["...", "..."],
+            "expected_outcomes": ["...", "..."],
+            "quality_metrics": [ {"metric_name": "...", "metric_value": "..."} ],
+            "validation_checklist": [{"validation_item": "...", "validation_status": "..."}]
+        }
+    }
+}

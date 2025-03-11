@@ -12,12 +12,24 @@ from src.model.task import Task
 logger = logging.getLogger(__name__)
 
 class DatabaseService:
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            logger.info("Creating new DatabaseService instance")
+            cls._instance = super(DatabaseService, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self):
-        self.db_path = settings.DATABASE_URL
-        logger.info(f"Initializing DatabaseService with database path: {self.db_path}")
-        logger.debug(f"Absolute database path: {os.path.abspath(self.db_path)}")
-        logger.debug(f"Current working directory: {os.getcwd()}")
-        self._initialize_db()
+        # Only initialize once
+        if not DatabaseService._initialized:
+            self.db_path = settings.DATABASE_URL
+            logger.info(f"Initializing DatabaseService with database path: {self.db_path}")
+            logger.debug(f"Absolute database path: {os.path.abspath(self.db_path)}")
+            logger.debug(f"Current working directory: {os.getcwd()}")
+            self._initialize_db()
+            DatabaseService._initialized = True
 
     @contextmanager
     def get_connection(self):
@@ -225,3 +237,15 @@ class DatabaseService:
                 logger.info("All user queries deleted successfully")
         except sqlite3.Error as e:
             logger.error(f"Error deleting all user queries: {e}")
+
+    def update_user_query_progress(self, task_id: str, progress: float):
+        """Update the progress of a user query associated with a task"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE user_queries
+                SET progress = ?
+                WHERE task_id = ?
+            ''', (progress, task_id))
+            conn.commit()
+            return cursor.rowcount > 0

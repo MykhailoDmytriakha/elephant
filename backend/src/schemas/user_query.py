@@ -21,7 +21,7 @@ class UserQueryCreate(UserQuery):
     task_id: str
     status: QueryStatus
     created_at: datetime
-    progress: int
+    progress: float
 
 
 class UserQueryDB(UserQueryCreate):

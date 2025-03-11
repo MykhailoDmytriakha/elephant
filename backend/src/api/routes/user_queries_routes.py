@@ -29,7 +29,7 @@ async def create_user_query(user_query: UserQuery, db: DatabaseService = Depends
             user_query.query,
             status=QueryStatus.PENDING,
             created_at=created_at,
-            progress=0
+            progress=0.0
         )
         return UserQueryCreate(**created_query)
     except Exception as e:

@@ -1,0 +1,115 @@
+{
+    "documentation": {
+        "process": "task_scope_definition",
+        "framework": "5W+H",
+        "stages": [
+            {
+                "name": "analyze_requirements",
+                "inputs": ["final_task"],
+                "outputs": ["initial_scope"],
+                "description": "Analyze the what, why, and who of the task requirements.",
+                "parameters": {
+                    "what": "Define the task objectives and deliverables.",
+                    "why": "Clarify the purpose and alignment with broader goals.",
+                    "who": "Identify stakeholders, team members, and beneficiaries."
+                },
+                "possible_outcomes": [
+                    "requirements_clear",
+                    "needs_clarification"
+                ]
+            },
+            {
+                "name": "define_boundaries",
+                "inputs": ["initial_scope"],
+                "outputs": ["scope_boundaries"],
+                "description": "Define task boundaries, including when and where it will take place.",
+                "parameters": {
+                    "where": "Identify the location (physical or digital) relevant to the task.",
+                    "when": "Specify timeframes, deadlines, or milestones."
+                },
+                "possible_outcomes": [
+                    "boundaries_defined",
+                    "needs_adjustment"
+                ]
+            },
+            {
+                "name": "resource_assessment",
+                "inputs": ["scope_boundaries"],
+                "outputs": ["resource_requirements"],
+                "description": "Assess the resources required and validate feasibility.",
+                "parameters": {
+                    "how": "Outline methods, tools, or processes required for execution."
+                },
+                "possible_outcomes": [
+                    "resources_identified",
+                    "resource_conflicts"
+                ]
+            },
+            {
+                "name": "scope_validation",
+                "inputs": ["initial_scope", "scope_boundaries", "resource_requirements"],
+                "outputs": ["final_scope"],
+                "description": "Validate the full scope to ensure readiness for execution.",
+                "parameters": {
+                    "validation_criteria": [
+                        "Are the objectives (what) clear?",
+                        "Does it align with the purpose (why)?",
+                        "Are stakeholders (who) accounted for?",
+                        "Is the location (where) finalized?",
+                        "Are timelines (when) reasonable?",
+                        "Are the processes/tools (how) defined?"
+                    ]
+                },
+                "possible_outcomes": [
+                    "scope_approved",
+                    "scope_revision_needed"
+                ]
+            }
+        ],
+        "flow_controls": {
+            "needs_clarification": {
+                "return_to": "analyze_requirements"
+            },
+            "needs_adjustment": {
+                "return_to": "define_boundaries"
+            },
+            "resource_conflicts": {
+                "return_to": "define_boundaries"
+            },
+            "scope_revision_needed": {
+                "return_to": "analyze_requirements"
+            }
+        }
+    },
+    "object_example":{
+        "final_task": "Provide a comprehensive overview of how the internet works, including general information, interesting facts, schemas, and illustrations.",
+        "initial_scope": {
+            "what": ["...", "..."],
+            "why": ["...", "..."],
+            "who": ["...", "..."]
+        },
+        "scope_boundaries": {
+            "where": ["...", "..."],
+            "when": ["...", "..."]
+        },
+        "resource_requirements": {
+            "how": ["...", "..."]
+        },
+        "validation_criteria": [
+            {"question": "Are the objectives (what) clear?", "answer": "..."},
+            {"question": "Does it align with the purpose (why)?", "answer": "..."},
+            {"question": "Are stakeholders (who) accounted for?", "answer": "..."},
+            {"question": "Is the location (where) finalized?", "answer": "..."},
+            {"question": "Are timelines (when) reasonable?", "answer": "..."},
+            {"question": "Are the processes/tools (how) defined?", "answer": "..."}
+        ],
+        "final_scope":{
+            "what": ["...", "..."],
+            "why": ["...", "..."],
+            "who": ["...", "..."],
+            "where": ["...", "..."],
+            "when": ["...", "..."],
+            "how": ["...", "..."]
+        }
+    }
+}

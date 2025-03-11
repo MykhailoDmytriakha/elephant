@@ -1,0 +1,52 @@
+{
+    "documentation": {
+        "process": "task_creation",
+        "stages": [
+          {
+            "name": "gather_context",
+            "inputs": ["user_input"],
+            "outputs": ["context"],
+            "possible_outcomes": [
+              "context_sufficient",
+              "additional_context_needed"
+            ]
+          },
+          {
+            "name": "refinement",
+            "inputs": ["context"],
+            "outputs": ["draft_task"],
+            "possible_outcomes": [
+              "task_ready_for_feedback",
+              "refinement_needed"
+            ]
+          },
+          {
+            "name": "task_feedback",
+            "inputs": ["draft_task"],
+            "outputs": ["final_task"],
+            "possible_outcomes": [
+              "task_approved",
+              "needs_revision"
+            ]
+          }
+        ],
+        "flow_controls": {
+          "additional_context_needed": {
+            "return_to": "gather_context"
+          },
+          "refinement_needed": {
+            "return_to": "refinement"
+          },
+          "needs_revision": {
+            "return_to": "refinement"
+          }
+        }
+    },
+    "object_example": {
+        "initial_task": "How does the internet work?",
+        "gathered_context": [{"question": "...", "answer": "..."}],
+        "drafts": [{"draft": "...", "approved": "..."}],
+        "feedback_on_task": [{"question": "...", "answer": "..."}],
+        "clarified_task": "Provide a comprehensive overview of how the internet works, including general information, interesting facts, schemas, and illustrations."
+    }
+}
