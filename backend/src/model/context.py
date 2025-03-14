@@ -18,3 +18,7 @@ class ContextAnswer(BaseModel):
 
 class ContextAnswers(BaseModel):
     answers: List[ContextAnswer]
+    
+class ClarifiedTask(BaseModel):
+    task: str
+    context: str

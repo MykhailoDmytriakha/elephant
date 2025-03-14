@@ -2,6 +2,10 @@
 import sys
 import os
 from pathlib import Path
+import nest_asyncio
+
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
 
 # Add the project root directory to the Python path
 project_root = Path(__file__).resolve().parent.parent

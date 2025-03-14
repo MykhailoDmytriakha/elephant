@@ -37,44 +37,43 @@ const ContextChat = ({
     }
   };
 
+  // Don't render anything when loading
+  if (isLoading) {
+    return null;
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-4">
       <div className="p-4 max-h-96 overflow-y-auto">
-        {messages.length === 0 && isLoading ? (
-          <div className="flex items-center justify-center p-4 text-gray-500">
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            <span>Preparing follow-up questions...</span>
-          </div>
-        ) : (
-          <>
-            {messages.map((msg, index) => (
-              <ChatMessage
-                key={index}
-                message={msg}
-                isUser={msg.role === 'user'}
-              />
-            ))}
-            
-            {/* Show error message as a system message in the chat */}
-            {error && (
-              <div className="flex justify-center mb-4">
-                <div className="max-w-[90%] p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-center">
-                  <AlertCircle className="w-5 h-5 text-red-500 mx-auto mb-2" />
-                  <p className="mb-2 text-sm font-medium">Error: {error}</p>
-                  {onRetry && (
-                    <button 
-                      onClick={onRetry}
-                      className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs flex items-center gap-1 mx-auto mt-1"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      Try Again
-                    </button>
-                  )}
-                </div>
+        {/* Removed conditional rendering for empty messages with isLoading since we now return null when loading */}
+        <>
+          {messages.map((msg, index) => (
+            <ChatMessage
+              key={index}
+              message={msg}
+              isUser={msg.role === 'user'}
+            />
+          ))}
+          
+          {/* Show error message as a system message in the chat */}
+          {error && (
+            <div className="flex justify-center mb-4">
+              <div className="max-w-[90%] p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-center">
+                <AlertCircle className="w-5 h-5 text-red-500 mx-auto mb-2" />
+                <p className="mb-2 text-sm font-medium">Error: {error}</p>
+                {onRetry && (
+                  <button 
+                    onClick={onRetry}
+                    className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs flex items-center gap-1 mx-auto mt-1"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Try Again
+                  </button>
+                )}
               </div>
-            )}
-          </>
-        )}
+            </div>
+          )}
+        </>
         <div ref={messagesEndRef} />
       </div>
 
@@ -87,7 +86,7 @@ const ContextChat = ({
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder={disabled ? 'Context gathering completed' : error ? 'Please resolve the error before continuing' : isLoading ? 'Waiting for questions...' : 'Type your message...'}
+            placeholder={disabled ? 'Context gathering completed' : error ? 'Please resolve the error before continuing' : isLoading ? '' : 'Type your message...'}
             className={`flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${disabled || isLoading || error ? 'bg-gray-100' : 'bg-white'}`}
             disabled={disabled || isLoading || error}
           />
@@ -121,26 +120,34 @@ const ContextQuestionsForm = ({
 
   // Check if all required answers are provided and valid
   const hasAllValidAnswers = () => {
-    // First check if all questions have answers
+    // First check if all questions have at least one answer
     if (Object.keys(answers).length < questions.length) {
       return false;
     }
     
-    // Then check that none of the "Other" option answers are empty
+    // Check each question's answers
     for (const question of questions) {
       if (!question || !question.id) {
         return false; // Invalid question format
       }
       
-      const answer = answers[question.id];
-      if (answer !== undefined) {
-        // If this is an "Other" answer (not one of the predefined options) and it's empty
-        const isPreDefinedOption = question.options && question.options.some(opt => opt.text === answer);
-        if (!isPreDefinedOption && answer.trim() === '') {
+      const questionAnswers = answers[question.id];
+      
+      // If no answers are selected for this question
+      if (!questionAnswers || (Array.isArray(questionAnswers) && questionAnswers.length === 0)) {
+        return false;
+      }
+      
+      // For multi-select, ensure that if "Other" is selected, it has a non-empty value
+      if (Array.isArray(questionAnswers)) {
+        const hasOtherOption = questionAnswers.some(answer => 
+          question.options && !question.options.some(opt => opt.text === answer) && answer !== '');
+          
+        const hasEmptyOtherOption = questionAnswers.some(answer => answer === '');
+        
+        if (hasOtherOption && hasEmptyOtherOption) {
           return false;
         }
-      } else {
-        return false;
       }
     }
     
@@ -148,14 +155,7 @@ const ContextQuestionsForm = ({
   };
 
   if (isLoading) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-4">
-        <div className="flex items-center justify-center p-8 text-gray-500">
-          <Loader2 className="w-6 h-6 mr-3 animate-spin" />
-          <span>Loading questions...</span>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   if (questions.length === 0) {
@@ -171,6 +171,7 @@ const ContextQuestionsForm = ({
         <h3 className="text-lg font-medium text-gray-900 mb-4">Context Questions</h3>
         <p className="text-sm text-gray-600 mb-6">
           Please answer the following questions to help us better understand your task's context.
+          You may select multiple options where applicable.
         </p>
         
         {error && (
@@ -207,13 +208,31 @@ const ContextQuestionsForm = ({
                     {question.options.map((option) => (
                       <div key={option.id} className="flex items-center">
                         <input
-                          type="radio"
+                          type="checkbox"
                           id={`${question.id}-${option.id}`}
                           name={question.id}
                           value={option.text}
-                          checked={answers[question.id] === option.text}
-                          onChange={() => onAnswerChange(question.id, option.text)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          checked={Array.isArray(answers[question.id]) && answers[question.id].includes(option.text)}
+                          onChange={(e) => {
+                            const currentAnswers = answers[question.id] || [];
+                            const newAnswers = Array.isArray(currentAnswers) ? [...currentAnswers] : [currentAnswers].filter(a => a);
+                            
+                            if (e.target.checked) {
+                              // Add the option if it's not already in the array
+                              if (!newAnswers.includes(option.text)) {
+                                newAnswers.push(option.text);
+                              }
+                            } else {
+                              // Remove the option if it's in the array
+                              const index = newAnswers.indexOf(option.text);
+                              if (index !== -1) {
+                                newAnswers.splice(index, 1);
+                              }
+                            }
+                            
+                            onAnswerChange(question.id, newAnswers);
+                          }}
+                          className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
                           disabled={!!error || isSubmitting}
                         />
                         <label
@@ -227,16 +246,42 @@ const ContextQuestionsForm = ({
                     
                     <div className="flex items-center mt-4">
                       <input
-                        type="radio"
+                        type="checkbox"
                         id={`${question.id}-custom`}
                         name={question.id}
-                        checked={answers[question.id] !== undefined && 
-                          !(question.options && question.options.some(opt => opt.text === answers[question.id]))}
-                        onChange={() => {
-                          // When selecting "Other", set an empty string initially
-                          onAnswerChange(question.id, '');
+                        checked={
+                          Array.isArray(answers[question.id]) && 
+                          answers[question.id].some(answer => 
+                            !(question.options && question.options.some(opt => opt.text === answer))
+                          ) && 
+                          answers[question.id].some(answer => answer !== '')
+                        }
+                        onChange={(e) => {
+                          const currentAnswers = answers[question.id] || [];
+                          const newAnswers = Array.isArray(currentAnswers) ? [...currentAnswers] : [currentAnswers].filter(a => a);
+                          
+                          // Find existing "Other" answers (those not matching any option)
+                          const otherAnswers = newAnswers.filter(answer => 
+                            !(question.options && question.options.some(opt => opt.text === answer)) && answer !== ''
+                          );
+                          
+                          if (e.target.checked) {
+                            // Add an empty "Other" placeholder if no other answers exist yet
+                            if (otherAnswers.length === 0) {
+                              newAnswers.push('');
+                            }
+                          } else {
+                            // Remove all "Other" answers
+                            const filteredAnswers = newAnswers.filter(answer => 
+                              question.options && question.options.some(opt => opt.text === answer)
+                            );
+                            onAnswerChange(question.id, filteredAnswers);
+                            return;
+                          }
+                          
+                          onAnswerChange(question.id, newAnswers);
                         }}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                        className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
                         disabled={!!error || isSubmitting}
                       />
                       <label
@@ -247,27 +292,99 @@ const ContextQuestionsForm = ({
                       </label>
                     </div>
                     
-                    {/* Make the custom answer input visible whenever the "Other" option is selected */}
-                    {answers[question.id] !== undefined && 
-                     !(question.options && question.options.some(opt => opt.text === answers[question.id])) && (
-                      <input
-                        type="text"
-                        value={answers[question.id] || ''}
-                        onChange={(e) => onAnswerChange(question.id, e.target.value)}
-                        className={`mt-2 block w-full px-4 py-2 border rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 ${
-                          answers[question.id] && answers[question.id].trim() === '' 
-                            ? 'border-red-500 bg-red-50' 
-                            : 'border-gray-300'
-                        }`}
-                        placeholder="Your custom answer"
-                        disabled={!!error || isSubmitting}
-                        autoFocus
-                      />
+                    {/* Make the custom answer input visible whenever there's at least one "Other" value */}
+                    {Array.isArray(answers[question.id]) && 
+                     answers[question.id].some(answer => 
+                       !(question.options && question.options.some(opt => opt.text === answer))
+                     ) && (
+                      <div className="ml-6 mt-2 space-y-2">
+                        {answers[question.id]
+                          .filter(answer => 
+                            !(question.options && question.options.some(opt => opt.text === answer))
+                          )
+                          .map((otherAnswer, index, filteredOtherAnswers) => (
+                            <div key={`other-${index}`} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={otherAnswer}
+                                onChange={(e) => {
+                                  const currentAnswers = [...answers[question.id]];
+                                  const otherAnswers = currentAnswers.filter(answer => 
+                                    !(question.options && question.options.some(opt => opt.text === answer))
+                                  );
+                                  
+                                  // Replace this specific "Other" value
+                                  otherAnswers[index] = e.target.value;
+                                  
+                                  // Rebuild the complete answers array
+                                  const updatedAnswers = [
+                                    ...currentAnswers.filter(answer => 
+                                      question.options && question.options.some(opt => opt.text === answer)
+                                    ),
+                                    ...otherAnswers
+                                  ];
+                                  
+                                  onAnswerChange(question.id, updatedAnswers);
+                                }}
+                                className={`block w-full px-4 py-2 border rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 ${
+                                  otherAnswer.trim() === '' 
+                                    ? 'border-red-500 bg-red-50' 
+                                    : 'border-gray-300'
+                                }`}
+                                placeholder="Your custom answer"
+                                disabled={!!error || isSubmitting}
+                                autoFocus={index === filteredOtherAnswers.length - 1}
+                              />
+                              
+                              {/* Add a remove button for each "Other" input */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const currentAnswers = [...answers[question.id]];
+                                  const otherAnswers = currentAnswers.filter(answer => 
+                                    !(question.options && question.options.some(opt => opt.text === answer))
+                                  );
+                                  
+                                  // Remove this specific "Other" value
+                                  otherAnswers.splice(index,
+                                   1);
+                                  
+                                  // Rebuild the complete answers array
+                                  const updatedAnswers = [
+                                    ...currentAnswers.filter(answer => 
+                                      question.options && question.options.some(opt => opt.text === answer)
+                                    ),
+                                    ...otherAnswers
+                                  ];
+                                  
+                                  onAnswerChange(question.id, updatedAnswers);
+                                }}
+                                className="p-2 text-gray-500 hover:text-red-500"
+                                disabled={!!error || isSubmitting}
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        
+                        {/* Add button to add another "Other" option */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentAnswers = answers[question.id] || [];
+                            onAnswerChange(question.id, [...currentAnswers, '']);
+                          }}
+                          className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          disabled={!!error || isSubmitting}
+                        >
+                          + Add another custom answer
+                        </button>
+                      </div>
                     )}
                   </div>
                 ) : (
                   <textarea
-                    value={answers[question.id] || ''}
+                    value={Array.isArray(answers[question.id]) ? answers[question.id].join(', ') : (answers[question.id] || '')}
                     onChange={(e) => onAnswerChange(question.id, e.target.value)}
                     rows="3"
                     className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
@@ -451,14 +568,6 @@ const TaskOverview = ({
           <h3 className="text-sm font-medium text-gray-500">Context</h3>
           <div className="flex items-start justify-between gap-4">
             <p className="mt-1 text-gray-900 flex-grow whitespace-pre-line">{task.context || 'No context provided'}</p>
-            {task.is_context_sufficient && (
-              <button
-                onClick={handleToggleChat}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-              </button>
-            )}
           </div>
         </div>
 
@@ -482,7 +591,6 @@ const TaskOverview = ({
                       {isContextGatheringLoading ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          <span>Loading...</span>
                         </>
                       ) : (
                         <>
@@ -502,7 +610,7 @@ const TaskOverview = ({
                           {isContextGatheringLoading ? (
                             <>
                               <Loader2 className="w-5 h-5 animate-spin" />
-                              <span>Loading...</span>
+                              <span>Getting questions to clarify context...</span>
                             </>
                           ) : isChatVisible ? (
                             <>
@@ -511,7 +619,7 @@ const TaskOverview = ({
                             </>
                           ) : (
                             <>
-                              <MessageCircle className="w-5 h-5" />
+                              {/* <MessageCircle className="w-5 h-5" /> */}
                               <span>Provide Additional Context</span>
                             </>
                           )}
@@ -539,8 +647,8 @@ const TaskOverview = ({
           />
         )}
 
-        {/* Only show chat if there's no contextQuestions - we handle error UX differently now */}
-        {isChatVisible && contextQuestions.length === 0 && (
+        {/* Only show chat if there's no contextQuestions, not loading, and visible */}
+        {isChatVisible && !isContextGatheringLoading && contextQuestions.length === 0 && (
           <ContextChat
             messages={chatMessages}
             onSendMessage={handleSendMessage}

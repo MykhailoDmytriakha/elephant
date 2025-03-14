@@ -44,6 +44,7 @@ export const fetchTaskDetails = async (taskId) => {
 
 export const updateTaskContext = async (taskId, answers) => {
   try {
+    console.log('Sending context questions:', JSON.stringify(answers));
     const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/context-questions`, answers);
     return response.data;
   } catch (error) {

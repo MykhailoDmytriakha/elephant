@@ -288,9 +288,12 @@ export default function TaskDetailsPage() {
             return !questionId.endsWith('_text');
           })
           .map(([questionId, answer]) => {
+            // Convert array answers to comma-separated strings for the backend
+            const formattedAnswer = Array.isArray(answer) ? answer.join(', ') : answer;
+            
             return {
               question: questionMap[questionId] || questionId, // Use the original question text
-              answer
+              answer: formattedAnswer
             };
           })
       };

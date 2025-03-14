@@ -84,14 +84,14 @@ async def update_task_context(task_id: str, context_answers: Optional[ContextAns
     # Handle the case where UserInteraction is provided but both query and answer are empty
     if not context_answers:
         logger.info("No context answers provided. Clarifying context.")
-        result = analyzer.clarify_context(task)
+        result = await analyzer.clarify_context(task)
         logger.info(f"Context sufficiency result: {result}")
         return result
     else:
         logger.info(f"User context answers provided: {context_answers}")
         task.add_context_answers(context_answers)
         db.updated_task(task)
-        return analyzer.clarify_context(task)
+        return await analyzer.clarify_context(task)
     
 @router.post("/{task_id}/formulate", response_model=ContextSufficiencyResult)
 async def formulate_task(

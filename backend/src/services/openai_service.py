@@ -1,7 +1,7 @@
 import json
 import logging
-from typing import TypedDict
-from src.model.context import ContextSufficiencyResult
+from typing import TypedDict, List, Dict
+from src.model.context import ContextSufficiencyResult, ContextQuestion
 from openai import OpenAI
 from src.services.prompts.analyze_task_prompt import ANALYZE_TASK_FUNCTIONS, ANALYZE_TASK_TOOLS, get_analyze_task_prompt
 from src.services.prompts.typify_task_prompt import TYPIFY_TASK_FUNCTIONS, TYPIFY_TASK_TOOLS, get_typify_task_prompt
@@ -12,7 +12,8 @@ from src.services.prompts.decompose_task_prompt import DECOMPOSE_TASK_FUNCTIONS,
 from src.services.prompts.formulate_task_prompt import FORMULATE_TASK_FUNCTIONS, FORMULATE_TASK_TOOLS, get_formulate_task_prompt
 from src.core.config import settings
 from src.model.task import Task
-from src.model.context import ContextQuestion
+from src.model.context import ClarifiedTask
+from src.ai_agents import context_sufficiency_agent, summarize_context_agent
 
 logger = logging.getLogger(__name__)
 
@@ -38,21 +39,49 @@ class OpenAIService:
             current_task = None
         return "\n".join(contexts) if contexts else ""
     
-    def is_context_sufficient(self, task: Task) -> ContextSufficiencyResult:
+    async def summarize_context(self, task: Task) -> ClarifiedTask:
+        """
+        Summarizes the context of the task base on user answers about the context.
+        
+        Args:
+            task: The task containing the context information
+            
+        Returns:
+            str: Summary of the context
+        """
+        logger.info("Called summarize_context method")
+        try:
+            # Use the extracted agent logic from the dedicated module
+            return await summarize_context_agent.summarize_context(task)
+        except ImportError as e:
+            logger.warning(f"OpenAI Agents SDK not installed: {str(e)}")
+            raise e
+        except Exception as e:
+            logger.error(f"Error in summarize_context: {str(e)}")
+            raise e
+
+    
+    async def is_context_sufficient(self, task: Task) -> ContextSufficiencyResult:
+        """
+        Determines if the gathered context is sufficient to understand and proceed with the task.
+        
+        Args:
+            task: The task containing the context information
+            
+        Returns:
+            ContextSufficiencyResult: Result indicating if context is sufficient and any follow-up questions with options
+        """
         logger.info("Called is_context_sufficient method")
-        return ContextSufficiencyResult(
-            is_context_sufficient=False,
-            questions=[
-                ContextQuestion(
-                    question="first question",
-                    options=["option1", "option2", "option3"]
-                ),
-                ContextQuestion(
-                    question="second question",
-                    options=["option1", "option2", "option3"]
-                )
-            ]
-        )
+        
+        try:
+            # Use the extracted agent logic from the dedicated module
+            return await context_sufficiency_agent.analyze_context_sufficiency(task)
+        except ImportError as e:
+            logger.warning(f"OpenAI Agents SDK not installed: {str(e)}")
+            raise e
+        except Exception as e:
+            logger.error(f"Error in is_context_sufficient: {str(e)}")
+            raise e
             
 
     def formulate_task(self, task: Task) -> dict:
@@ -73,7 +102,7 @@ class OpenAIService:
                 logger.debug(f"OpenAI API response: {result}")
                 return result
             else:
-                fallback_result = {
+                fallback_result: Dict[str, object] = {
                     "task": task.short_description,
                     "is_context_sufficient": False,
                     "follow_up_question": "Could you provide more details about what needs to be accomplished?",
@@ -159,7 +188,8 @@ class OpenAIService:
                 return fallback_result
         except Exception as e:
             logger.error(f"OpenAI API error in typify_task: {str(e)}")
-            fallback_result = {
+            # Create a structured fallback for error cases
+            error_fallback_result: Dict[str, Dict[str, object]] = {
                 "typification": {
                     "classification": {
                         "domain": "Unknown due to technical issue",
@@ -170,8 +200,8 @@ class OpenAIService:
                     "uncertainty_indicators": ["Technical issue encountered"]
                 }
             }
-            logger.warning(f"OpenAI API error fallback response: {fallback_result}")
-            return fallback_result
+            logger.warning(f"OpenAI API error fallback response: {error_fallback_result}")
+            return error_fallback_result
     
     def generate_clarifying_questions(self, task: Task) -> dict:
         """Generate clarifying questions based on analysis and typification"""
@@ -238,7 +268,7 @@ class OpenAIService:
                 logger.debug(f"OpenAI API response: {result}")
                 return result
             else:
-                fallback_result = {
+                fallback_result: Dict[str, object] = {
                     "approaches": None,
                     "tool_categories": [],
                     "tool_combinations": []
@@ -296,7 +326,7 @@ class OpenAIService:
                 logger.debug(f"OpenAI API response: {result}")
                 return result
             else:
-                fallback_result = {
+                fallback_result: Dict[str, object] = {
                     "sub_tasks": None
                 }
                 logger.warning(f"OpenAI API fallback response: {fallback_result}")
@@ -304,7 +334,7 @@ class OpenAIService:
         except Exception as e:
             logger.error(f"OpenAI API error in decompose_task: {str(e)}")
             # Create a basic subtask structure for default response
-            fallback_result = {
+            error_fallback_result: Dict[str, List[Dict[str, object]]] = {
                 "sub_tasks": [
                     {
                         "task": task.short_description or "Task",
@@ -318,8 +348,8 @@ class OpenAIService:
                     }
                 ]
             }
-            logger.warning(f"OpenAI API error fallback response: {fallback_result}")
-            return fallback_result
+            logger.warning(f"OpenAI API error fallback response: {error_fallback_result}")
+            return error_fallback_result
 
     
 

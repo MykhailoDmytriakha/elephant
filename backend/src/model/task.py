@@ -89,7 +89,7 @@ class Task(BaseModel):
         )
         
     def add_context_answers(self, context_answers: ContextAnswers):
-        for answer in context_answers['answers']:
+        for answer in context_answers.answers:
             self.context_answers.append(answer)
 
     def add_user_interaction(self, user_interaction: UserInteraction):

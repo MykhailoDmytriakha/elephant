@@ -67,16 +67,19 @@ const CreateQueryModal = ({ isOpen, onRequestClose, onQueryCreated }) => {
             isOpen={isOpen}
             onRequestClose={loading ? null : onRequestClose}
             contentLabel="Create New Query"
-            className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-0 rounded-xl shadow-xl outline-none ${
-                isExpanded 
-                    ? 'w-[90vw] h-[90vh]' 
-                    : 'w-full max-w-2xl h-[600px]'
-            }`}
-            overlayClassName="fixed inset-0 bg-black bg-opacity-50 z-50"
+            className={`
+                absolute bg-white rounded-xl shadow-xl outline-none
+                ${isExpanded 
+                    ? 'inset-4 md:inset-8 lg:inset-12' 
+                    : 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[95%] max-h-[90vh] md:w-[85%] md:max-w-2xl'
+                }
+                overflow-hidden flex flex-col
+            `}
+            overlayClassName="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto p-2 md:p-4 flex items-center justify-center"
         >
-            <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                    <h2 className="text-xl font-bold text-gray-900">Create New Query</h2>
+            <div className="flex flex-col h-full max-h-[90vh]">
+                <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-200">
+                    <h2 className="text-lg md:text-xl font-bold text-gray-900 truncate">Create New Query</h2>
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
@@ -103,8 +106,8 @@ const CreateQueryModal = ({ isOpen, onRequestClose, onQueryCreated }) => {
                     </div>
                 </div>
                 
-                <form onSubmit={handleSubmit} className="flex flex-col h-[calc(100%-60px)] p-6">
-                    <div className="mb-2 flex justify-between items-center">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-grow overflow-hidden p-4 md:p-6">
+                    <div className="mb-2 flex flex-wrap justify-between items-center gap-2">
                         <label htmlFor="query-input" className="block text-sm font-medium text-gray-700">
                             Query Text
                         </label>
@@ -114,7 +117,7 @@ const CreateQueryModal = ({ isOpen, onRequestClose, onQueryCreated }) => {
                         </div>
                     </div>
                     
-                    <div className="relative flex-grow mb-4">
+                    <div className="relative flex-grow min-h-[150px] mb-4 overflow-hidden">
                         <textarea
                             id="query-input"
                             ref={textareaRef}
@@ -123,7 +126,8 @@ const CreateQueryModal = ({ isOpen, onRequestClose, onQueryCreated }) => {
                             placeholder="Enter your query here..."
                             required
                             disabled={loading}
-                            className={`w-full h-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500 resize-none`}
+                            className="w-full h-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500 resize-none"
+                            style={{ minHeight: isExpanded ? '30vh' : '150px' }}
                         ></textarea>
                         {!isExpanded && (
                             <button
@@ -143,7 +147,7 @@ const CreateQueryModal = ({ isOpen, onRequestClose, onQueryCreated }) => {
                         </div>
                     )}
                     
-                    <div className="flex justify-end gap-3 mt-auto">
+                    <div className="flex flex-wrap justify-end gap-3 mt-auto">
                         <button
                             type="button"
                             onClick={onRequestClose}

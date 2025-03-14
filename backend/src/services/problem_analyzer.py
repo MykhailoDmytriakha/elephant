@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional
 
 from .database_service import DatabaseService
-from src.services.openai_service import OpenAIService, ContextSufficiencyResult
+from src.services.openai_service import OpenAIService, ContextSufficiencyResult, ContextQuestion
 from src.model.task import Task, TaskState
 from src.user_interaction import UserInteraction
 import re
@@ -22,38 +22,47 @@ class ProblemAnalyzer:
         self.openai_service = openai_service
         self.db_service = db_service
 
-    def clarify_context(self, task: Task) -> ContextSufficiencyResult:
+    async def clarify_context(self, task: Task) -> ContextSufficiencyResult:
         if task.is_context_sufficient:
             task.update_state(TaskState.CONTEXT_GATHERED)
-            return {"is_context_sufficient": True, "follow_up_question": "I understand your task. Let's proceed with the analysis."}
+            return ContextSufficiencyResult(
+                is_context_sufficient=True,
+                questions=[]
+            )
         
         """Initial context gathering method"""
         task.update_state(TaskState.CONTEXT_GATHERING)
-        result = self.openai_service.is_context_sufficient(task)
+        result = await self.openai_service.is_context_sufficient(task)
         
         if not result.is_context_sufficient:
             return result
-        if result["is_context_sufficient"]:
-            task.is_context_sufficient = True
-            formatted_interaction = task.formatted_user_interaction or ""
-            context_value = task.context or ""
-            summarized_context = self.openai_service.summarize_context(formatted_interaction, context_value)
-            task.context = summarized_context
-            task.update_state(TaskState.CONTEXT_GATHERED)
-            self.db_service.updated_task(task)
-            
-            # After context is gathered, process it to formulate the task
-            return self.process_context(task)
-                    
+        
+        # If context is sufficient
+        task.is_context_sufficient = True
+        
+
+        clarified_task = await self.openai_service.summarize_context(task)
+        task.context = clarified_task.context
+        task.task = clarified_task.task
+        
+        task.update_state(TaskState.CONTEXT_GATHERED)
+        self.db_service.updated_task(task)
+        
+        # After context is gathered, process it to formulate the task
         return result
 
     def process_context(self, task: Task) -> ContextSufficiencyResult:
         """Process gathered context and formulate task"""
         if task.state != TaskState.CONTEXT_GATHERED:
-            return {
-                "is_context_sufficient": False,
-                "follow_up_question": "We need more information about your task. Could you elaborate?"
-            }
+            return ContextSufficiencyResult(
+                is_context_sufficient=False,
+                questions=[
+                    ContextQuestion(
+                        question="We need more information about your task. Could you elaborate?",
+                        options=[]
+                    )
+                ]
+            )
 
         # Formulate the task based on gathered context
         formulation = self.openai_service.formulate_task(task)
@@ -64,22 +73,30 @@ class ProblemAnalyzer:
             task.update_state(TaskState.TASK_FORMATION)
             self.db_service.updated_task(task)
             
-            return {
-                "is_context_sufficient": True,
-                "follow_up_question": "I understand your task. Let's proceed with the analysis."
-            }
+            return ContextSufficiencyResult(
+                is_context_sufficient=True,
+                questions=[]
+            )
         else:
             # We can't transition back to CONTEXT_GATHERING from CONTEXT_GATHERED,
             # so we'll just update the is_context_sufficient flag without changing state
             task.is_context_sufficient = False
             self.db_service.updated_task(task)
-            return {
-                "is_context_sufficient": False,
-                "follow_up_question": formulation.get(
-                    "follow_up_question",
-                    "Could you provide more details about your requirements?"
-                )
-            }
+            
+            follow_up_question = formulation.get(
+                "follow_up_question",
+                "Could you provide more details about your requirements?"
+            )
+            
+            return ContextSufficiencyResult(
+                is_context_sufficient=False,
+                questions=[
+                    ContextQuestion(
+                        question=follow_up_question,
+                        options=[]
+                    )
+                ]
+            )
 
     def analyze(self, task: Task, reAnalyze: bool = False):
         """Analyze the task and update its state"""
