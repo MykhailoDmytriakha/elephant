@@ -39,3 +39,7 @@ backend/myenv/
 data/tasks.db
 
 .idea
+
+# Coverage
+coverage/
+.coverage

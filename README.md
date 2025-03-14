@@ -202,4 +202,14 @@ Development tasks and progress are tracked in the [TODO.md](TODO.md) file.
 4. Submit a pull request
 
 ## License
-[MIT License](LICENSE) 
+[MIT License](LICENSE)
+
+## Running Backend Tests
+
+To run the backend tests, use the following script:
+
+```bash
+./scripts/backend/run_test.sh
+```
+
+This script sets the necessary environment variables and runs the tests using pytest. 
