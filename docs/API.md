@@ -170,27 +170,7 @@ The following endpoints represent the task analysis pipeline stages. Each stage 
 
 Gathers and processes context information for a task.
 
-- **URL**: `/tasks/{task_id}/context`
-- **Method**: `POST`
-- **URL Parameters**:
-  - `task_id` - UUID of the task
-- **Request Body**:
-  ```json
-  {
-    "context": "The user wants general information about how the internet works, along with interesting facts, schemas, and illustrations."
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "status": "success",
-    "data": {
-      "task_id": "uuid-string",
-      "context": "The user wants general information...",
-      "is_context_sufficient": true
-    }
-  }
-  ```
+TODO: need to update this section
 
 #### Task Formulation
 
@@ -373,11 +353,7 @@ The API does not currently implement versioning. Future updates will include ver
    ```
 
 2. Gather context:
-   ```bash
-   curl -X POST http://localhost:8000/tasks/{task_id}/context \
-     -H "Content-Type: application/json" \
-     -d '{"context": "The user wants general information about how the internet works."}'
-   ```
+TODO: need to update this section
 
 3. Continue through each stage of the pipeline in sequence:
    - `/tasks/{task_id}/formulate`

@@ -22,8 +22,9 @@ class ProblemAnalyzer:
         self.openai_service = openai_service
         self.db_service = db_service
 
-    async def clarify_context(self, task: Task) -> ContextSufficiencyResult:
-        if task.is_context_sufficient:
+    async def clarify_context(self, task: Task, force: bool = False) -> ContextSufficiencyResult:
+        if task.is_context_sufficient and not force:
+            logger.info(f"Task is already in the context gathered state. Current state: {task.state}")
             task.update_state(TaskState.CONTEXT_GATHERED)
             return ContextSufficiencyResult(
                 is_context_sufficient=True,
@@ -31,11 +32,14 @@ class ProblemAnalyzer:
             )
         
         """Initial context gathering method"""
-        task.update_state(TaskState.CONTEXT_GATHERING)
-        result = await self.openai_service.is_context_sufficient(task)
-        
-        if not result.is_context_sufficient:
-            return result
+        if not force:
+            task.update_state(TaskState.CONTEXT_GATHERING)
+            result = await self.openai_service.is_context_sufficient(task)
+
+            if not result.is_context_sufficient:
+                return result
+        else:
+            result = ContextSufficiencyResult(is_context_sufficient=True, questions=[])
         
         # If context is sufficient
         task.is_context_sufficient = True

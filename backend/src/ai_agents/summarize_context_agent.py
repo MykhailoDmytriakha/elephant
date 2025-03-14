@@ -34,7 +34,6 @@ async def summarize_context(
 
     # Prepare the task information
     task_description = task.task or task.short_description or ""
-    context_info = task.context or ""
     
     # Format the context answers if available
     context_answers_text = ""
@@ -54,21 +53,36 @@ async def summarize_context(
 
     INPUT:
     - TASK: {task_description}
-    - CONTEXT: {context_info}
     - CONTEXT ANSWERS: {context_answers_text}
 
     OUTPUT REQUIREMENTS:
     1. Task clarification:
-       - Based on all provided information, create a clear, concise task statement
-       - Incorporate all essential requirements from the context and answers
-       - Be specific and actionable
-       - Format as a single paragraph with no bullet points
+       - Start with the core objective in one clear sentence
+       - List primary requirements in order of priority
+       - Include specific measurable outcomes or deliverables
+       - Use active voice and direct language
+       - Limit to 2-3 sentences maximum
+       - Avoid parenthetical expressions and nested clauses
 
     2. Context summary:
-       - Provide a comprehensive yet concise summary of all context information
-       - Include all key requirements, constraints, and dependencies
-       - Highlight important details and omit redundant information
-       - Organize logically with appropriate structure
+       - Analyze and synthesize the context answers to identify:
+         * Core user requirements and preferences
+         * Any evolution or refinement of requirements through Q&A
+         * Conflicts in answers and their resolutions
+       - Structure the summary into these key aspects:
+         * Main objectives (from initial task and refined through Q&A)
+         * User preferences and constraints
+         * Technical requirements
+         * Important clarifications or changes from the Q&A process
+       - Keep focus on information actually provided in answers
+       - Highlight dependencies between different requirements
+       - Note any gaps or ambiguities that might need further clarification
+
+    3. Quality checks:
+       - Verify that task statement is actionable and measurable
+       - Ensure context captures all decision points from Q&A
+       - Confirm no loss of critical details in summarization
+       - Check for clarity and readability
 
     The output must be formatted as a JSON object with 'task' and 'context' fields.
     """

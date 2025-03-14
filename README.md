@@ -165,7 +165,6 @@ Key endpoints include:
 - `DELETE /tasks/` - Delete all tasks
 - `DELETE /tasks/{task_id}` - Delete a specific task
 - Various endpoints for the task analysis pipeline:
-  - `/tasks/{task_id}/context` - Verify context sufficiency and gather more information
   - `/tasks/{task_id}/formulate` - Formulate the task based on gathered context
   - `/tasks/{task_id}/analyze` - Analyze the formulated task
   - `/tasks/{task_id}/typify` - Categorize the task

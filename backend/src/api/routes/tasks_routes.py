@@ -70,12 +70,22 @@ async def get_task(task_id: str, db: DatabaseService = Depends(get_db_service)):
 
 
 @router.post("/{task_id}/context-questions", response_model=ContextSufficiencyResult)
-async def update_task_context(task_id: str, context_answers: Optional[ContextAnswers] = None, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
+async def update_task_context(
+    task_id: str, 
+    context_answers: Optional[ContextAnswers] = None, 
+    force: bool = False,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), 
+    db: DatabaseService = Depends(get_db_service)
+):
     task_data = db.fetch_task_by_id(task_id)
     if task_data is None:
+        logger.error(f"Task with ID {task_id} not found")
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
     task_dict = json.loads(task_data['task_json'])
-    if task_dict['state'] == TaskState.CONTEXT_GATHERED:
+    
+    # Only check state if force is False
+    if not force and task_dict['state'] == TaskState.CONTEXT_GATHERED:
+        logger.error(f"Task is already in the context gathered state. Current state: {task_dict['state']}")
         raise HTTPException(status_code=400, detail=f"Task is already in the context gathered state. Current state: {task_dict['state']}")
     
     task = Task(**task_dict)
@@ -83,8 +93,8 @@ async def update_task_context(task_id: str, context_answers: Optional[ContextAns
     
     # Handle the case where UserInteraction is provided but both query and answer are empty
     if not context_answers:
-        logger.info("No context answers provided. Clarifying context.")
-        result = await analyzer.clarify_context(task)
+        logger.info(f"No context answers provided. Clarifying context. Force mode: {force}")
+        result = await analyzer.clarify_context(task, force)
         logger.info(f"Context sufficiency result: {result}")
         return result
     else:

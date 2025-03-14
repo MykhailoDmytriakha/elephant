@@ -18,14 +18,49 @@ graph TB
     API_GET_TaskDetails --> setTask["Set task state"]
     API_GET_TaskDetails -- "Error" --> setErrorDetails["Set error state"]
     
-    %% Проверка достаточности контекста
+    %% Проверка достаточности контекста и расширенный процесс сбора контекста
     setTask --> CheckContextSufficient{"Is context sufficient?"}
-    CheckContextSufficient -- "No" --> API_PUT_Context["PUT /tasks/:taskId/context"]
-    API_PUT_Context --> setFollowUpQuestion["Set followUpQuestion state"]
     
-    %% Завершение загрузки
+    %% Новый расширенный поток сбора контекста
+    CheckContextSufficient -- "No" --> ContextGatheringFlow["Context Gathering Flow"]
+    
+    %% Структурированные вопросы для сбора контекста
+    ContextGatheringFlow --> StartContextGathering["startContextGathering()"]
+    StartContextGathering --> setContextLoadingTrue["Set isLoading = true"]
+    setContextLoadingTrue --> API_GET_ContextQuestions["GET /tasks/:taskId/context-questions"]
+    
+    API_GET_ContextQuestions --> CheckQuestionsResponse{"Got questions?"}
+    
+    %% Если вопросы существуют
+    CheckQuestionsResponse -- "Yes" --> SetContextQuestions["Set contextQuestions state"]
+    SetContextQuestions --> ShowQuestionsForm["Show Questions Form"]
+    ShowQuestionsForm --> UserFillsAnswers["👤 User fills answers"]
+    UserFillsAnswers --> SubmitContextAnswers["submitAnswers()"]
+    SubmitContextAnswers --> API_POST_ContextAnswers["POST /tasks/:taskId/context-questions"]
+    
+    %% Проверка результатов отправки ответов
+    API_POST_ContextAnswers --> CheckAnswersSufficient{"Is context now sufficient?"}
+    CheckAnswersSufficient -- "No, need more info" --> SetMoreContextQuestions["Set more contextQuestions"]
+    SetMoreContextQuestions --> ShowQuestionsForm
+    
+    %% Если дополнительные вопросы не нужны
+    CheckAnswersSufficient -- "Yes" --> ReloadTaskAfterContext["Reload task data"]
+    ReloadTaskAfterContext --> API_GET_TaskAfterContext["GET /tasks/:taskId"]
+    API_GET_TaskAfterContext --> setLoadingDetails_False
+    
+    %% Если вопросов нет или контекст уже достаточный
+    CheckQuestionsResponse -- "No" --> ShowContextSufficient["Show context is sufficient"]
+    ShowContextSufficient --> ReloadTaskAfterContext
+    
+    %% Дополнительный путь - обновление/refresh контекста
+    TaskUserActions --> RefreshContext["🔄 Refresh context"]
+    RefreshContext --> ForceContextGathering["startContextGathering(force=true)"]
+    ForceContextGathering --> setContextLoadingTrue
+    
+    %% Нормальный путь для достаточного контекста
     CheckContextSufficient -- "Yes" --> setLoadingDetails_False["Set loading = false"]
-    API_PUT_Context --> setLoadingDetails_False
+    
+    %% Возврат к основной логике
     setErrorDetails --> setLoadingDetails_False
     
     %% Пользовательские действия
@@ -43,14 +78,6 @@ graph TB
     ConfirmDelete -- "Yes" --> API_DELETE_Task["DELETE /tasks/:taskId"]
     API_DELETE_Task --> Navigate_MainPage
     API_DELETE_Task -- "Error" --> setErrorDelete["Show error message"]
-    
-    %% Отправка сообщения
-    TaskUserActions --> SendMessage["💬 Send message"]
-    SendMessage --> handleSendMessage["handleSendMessage()"]
-    handleSendMessage --> API_PUT_Context_Message["PUT /tasks/:taskId/context"]
-    API_PUT_Context_Message --> ReloadTaskAfterMessage["Reload task"]
-    ReloadTaskAfterMessage --> API_GET_TaskDetails_Reload["GET /tasks/:taskId"]
-    API_GET_TaskDetails_Reload --> UpdateFollowUpQuestion["Update followUpQuestion"]
     
     %% Формулировка задачи
     TaskUserActions --> FormulateTask["📋 Formulate task"]
@@ -107,8 +134,9 @@ graph TB
     API_POST_Decompose --> setIsDecomposing_False["Set isDecomposing = false"]
     
     %% Стилизация элементов
-    class InitialLoadDetails,useEffectDetails,loadTask,setLoadingDetails_True,setLoadingDetails_False,setErrorDetails_Null,setFollowUpQuestion loading
-    class NavigateBack,DeleteTask,SendMessage,FormulateTask,ClarifyTask,AnalyzeTask,RegenerateApproaches,TypifyTask,DecomposeTask userAction
-    class API_GET_TaskDetails,API_PUT_Context,API_DELETE_Task,API_PUT_Context_Message,API_POST_Formulate,API_POST_Clarify,API_POST_Analyze,API_POST_Approaches,API_POST_Typify,API_POST_Decompose apiCall
-    class CheckContextSufficient,ConfirmDelete state
+    class InitialLoadDetails,useEffectDetails,loadTask,setLoadingDetails_True,setLoadingDetails_False,setErrorDetails_Null,setFollowUpQuestion,setContextLoadingTrue loading
+    class NavigateBack,DeleteTask,FormulateTask,ClarifyTask,AnalyzeTask,RegenerateApproaches,TypifyTask,DecomposeTask,RefreshContext,UserFillsAnswers userAction
+    class API_GET_TaskDetails,API_DELETE_Task,API_POST_Formulate,API_POST_Clarify,API_POST_Analyze,API_POST_Approaches,API_POST_Typify,API_POST_Decompose,API_GET_ContextQuestions,API_POST_ContextAnswers,API_GET_TaskAfterContext apiCall
+    class CheckContextSufficient,ConfirmDelete,CheckQuestionsResponse,CheckAnswersSufficient state
+    class ContextGatheringFlow,StartContextGathering,SetContextQuestions,ShowQuestionsForm,SubmitContextAnswers,SetMoreContextQuestions,ShowContextSufficient,ForceContextGathering state
 ``` 

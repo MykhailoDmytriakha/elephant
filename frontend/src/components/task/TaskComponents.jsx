@@ -1,5 +1,5 @@
 // src/components/TaskComponents.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { getStateColor, getReadableState } from '../../constants/taskStates';
 
@@ -57,11 +57,18 @@ export const ProgressBar = ({ progress }) => (
   </div>
 );
 
-export const CollapsibleSection = ({ title, children }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+export const CollapsibleSection = ({ title, children, defaultOpen = true, isOpen, className = '' }) => {
+  const [isExpanded, setIsExpanded] = useState(defaultOpen);
+  
+  // If isOpen prop is provided, use it to control the component - but only once initially
+  useEffect(() => {
+    if (isOpen !== undefined) {
+      setIsExpanded(isOpen);
+    }
+  }, []); // Empty dependency array means this only runs once on mount
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
       <div 
         className="flex justify-between items-center cursor-pointer p-4 border-b border-gray-200"
         onClick={() => setIsExpanded(!isExpanded)}

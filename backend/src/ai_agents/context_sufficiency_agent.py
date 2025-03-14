@@ -32,7 +32,6 @@ async def analyze_context_sufficiency(
 
     # Prepare the task information
     task_description = task.task or task.short_description or ""
-    context_info = task.context or ""
     
     # Format the context answers if available
     context_answers_text = ""
@@ -46,10 +45,7 @@ async def analyze_context_sufficiency(
     instructions = f"""
     Analyze the following task and context information to determine if there's sufficient context to proceed.
     
-    TASK: {task_description}
-    
-    CONTEXT: {context_info}
-    
+    TASK: {task_description}    
     CONTEXT ANSWERS: {context_answers_text}
     
     If the context is insufficient, provide questions to gather more information.

@@ -42,19 +42,22 @@ export const fetchTaskDetails = async (taskId) => {
   }
 };
 
-export const updateTaskContext = async (taskId, answers) => {
+export const updateTaskContext = async (taskId, answers, queryParams = '') => {
   try {
-    console.log('Sending context questions:', JSON.stringify(answers));
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/context-questions`, answers);
+    const url = `${API_BASE_URL}/tasks/${taskId}/context-questions${queryParams}`;
+    const response = await axios.post(url, answers);
     return response.data;
   } catch (error) {
     handleApiError(error, 'Failed to process context questions');
   }
 };
 
-export const getContextQuestions = async (taskId) => {
+export const getContextQuestions = async (taskId, force = false) => {
   try {
-    const data = await updateTaskContext(taskId, null);
+    const shouldForce = force === true;
+    const queryParams = shouldForce ? '?force=true' : '';
+    
+    const data = await updateTaskContext(taskId, null, queryParams);
     return data;
   } catch (error) {
     handleApiError(error, 'Failed to get context questions and evaluate');
