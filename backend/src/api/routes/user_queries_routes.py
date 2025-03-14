@@ -1,6 +1,6 @@
 from typing import List
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -12,7 +12,8 @@ from src.services.database_service import DatabaseService
 router = APIRouter()
 
 
-# POST /user-queries
+# POST
+# url: http://localhost:8000/user-queries
 # {
 #     "query": "What is the status of my order?"
 # }
@@ -23,7 +24,7 @@ async def create_user_query(user_query: UserQuery, db: DatabaseService = Depends
     task.short_description = user_query.query
     try:
         inserted_task_id = db.insert_task(task)
-        created_at = datetime.utcnow().isoformat()
+        created_at = datetime.now(UTC).isoformat()
         created_query = db.insert_user_query(
             inserted_task_id,
             user_query.query,
@@ -35,7 +36,7 @@ async def create_user_query(user_query: UserQuery, db: DatabaseService = Depends
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create user query: {str(e)}")
 
-
+# GET
 # url: http://localhost:8000/user-queries/
 @router.get("/", response_model=List[UserQueryCreate])
 async def get_user_queries(db: DatabaseService = Depends(get_db_service)):
@@ -43,12 +44,16 @@ async def get_user_queries(db: DatabaseService = Depends(get_db_service)):
     raw_queries = db.fetch_user_queries()
     return [UserQueryCreate(**query) for query in raw_queries]
 
+# DELETE
+# url: http://localhost:8000/user-queries/
 @router.delete("/", response_model=dict)
 async def delete_all_user_queries(db: DatabaseService = Depends(get_db_service)):
     """Delete all user queries"""
     db.delete_all_user_queries()
     return {"message": "All user queries deleted successfully"}
 
+# GET
+# url: http://localhost:8000/user-queries/{query_id}
 @router.get("/{query_id}", response_model=UserQueryDB)
 async def get_user_query(query_id: int, db: DatabaseService = Depends(get_db_service)):
     """Get a specific user query by ID"""
@@ -58,6 +63,8 @@ async def get_user_query(query_id: int, db: DatabaseService = Depends(get_db_ser
     return UserQueryDB(**query)
 
 
+# GET
+# url: http://localhost:8000/user-queries/tasks/{task_id}
 @router.get("/tasks/{task_id}", response_model=List[UserQueryDB])
 async def get_task_user_queries(task_id: str, db: DatabaseService = Depends(get_db_service)):
     """Get all user queries associated with a specific task"""

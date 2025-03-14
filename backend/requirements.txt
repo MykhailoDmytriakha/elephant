@@ -6,3 +6,6 @@ pydantic-settings
 uvicorn
 pytest
 requests
+pytest-cov
+httpx
+pytest-mock
