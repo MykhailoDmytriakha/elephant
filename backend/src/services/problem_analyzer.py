@@ -36,7 +36,9 @@ class ProblemAnalyzer:
             
         if result["is_context_sufficient"]:
             task.is_context_sufficient = True
-            summarized_context = self.openai_service.summarize_context(task.formatted_user_interaction, task.context)
+            formatted_interaction = task.formatted_user_interaction or ""
+            context_value = task.context or ""
+            summarized_context = self.openai_service.summarize_context(formatted_interaction, context_value)
             task.context = summarized_context
             task.update_state(TaskState.CONTEXT_GATHERED)
             self.db_service.updated_task(task)
@@ -68,8 +70,9 @@ class ProblemAnalyzer:
                 "follow_up_question": "I understand your task. Let's proceed with the analysis."
             }
         else:
+            # We can't transition back to CONTEXT_GATHERING from CONTEXT_GATHERED,
+            # so we'll just update the is_context_sufficient flag without changing state
             task.is_context_sufficient = False
-            task.update_state(TaskState.CONTEXT_GATHERING)
             self.db_service.updated_task(task)
             return {
                 "is_context_sufficient": False,

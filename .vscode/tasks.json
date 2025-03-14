@@ -5,18 +5,20 @@
             "label": "npm: start",
             "type": "npm",
             "script": "start",
-            "path": "frontend/",
-            "problemMatcher": [],
-            "detail": "Start React development server",
             "isBackground": true,
-            "group": {
-                "kind": "build",
-                "isDefault": true
+            "problemMatcher": {
+                "owner": "custom",
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "Starting the development server",
+                    "endsPattern": "Compiled successfully|Failed to compile"
+                }
             },
             "options": {
-                "env": {
-                    "BROWSER": "none"
-                }
+                "cwd": "${workspaceFolder}/frontend"
             }
         }
     ]

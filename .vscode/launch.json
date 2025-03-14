@@ -12,24 +12,23 @@
             ],
             "cwd": "${workspaceFolder}/backend",
             "jinja": true,
-            "envFile": "${workspaceFolder}/backend/.env"
+            "envFile": "${workspaceFolder}/backend/.env",
+            "python": "${workspaceFolder}/backend/.venv/bin/python",
+            "justMyCode": true
         },
         {
             "name": "Start React App",
-            "type": "node",
+            "type": "chrome",
             "request": "launch",
-            "cwd": "${workspaceFolder}/frontend",
-            "runtimeExecutable": "npm",
-            "runtimeArgs": ["start"],
-            "env": {
-                "BROWSER": "chrome"
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}/frontend",
+            "sourceMapPathOverrides": {
+              "webpack:///src/*": "${webRoot}/src/*"
             },
-            "serverReadyAction": {
-                "pattern": "Local:\\s+http://localhost:(\\d+)",
-                "uriFormat": "http://localhost:%s",
-                "action": "openExternally"
-            }
-        }
+            "preLaunchTask": "npm: start",
+            "userDataDir": false,
+            "runtimeArgs": ["--no-startup-window"]
+          }
     ],
     "compounds": [
         {
