@@ -12,6 +12,7 @@ from src.services.prompts.decompose_task_prompt import DECOMPOSE_TASK_FUNCTIONS,
 from src.services.prompts.formulate_task_prompt import FORMULATE_TASK_FUNCTIONS, FORMULATE_TASK_TOOLS, get_formulate_task_prompt
 from src.core.config import settings
 from src.model.task import Task
+from src.model.context import ContextQuestion
 
 logger = logging.getLogger(__name__)
 
@@ -24,31 +25,6 @@ class OpenAIService:
             logger.error("OpenAI API key is not set!")
             raise ValueError("OpenAI API key is not set!")
         self.client = OpenAI(api_key=self.api_key)
-
-    def summarize_context(self, formatted_user_interaction: str, context: str) -> str:
-        logger.info("Called summarize_context method")
-        try:
-            # Handle None values by converting to empty string
-            context_str = context or ""
-            formatted_interaction_str = formatted_user_interaction or ""
-            if not context_str and not formatted_interaction_str:
-                logger.info("Context is empty. Skipping summarization.")
-                return ""
-            prompt = f"Summarize the following context: \n- {context_str}\n- {formatted_interaction_str}"
-            logger.debug(f"OpenAI API prompt: {prompt}")
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            result = response.choices[0].message.content
-            logger.debug(f"OpenAI API response: {result}")
-            return result
-        except Exception as e:
-            logger.error(f"OpenAI API error in summarize_context: {str(e)}")
-            # Return a combination of the original context and interaction
-            combined = f"{context_str}\n{formatted_interaction_str}"
-            # Truncate if too long
-            return combined[:500] + "..." if len(combined) > 500 else combined
 
     @staticmethod
     def _gather_context(task: Task) -> str:
@@ -64,42 +40,20 @@ class OpenAIService:
     
     def is_context_sufficient(self, task: Task) -> ContextSufficiencyResult:
         logger.info("Called is_context_sufficient method")
-
-        try:
-            context_value = task.context or ""
-            user_interaction_value = task.formatted_user_interaction or ""
-            summarized_context = self.summarize_context(user_interaction_value, context_value) if not task.is_context_sufficient else context_value
-            prompt = get_context_sufficient_prompt(task, summarized_context)
-            logger.debug(f"OpenAI API prompt: {prompt}")
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                tools=CONTEXT_SUFFICIENT_TOOLS,
-                tool_choice={"type": "function", "function": {"name":"context_analysis"}}
-            )
-            function = response.choices[0].message.tool_calls[0].function
-            if function:
-                result = json.loads(function.arguments)
-                logger.debug(f"OpenAI API response: {result}")
-                return ContextSufficiencyResult(
-                    is_context_sufficient=result["is_context_sufficient"],
-                    follow_up_question=result["follow_up_question"]
+        return ContextSufficiencyResult(
+            is_context_sufficient=False,
+            questions=[
+                ContextQuestion(
+                    question="first question",
+                    options=["option1", "option2", "option3"]
+                ),
+                ContextQuestion(
+                    question="second question",
+                    options=["option1", "option2", "option3"]
                 )
-            else:
-                fallback_result = ContextSufficiencyResult(
-                    is_context_sufficient=False,
-                    follow_up_question="Can you provide more details about the problem?"
-                )
-                logger.warning(f"OpenAI API fallback response: {fallback_result}")
-                return fallback_result
-        except Exception as e:
-            logger.error(f"OpenAI API error: {str(e)}")
-            fallback_result = ContextSufficiencyResult(
-                is_context_sufficient=False,
-                follow_up_question="I'm currently experiencing some technical difficulties. While we work on resolving them, could you provide more details about what you're trying to accomplish?"
-            )
-            logger.warning(f"OpenAI API error fallback response: {fallback_result}")
-            return fallback_result
+            ]
+        )
+            
 
     def formulate_task(self, task: Task) -> dict:
         """Formulate clear task definition based on gathered context"""

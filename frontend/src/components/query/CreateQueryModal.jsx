@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Modal from 'react-modal';
 import axios from 'axios';
 import { X, Loader2, Send, Maximize2, Minimize2 } from 'lucide-react';
+import { useToast } from '../common/ToastProvider';
 
 Modal.setAppElement('#root');
 
@@ -13,6 +14,7 @@ const CreateQueryModal = ({ isOpen, onRequestClose, onQueryCreated }) => {
     const [charCount, setCharCount] = useState(0);
     const [isExpanded, setIsExpanded] = useState(false);
     const textareaRef = useRef(null);
+    const toast = useToast();
     
     // Reset form when modal is opened
     useEffect(() => {
@@ -37,6 +39,7 @@ const CreateQueryModal = ({ isOpen, onRequestClose, onQueryCreated }) => {
         
         if (!query.trim()) {
             setError('Please enter a query');
+            toast.showError('Please enter a query');
             return;
         }
         
@@ -47,14 +50,13 @@ const CreateQueryModal = ({ isOpen, onRequestClose, onQueryCreated }) => {
                 query
             });
             onQueryCreated(response.data);
+            toast.showSuccess('Task created successfully');
             setQuery('');
             onRequestClose();
         } catch (err) {
-            console.error('Error creating query:', err);
-            setError(
-                err.response?.data?.detail || 
-                'Failed to create query. Please try again.'
-            );
+            const errorMessage = err.response?.data?.detail || 'Failed to create task';
+            setError(errorMessage);
+            toast.showError(`Failed to create task: ${errorMessage}`);
         } finally {
             setLoading(false);
         }

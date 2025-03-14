@@ -3,6 +3,7 @@ import { PlusCircle, AlertCircle, RefreshCw, ChevronDown, Filter, Layout, Layout
 import QueryList from '../components/query/QueryList';
 import CreateQueryModal from '../components/query/CreateQueryModal';
 import { fetchQueries } from '../utils/api';
+import { useToast } from '../components/common/ToastProvider';
 
 const MainPage = () => {
   const [queries, setQueries] = useState([]);
@@ -13,6 +14,7 @@ const MainPage = () => {
   const [viewType, setViewType] = useState('list'); // 'list' or 'grid'
   const [filterStatus, setFilterStatus] = useState('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     loadQueries();
@@ -25,6 +27,7 @@ const MainPage = () => {
       const data = await fetchQueries();
       setQueries(data);
     } catch (err) {
+      toast.showError('Failed to fetch queries. Please try again later.');
       setError('Failed to fetch queries. Please try again later.');
     } finally {
       setIsLoading(false);

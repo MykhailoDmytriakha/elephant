@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Tuple, Optional
-from src.model.context import ContextSufficiencyResult
+from src.model.context import ContextSufficiencyResult, ContextAnswers
 from src.api.deps import get_problem_analyzer, get_db_service
 from src.model.task import Task, TaskState
 from src.schemas.task import AnalysisResult, DecompositionResult, MethodSelectionResult, Typification
@@ -69,8 +69,8 @@ async def get_task(task_id: str, db: DatabaseService = Depends(get_db_service)):
     return task
 
 
-@router.put("/{task_id}/context", response_model=ContextSufficiencyResult)
-async def update_task_context(task_id: str, user_interaction: Optional[UserInteraction] = None, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
+@router.post("/{task_id}/context-questions", response_model=ContextSufficiencyResult)
+async def update_task_context(task_id: str, context_answers: Optional[ContextAnswers] = None, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
     task_data = db.fetch_task_by_id(task_id)
     if task_data is None:
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
@@ -82,15 +82,14 @@ async def update_task_context(task_id: str, user_interaction: Optional[UserInter
     task.state = TaskState.CONTEXT_GATHERING
     
     # Handle the case where UserInteraction is provided but both query and answer are empty
-    if not user_interaction:
-        logger.info("No user interaction provided. Clarifying context.")
-        return analyzer.clarify_context(task)
-    if user_interaction and not user_interaction.query and not user_interaction.answer:
-        logger.info("Empty user interaction provided. Treating as if no interaction was given.")
-        return analyzer.clarify_context(task)
+    if not context_answers:
+        logger.info("No context answers provided. Clarifying context.")
+        result = analyzer.clarify_context(task)
+        logger.info(f"Context sufficiency result: {result}")
+        return result
     else:
-        logger.info(f"User interaction provided: {user_interaction}")
-        task.add_user_interaction(user_interaction)
+        logger.info(f"User context answers provided: {context_answers}")
+        task.add_context_answers(context_answers)
         db.updated_task(task)
         return analyzer.clarify_context(task)
     

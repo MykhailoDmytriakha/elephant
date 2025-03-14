@@ -1,7 +1,20 @@
-from typing import TypedDict
-from dataclasses import dataclass
+from typing import TypedDict, List
+from pydantic import BaseModel
 
-@dataclass
-class ContextSufficiencyResult(TypedDict):
+
+class ContextQuestion(BaseModel):
+    question: str
+    options: List[str]
+    
+class ContextSufficiencyResult(BaseModel):
     is_context_sufficient: bool
-    follow_up_question: str
+    questions: List[ContextQuestion]
+    
+
+class ContextAnswer(BaseModel):
+    question: str
+    answer: str
+    
+
+class ContextAnswers(BaseModel):
+    answers: List[ContextAnswer]

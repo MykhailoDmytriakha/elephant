@@ -42,14 +42,21 @@ export const fetchTaskDetails = async (taskId) => {
   }
 };
 
-export const updateTaskContext = async (taskId, request) => {
+export const updateTaskContext = async (taskId, answers) => {
   try {
-    // Only include the message in the request body if it's not empty
-    const requestBody = request ? request : { "query": "", "answer": "" };
-    const response = await axios.put(`${API_BASE_URL}/tasks/${taskId}/context`, requestBody);
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/context-questions`, answers);
     return response.data;
   } catch (error) {
-    handleApiError(error, 'Failed to update task context');
+    handleApiError(error, 'Failed to process context questions');
+  }
+};
+
+export const getContextQuestions = async (taskId) => {
+  try {
+    const data = await updateTaskContext(taskId, null);
+    return data;
+  } catch (error) {
+    handleApiError(error, 'Failed to get context questions and evaluate');
   }
 };
 

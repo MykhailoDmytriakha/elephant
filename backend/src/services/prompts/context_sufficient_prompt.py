@@ -50,10 +50,10 @@ CONTEXT_SUFFICIENT_TOOLS = [
     }
 ]
 
-def get_context_sufficient_prompt(task: Task, summarized_context: str) -> str:
-    previous_interactions = "\n".join([
-        f"Q: {interaction.query}\nA: {interaction.answer}"
-        for interaction in task.user_interaction
+def get_context_sufficient_prompt(task: Task) -> str:
+    context_questions = "\n".join([
+        f"Q: {question.text}\nA: {question.options}"
+        for question in task.context_questions
     ])
 
     scope_context = ""
@@ -74,7 +74,7 @@ def get_context_sufficient_prompt(task: Task, summarized_context: str) -> str:
         Determine if the current context is sufficient to understand and proceed with the task.
         
         CURRENT TASK: {task.task or task.short_description}
-        CURRENT CONTEXT: {summarized_context}
+        CURRENT CONTEXT: {task.context or task.context_questions}
 
         PREVIOUS INTERACTIONS:
         {previous_interactions}

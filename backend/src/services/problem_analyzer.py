@@ -31,9 +31,8 @@ class ProblemAnalyzer:
         task.update_state(TaskState.CONTEXT_GATHERING)
         result = self.openai_service.is_context_sufficient(task)
         
-        if not isinstance(result, dict) or 'is_context_sufficient' not in result:
-            return {"is_context_sufficient": False, "follow_up_question": "Could you please provide more details about what you're trying to accomplish?"}
-            
+        if not result.is_context_sufficient:
+            return result
         if result["is_context_sufficient"]:
             task.is_context_sufficient = True
             formatted_interaction = task.formatted_user_interaction or ""

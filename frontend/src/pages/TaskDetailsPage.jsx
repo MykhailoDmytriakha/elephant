@@ -3,7 +3,18 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { LoadingSpinner, ErrorDisplay } from '../components/task/TaskComponents';
-import { fetchTaskDetails, updateTaskContext, deleteTask, analyzeTask, generateApproaches, typifyTask, clarifyTask, decomposeTask } from '../utils/api';
+import { 
+  fetchTaskDetails, 
+  updateTaskContext, 
+  deleteTask, 
+  analyzeTask, 
+  generateApproaches, 
+  typifyTask, 
+  clarifyTask, 
+  decomposeTask,
+  getContextQuestions,
+  formulate_task
+} from '../utils/api';
 import { getStateColor, TaskStates } from '../constants/taskStates';
 import TaskOverview from '../components/task/TaskOverview';
 import Analysis from '../components/task/Analysis';
@@ -13,12 +24,13 @@ import Typification from '../components/task/Typification';
 import ClarificationSection from '../components/task/ClarificationSection';
 import Decomposition from '../components/task/Decomposition';
 import TaskFormulation from '../components/task/TaskFormulation';
-import { formulate_task } from '../utils/api';
 import Breadcrumbs from '../components/task/Breadcrumbs';
+import { useToast } from '../components/common/ToastProvider';
 
 export default function TaskDetailsPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,6 +51,10 @@ export default function TaskDetailsPage() {
   });
   const [isDecompositionStarted, setIsDecompositionStarted] = useState(false);
   const [isFormulating, setIsFormulating] = useState(false);
+  const [isContextGatheringLoading, setIsContextGatheringLoading] = useState(false);
+  const [contextQuestions, setContextQuestions] = useState([]);
+  const [contextAnswers, setContextAnswers] = useState({});
+  const [isSubmittingAnswers, setIsSubmittingAnswers] = useState(false);
 
   const loadTask = async () => {
     try {
@@ -46,11 +62,10 @@ export default function TaskDetailsPage() {
       setError(null);
       const task = await fetchTaskDetails(taskId);
       setTask(task);
-      if (!task.is_context_sufficient) {
-        const contextUpdate = await updateTaskContext(taskId);
-        setFollowUpQuestion(contextUpdate.follow_up_question);
-      }
+      
+      // No longer setting default message or automatically sending context update requests
     } catch (err) {
+      toast.showError(`Failed to load task: ${err.message}`);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -69,8 +84,10 @@ export default function TaskDetailsPage() {
     if (window.confirm('Are you sure you want to delete this task?')) {
       try {
         await deleteTask(taskId);
+        toast.showSuccess('Task deleted successfully');
         navigate('/');
       } catch (error) {
+        toast.showError(`Failed to delete task: ${error.message}`);
         setError('Failed to delete task: ' + error.message);
       }
     }
@@ -78,6 +95,7 @@ export default function TaskDetailsPage() {
 
   const handleSendMessage = async (message) => {
     try {
+      // Normal flow for all messages now that we get the specific question from API first
       const updatedContext = await updateTaskContext(taskId, {
         query: followUpQuestion,
         answer: message,
@@ -90,10 +108,12 @@ export default function TaskDetailsPage() {
       // Update followUpQuestion based on context sufficiency
       if (updatedTask.is_context_sufficient) {
         setFollowUpQuestion(null);
+        toast.showSuccess('Context gathering completed');
       } else {
         setFollowUpQuestion(updatedContext.follow_up_question);
       }
     } catch (error) {
+      toast.showError(`Failed to send message: ${error.message}`);
       setError('Failed to send message: ' + error.message);
       throw error; // Propagate error to allow component to handle it
     }
@@ -104,7 +124,9 @@ export default function TaskDetailsPage() {
       setIsFormulating(true);
       await formulate_task(taskId);
       await loadTask();
+      toast.showSuccess('Task formulated successfully');
     } catch (err) {
+      toast.showError(`Failed to formulate task: ${err.message}`);
       setError('Failed to formulate task: ' + err.message);
     } finally {
       setIsFormulating(false);
@@ -121,7 +143,11 @@ export default function TaskDetailsPage() {
       }
       await clarifyTask(taskId, message);
       loadTask();
+      if (message) {
+        toast.showSuccess('Clarification response sent');
+      }
     } catch (error) {
+      toast.showError(`Failed to process clarification: ${error.message}`);
       setError('Failed to process clarification: ' + error.message);
     } finally {
       setIsStartingClarificationLoading(false);
@@ -133,7 +159,9 @@ export default function TaskDetailsPage() {
       setIsAnalyzing(true);
       await analyzeTask(taskId, isReanalyze);
       await loadTask();
+      toast.showSuccess(isReanalyze ? 'Task reanalyzed successfully' : 'Task analyzed successfully');
     } catch (err) {
+      toast.showError(`Failed to analyze task: ${err.message}`);
       setError('Failed to analyze task: ' + err.message);
     } finally {
       setIsAnalyzing(false);
@@ -145,7 +173,9 @@ export default function TaskDetailsPage() {
       setIsRegeneratingApproaches(true);
       await generateApproaches(taskId);
       await loadTask();
+      toast.showSuccess('Approaches regenerated successfully');
     } catch (err) {
+      toast.showError(`Failed to regenerate approaches: ${err.message}`);
       setError('Failed to regenerate approaches: ' + err.message);
     } finally {
       setIsRegeneratingApproaches(false);
@@ -157,7 +187,9 @@ export default function TaskDetailsPage() {
       setIsTypifying(true);
       await typifyTask(taskId, isRetypify);
       await loadTask();
+      toast.showSuccess(isRetypify ? 'Task retypified successfully' : 'Task typified successfully');
     } catch (err) {
+      toast.showError(`Failed to typify task: ${err.message}`);
       setError('Failed to typify task: ' + err.message);
     } finally {
       setIsTypifying(false);
@@ -170,7 +202,9 @@ export default function TaskDetailsPage() {
       setIsDecompositionStarted(true);
       await decomposeTask(taskId, selectedApproachItems, isRedecompose);
       await loadTask();
+      toast.showSuccess(isRedecompose ? 'Task redecomposed successfully' : 'Task decomposed successfully');
     } catch (err) {
+      toast.showError(`Failed to decompose task: ${err.message}`);
       setError('Failed to decompose task: ' + err.message);
       setIsDecompositionStarted(false);
     } finally {
@@ -182,9 +216,153 @@ export default function TaskDetailsPage() {
     setSelectedApproachItems(selections);
   };
 
+  const handleStartContextGathering = async () => {
+    try {
+      setIsContextGatheringLoading(true);
+      // Clear any previous questions, answers, and errors
+      setContextQuestions([]);
+      setContextAnswers({});
+      setError(null); // Clear any existing error state
+      
+      // Get initial batch of context questions using the combined method
+      const questionsData = await getContextQuestions(taskId);
+      
+      if (questionsData.is_context_sufficient) {
+        // Context is already sufficient
+        await loadTask();
+        toast.showSuccess('Context is already sufficient');
+      } else {
+        // Transform the backend questions format to match frontend expectations
+        const transformedQuestions = (questionsData.questions || []).map((question, qIndex) => {
+          // Create a formatted question object
+          return {
+            id: `q-${qIndex}`, // Generate an ID for the question
+            text: question.question, // Set question text from the 'question' field
+            options: (question.options || []).map((optionText, oIndex) => {
+              // Create a formatted option object
+              return {
+                id: `option-${qIndex}-${oIndex}`, // Generate an ID for each option
+                text: optionText // Use the option text directly
+              };
+            })
+          };
+        });
+        
+        // Set the transformed questions for display
+        setContextQuestions(transformedQuestions);
+      }
+    } catch (error) {
+      toast.showError(`Failed to start context gathering: ${error.message}`);
+      setError(`Failed to start context gathering: ${error.message}`);
+      // Make sure no questions or chat is shown in error state
+      setContextQuestions([]);
+      setFollowUpQuestion(null);
+    } finally {
+      setIsContextGatheringLoading(false);
+    }
+  };
+
+  const handleAnswerChange = (questionId, answer) => {
+    setContextAnswers(prev => ({
+      ...prev,
+      [questionId]: answer
+    }));
+  };
+
+  const handleSubmitAnswers = async () => {
+    try {
+      setIsSubmittingAnswers(true);
+      setError(null); // Clear any existing error state
+      
+      // Map the questions to get the original questions for submission
+      const questionMap = contextQuestions.reduce((acc, q) => {
+        acc[q.id] = q.text;
+        return acc;
+      }, {});
+      
+      // Process answers before submission, handling the free-form answers
+      const processedAnswers = {
+        answers: Object.entries(contextAnswers)
+          .filter(([questionId, answer]) => {
+            // Skip the special _text keys that are handled with their parent
+            return !questionId.endsWith('_text');
+          })
+          .map(([questionId, answer]) => {
+            return {
+              question: questionMap[questionId] || questionId, // Use the original question text
+              answer
+            };
+          })
+      };
+      
+      // Submit all answers using the same combined method with processed answers parameter
+      const result = await updateTaskContext(taskId, processedAnswers);
+      
+      if (result.is_context_sufficient) {
+        // If context is now sufficient, reload the task
+        await loadTask();
+        // Clear questions since we're done
+        setContextQuestions([]);
+        toast.showSuccess('Context gathering completed');
+      } else {
+        // Transform the backend questions format to match frontend expectations
+        const transformedQuestions = (result.questions || []).map((question, qIndex) => {
+          // Create a formatted question object
+          return {
+            id: `q-${qIndex}`, // Generate an ID for the question
+            text: question.question, // Set question text from the 'question' field
+            options: (question.options || []).map((optionText, oIndex) => {
+              // Create a formatted option object
+              return {
+                id: `option-${qIndex}-${oIndex}`, // Generate an ID for each option
+                text: optionText // Use the option text directly
+              };
+            })
+          };
+        });
+        
+        // Set the transformed questions for display
+        setContextQuestions(transformedQuestions);
+        
+        // Clear previous answers
+        setContextAnswers({});
+        toast.showInfo('Additional context needed');
+      }
+    } catch (error) {
+      toast.showError(`Failed to submit answers: ${error.message}`);
+      setError(`Failed to submit answers: ${error.message}`);
+      // Make sure no questions or chat is shown in error state
+      setContextQuestions([]);
+      setFollowUpQuestion(null);
+    } finally {
+      setIsSubmittingAnswers(false);
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
-  if (error) return <ErrorDisplay message={error} />;
-  if (!task) return <ErrorDisplay message="Task not found" />;
+  
+  // If we have an error but also have task data, don't show the error UI
+  // The error has already been shown as a toast notification
+  if (!task) {
+    if (error) {
+      // If task loading failed completely, show a more subtle error UI
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Error Loading Task</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={() => navigate('/')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Go Back to Tasks
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -228,6 +406,14 @@ export default function TaskDetailsPage() {
               task={task}
               followUpQuestion={followUpQuestion}
               onSendMessage={handleSendMessage}
+              onStartContextGathering={handleStartContextGathering}
+              isContextGatheringLoading={isContextGatheringLoading}
+              contextQuestions={contextQuestions}
+              contextAnswers={contextAnswers}
+              onAnswerChange={handleAnswerChange}
+              onSubmitAnswers={handleSubmitAnswers}
+              isSubmittingAnswers={isSubmittingAnswers}
+              error={error}
             />
 
             {task.sub_level === 0 && (
