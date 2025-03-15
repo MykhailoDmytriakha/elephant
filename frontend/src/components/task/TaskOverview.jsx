@@ -93,7 +93,7 @@ const TaskOverview = ({
 
           {/* Task description */}
           <div>
-            <h3 className="text-sm font-medium text-gray-500">Description</h3>
+            <h3 className="text-sm font-medium text-gray-500">Initial user query</h3>
             <p className="mt-1 text-gray-900 whitespace-pre-line">{task.short_description}</p>
           </div>
 

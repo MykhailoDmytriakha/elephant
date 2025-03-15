@@ -143,6 +143,7 @@ export default function TaskDetailsPage() {
             />
 
             {task.sub_level === 0 && (
+              // defin scope of the task
               <TaskFormulation
                 task={task}
                 isContextGathered={task.state === TaskStates.CONTEXT_GATHERED}

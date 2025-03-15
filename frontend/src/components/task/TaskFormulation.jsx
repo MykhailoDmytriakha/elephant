@@ -13,13 +13,13 @@ export default function TaskFormulation({
     }
 
     return (
-        <CollapsibleSection title="Task Formulation">
+        <CollapsibleSection title="Define scope of the task">
             <div className="space-y-4">
-                {task.task ? (
+                {task.scope && (typeof task.scope !== 'object' || Object.keys(task.scope).length > 0) ? (
                     <div className="bg-white p-4 rounded-lg border">
                         <div className="flex justify-between items-start">
                             <h4 className="text-sm font-medium text-gray-500 mb-2">
-                                Formulated Task
+                                Define scope of the task
                             </h4>
                             <button
                                 onClick={() => onFormulate(true)}
@@ -29,7 +29,7 @@ export default function TaskFormulation({
                                 <RefreshCcw className={`w-4 h-4 ${isFormulating ? 'animate-spin' : ''}`} />
                             </button>
                         </div>
-                        <p className="text-gray-900 whitespace-pre-wrap">{task.task}</p>
+                        <p className="text-gray-900 whitespace-pre-wrap">{task.scope}</p>
                     </div>
                 ) : (
                     <div className="text-center py-8">
@@ -46,7 +46,7 @@ export default function TaskFormulation({
                             ) : (
                                 <>
                                     <FileText className="w-5 h-5" />
-                                    Formulate Task
+                                    Define Scope
                                 </>
                             )}
                         </button>
