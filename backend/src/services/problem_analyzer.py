@@ -4,6 +4,7 @@ from .database_service import DatabaseService
 from src.services.openai_service import OpenAIService, ContextSufficiencyResult, ContextQuestion
 from src.model.task import Task, TaskState
 from src.model.scope import ScopeFormulationGroup, ScopeQuestion, TaskScope, DraftScope, ValidationScopeResult
+from src.model.ifr import IFR
 import re
 import logging
 from typing import List
@@ -71,6 +72,10 @@ class ProblemAnalyzer:
     async def validate_scope(self, task: Task, feedback: str) -> ValidationScopeResult:
         validation_result = await self.openai_service.validate_scope(task, feedback)
         return validation_result
+
+    async def generate_IFR(self, task: Task) -> IFR:
+        ifr = await self.openai_service.generate_IFR(task)
+        return ifr
 
     def analyze(self, task: Task, reAnalyze: bool = False):
         """Analyze the task and update its state"""

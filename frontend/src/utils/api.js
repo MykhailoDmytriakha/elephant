@@ -119,6 +119,17 @@ export const validateScope = async (taskId, isApproved, feedback = null) => {
   }
 };
 
+export const generateIFR = async (taskId) => {
+  try {
+    console.log('Generating IFR for task:', taskId);
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/ifr`);
+    console.log('IFR response:', response.data);
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'Failed to generate Ideal Final Result');
+  }
+};
+
 export const analyzeTask = async (taskId, isReanalyze = false) => {
   try {
     const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/analyze?reAnalyze=${isReanalyze}`);

@@ -13,6 +13,7 @@ import Typification from '../components/task/Typification';
 import ClarificationSection from '../components/task/ClarificationSection';
 import Decomposition from '../components/task/Decomposition';
 import TaskFormulation from '../components/task/TaskFormulation';
+import IFRView from '../components/task/IFRView';
 import Breadcrumbs from '../components/task/Breadcrumbs';
 import { useTaskDetails } from '../hooks/useTaskDetails';
 
@@ -35,6 +36,8 @@ export default function TaskDetailsPage() {
     handleDelete,
     handleFormulate,
     isFormulating,
+    handleGenerateIFR,
+    isGeneratingIFR,
     handleAnalyze,
     isAnalyzing,
     handleTypify,
@@ -149,6 +152,16 @@ export default function TaskDetailsPage() {
                 isContextGathered={task.state === TaskStates.CONTEXT_GATHERED || task.state === TaskStates.TASK_FORMATION}
                 onFormulate={handleFormulate}
                 isFormulating={isFormulating}
+                defaultOpen={!(task.scope && task.scope.status === "approved")}
+              />
+            )}
+
+            {task.sub_level === 0 && (
+              <IFRView
+                ifr={task.ifr}
+                isGeneratingIFR={isGeneratingIFR}
+                onGenerateIFR={handleGenerateIFR}
+                taskState={task.state}
               />
             )}
 

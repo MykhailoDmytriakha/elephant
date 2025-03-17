@@ -13,7 +13,8 @@ from src.core.config import settings
 from src.model.task import Task
 from src.model.context import ClarifiedTask
 from src.model.scope import DraftScope, ValidationScopeResult
-from src.ai_agents import context_sufficiency_agent, summarize_context_agent, scope_formulation_agent
+from src.ai_agents import context_sufficiency_agent, summarize_context_agent, scope_formulation_agent, ifr_agent
+from src.model.ifr import IFR
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +142,22 @@ class OpenAIService:
         except Exception as e:
             logger.error(f"Error in validate_scope: {str(e)}")
             raise e
+    
+    async def generate_IFR(self, task: Task) -> IFR:
+        """
+        Generate an ideal final result for a given task
+        """
+        logger.info("Called generate_IFR method")
+        try:
+            # Use the extracted agent logic from the dedicated module
+            return await ifr_agent.generate_IFR(task)
+        except ImportError as e:
+            logger.warning(f"OpenAI Agents SDK not installed: {str(e)}")
+            raise e
+        except Exception as e:
+            logger.error(f"Error in generate_IFR: {str(e)}")
+            raise e
+            
 
     def analyze_task(self, task: Task) -> dict:
         logger.info("Called analyze_task method")

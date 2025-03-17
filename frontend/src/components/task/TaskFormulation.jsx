@@ -7,12 +7,9 @@ export default function TaskFormulation({
     task,
     isContextGathered,
     onFormulate,
-    isFormulating
+    isFormulating,
+    defaultOpen = true
 }) {
-    console.log('TaskFormulation received task:', task);
-    console.log('TaskFormulation task.status:', task?.status);
-    console.log('TaskFormulation task.status type:', typeof task?.status);
-    console.log('TaskFormulation task.status === "approved":', task?.status === "approved");
     
     // Check if the task has been approved - use multiple possible locations
     const isTaskApproved = 
@@ -41,7 +38,6 @@ export default function TaskFormulation({
 
     // Helper function to check if the task has a valid scope
     const hasValidScope = useCallback(() => {
-        console.log('Checking if task has valid scope:', task?.scope);
         
         // If no scope at all, it's not valid
         if (!task?.scope) {
@@ -63,11 +59,8 @@ export default function TaskFormulation({
                     ((Array.isArray(groupData) && groupData.length > 0) || 
                      (typeof groupData === 'object' && Object.keys(groupData).length > 0));
                 
-                console.log(`Group ${group} completion status:`, isComplete);
                 return isComplete;
             });
-            
-            console.log('Are all groups complete?', hasCompleteGroups);
             
             // Only return true if ALL groups are complete
             return hasCompleteGroups;
@@ -78,7 +71,6 @@ export default function TaskFormulation({
 
     // Helper function to determine completed groups from task scope
     const determineCompletedGroups = useCallback(() => {
-        console.log('Determining completed groups from scope:', task?.scope);
         
         // Check if scope is an object
         if (task?.scope && typeof task.scope === 'object') {
@@ -89,33 +81,25 @@ export default function TaskFormulation({
                 if (task.scope[group] && 
                     ((Array.isArray(task.scope[group]) && task.scope[group].length > 0) || 
                      (typeof task.scope[group] === 'object' && Object.keys(task.scope[group]).length > 0))) {
-                    console.log(`Group ${group} is completed:`, task.scope[group]);
                     completed.push(group);
-                } else {
-                    console.log(`Group ${group} is not completed:`, task.scope[group]);
                 }
             });
             
-            console.log('Completed groups determined from scope:', completed);
             return completed;
         }
         
         // Return empty array if no completed groups found
-        console.log('No completed groups found from scope');
         return [];
     }, [task, GROUPS]);
 
     // Reset flow state and completed groups when task changes
     useEffect(() => {
-        console.log('Task changed, evaluating scope state:', task?.scope);
         
         if (hasValidScope()) {
-            console.log('Task has valid scope, setting final state');
             setFlowState('final');
         } else {
             // If scope is empty, there are no completedGroups
             if (!task?.scope) {
-                console.log('Task has no scope, setting empty completedGroups');
                 setCompletedGroups([]);
                 setFlowState('initial');
                 return;
@@ -123,7 +107,6 @@ export default function TaskFormulation({
             
             // Determine completed groups from task scope
             const completed = determineCompletedGroups();
-            console.log('Setting completed groups:', completed);
             setCompletedGroups(completed);
             setFlowState('initial');
         }
@@ -172,10 +155,6 @@ export default function TaskFormulation({
             // Start with the first group ('what') or the next unanswered group
             const nextGroup = findNextUnansweredGroup() || GROUPS[0];
             
-            console.log('Starting formulation with group:', nextGroup);
-            console.log('Task ID:', task.id);
-            console.log('Current completed groups:', completedGroups);
-            
             let questions;
             try {
                 questions = await getFormulationQuestions(task.id, nextGroup);
@@ -184,8 +163,6 @@ export default function TaskFormulation({
                 console.error('Error getting questions:', initialError);
                 throw initialError;
             }
-            
-            console.log('Questions response:', questions);
             
             if (!questions || !Array.isArray(questions) || questions.length === 0) {
                 throw new Error('Invalid response format from server');
@@ -375,7 +352,6 @@ export default function TaskFormulation({
                 answers: answersList
             };
             
-            console.log('Submitting answers:', JSON.stringify(userAnswers));
             await submitFormulationAnswers(task.id, currentGroup, userAnswers);
             
             // Add current group to completed groups
@@ -445,7 +421,6 @@ export default function TaskFormulation({
         setErrorMessage('');
         try {
             const response = await validateScope(task.id, isApproved, feedback);
-            console.log('Validation response:', JSON.stringify(response, null, 2));
             if (isApproved) {
                 try {
                     // Store changes if present in the response
@@ -456,7 +431,6 @@ export default function TaskFormulation({
                     // If there's an updated scope in the approval response, use it
                     if (response && response.updatedScope) {
                         setDraftScope(response.updatedScope);
-                        console.log('Updated draft scope on approval with:', response.updatedScope);
                     }
                     
                     // Final scope approved
@@ -477,7 +451,6 @@ export default function TaskFormulation({
                 if (response && response.updatedScope) {
                     // Set the updated scope text as a string, not an object
                     setDraftScope(response.updatedScope);
-                    console.log('Updated draft scope with:', response.updatedScope);
                     
                     // Clear feedback form and show the updated scope
                     setFeedback(null);
@@ -623,11 +596,6 @@ export default function TaskFormulation({
             String(task?.status).toLowerCase() === "approved" || 
             String(task?.scope?.status).toLowerCase() === "approved" ||
             (typeof task?.scope === 'object' && String(task?.scope?.scope?.status).toLowerCase() === "approved");
-        
-        console.log('Rendering validation with draftScope:', draftScope, 'Type:', typeof draftScope);
-        console.log('Task status in renderValidation:', task?.status);
-        console.log('Scope status (if available):', task?.scope?.status);
-        console.log('Is task approved (any source):', isTaskApproved);
         
         return (
             <div className="bg-white p-6 rounded-lg border">
@@ -788,18 +756,12 @@ export default function TaskFormulation({
     };
 
     const renderFinalScope = () => {
-        console.log('Rendering final scope with task scope:', task?.scope);
-        console.log('Current draftScope value:', draftScope, 'Type:', typeof draftScope);
-        console.log('Task status:', task?.status);
-        console.log('Scope status (if available):', task?.scope?.status);
-        
         // Check if the task has been approved - try multiple possible locations for status
         const isTaskApproved = 
             String(task?.status).toLowerCase() === "approved" || 
             String(task?.scope?.status).toLowerCase() === "approved" ||
             (typeof task?.scope === 'object' && String(task?.scope?.scope?.status).toLowerCase() === "approved");
         
-        console.log('Is task approved (any source):', isTaskApproved);
         
         // Check if the outer scope has a 'scope' object with a nested structure
         // or if it's a new format where validation_criteria appears at the top level
@@ -834,8 +796,6 @@ export default function TaskFormulation({
             }
         }
         
-        console.log('Has validation criteria:', hasValidationCriteria);
-        console.log('Final resolved scopeText:', scopeText ? 'Found text' : 'No text found');
         
         const showFeedbackForm = feedback !== null;
         
@@ -1085,7 +1045,6 @@ export default function TaskFormulation({
     };
 
     const renderProgress = () => {
-        console.log('Rendering progress with completedGroups:', completedGroups);
         const allGroupsCompleted = completedGroups.length === GROUPS.length;
         
         return (
@@ -1175,12 +1134,6 @@ export default function TaskFormulation({
                 const allGroupsCompleted = completedGroups.length === GROUPS.length;
                 const nextGroup = findNextUnansweredGroup();
                 
-                console.log('Initial state rendering with:', { 
-                    hasCompletedGroups, 
-                    allGroupsCompleted, 
-                    nextGroup,
-                    completedGroups 
-                });
                 
                 return (
                     <div className="bg-white p-6 rounded-lg border">
@@ -1283,7 +1236,19 @@ export default function TaskFormulation({
     };
 
     return (
-        <CollapsibleSection title="Define scope of the task">
+        <CollapsibleSection 
+            title={
+                <div className="flex items-center">
+                    <span>Define scope of the task</span>
+                    {isTaskApproved && (
+                        <span className="ml-2 text-xs bg-green-100 text-green-800 py-0.5 px-2 rounded-full">
+                            Complete
+                        </span>
+                    )}
+                </div>
+            } 
+            defaultOpen={defaultOpen}
+        >
             <div className="space-y-4">
                 {renderContent()}
             </div>

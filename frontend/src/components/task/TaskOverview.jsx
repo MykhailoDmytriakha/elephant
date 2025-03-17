@@ -265,24 +265,26 @@ const TaskOverview = ({
                 </div>
 
                 {/* Refresh Button */}
-                <div className="mt-4">
-                  <button
-                    onClick={handleForceRefreshContext}
-                    disabled={isContextGatheringLoading}
-                    className={`px-4 py-2 flex items-center text-sm text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 border border-blue-200 ${
-                      isContextGatheringLoading ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    {isContextGatheringLoading && isForceRefreshMode ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Refreshing...</>
-                    ) : (
-                      <><RefreshCw className="w-4 h-4 mr-2" />Refresh Context</>
-                    )}
-                  </button>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Click to re-summarize the context and update task details.
-                  </p>
-                </div>
+                {task.state === TaskStates.CONTEXT_GATHERING && (
+                  <div className="mt-4">
+                    <button
+                      onClick={handleForceRefreshContext}
+                      disabled={isContextGatheringLoading}
+                      className={`px-4 py-2 flex items-center text-sm text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 border border-blue-200 ${
+                        isContextGatheringLoading ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      {isContextGatheringLoading && isForceRefreshMode ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Refreshing...</>
+                      ) : (
+                        <><RefreshCw className="w-4 h-4 mr-2" />Refresh Context</>
+                      )}
+                    </button>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Click to re-summarize the context and update task details.
+                    </p>
+                  </div>
+                )}
                 
                 {/* Display list of questions and answers */}
                 <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">

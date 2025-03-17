@@ -12,6 +12,7 @@ import {
   clarifyTask, 
   decomposeTask,
   formulate_task,
+  generateIFR,
 } from '../utils/api';
 
 /**
@@ -68,6 +69,15 @@ export function useTaskDetails(taskId) {
     { 
       successMessage: (args) => args[0] ? 'Task reanalyzed successfully' : 'Task analyzed successfully',
       errorMessage: 'Failed to analyze task'
+    }
+  );
+
+  const [handleGenerateIFR, isGeneratingIFR] = useTaskOperation(
+    () => generateIFR(taskId),
+    loadTask,
+    {
+      successMessage: 'Ideal Final Result generated successfully',
+      errorMessage: 'Failed to generate Ideal Final Result'
     }
   );
 
@@ -143,6 +153,8 @@ export function useTaskDetails(taskId) {
     isFormulating,
     handleAnalyze,
     isAnalyzing,
+    handleGenerateIFR,
+    isGeneratingIFR,
     handleTypify,
     isTypifying,
     handleRegenerateApproaches,
@@ -156,7 +168,7 @@ export function useTaskDetails(taskId) {
     // Context gathering
     ...contextGathering,
     // Track if we're in force refresh mode
-    isForceRefreshMode: contextGathering.isForceRefresh,
+    isForceRefreshMode: contextGathering.isForceRefreshMode,
     // Add an alias for retry handler for better semantics
     onRetryContextGathering: () => contextGathering.startContextGathering(false)
   };

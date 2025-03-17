@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 from src.model.user_interaction import UserInteraction
 from src.model.context import UserAnswers, UserAnswer
 from src.model.scope import TaskScope
+from src.model.ifr import IFR
 from pydantic import BaseModel, Field   
 import json
 
@@ -46,6 +47,7 @@ class Task(BaseModel):
     eta_to_complete: Optional[str] = None
     contribution_to_parent_task: Optional[str] = None
     scope: Optional[TaskScope] = None
+    ifr: Optional[IFR] = None
     # analysis fields
     user_interaction: List[UserInteraction] = Field(default_factory=list)
     analysis: Dict = Field(default_factory=dict)
