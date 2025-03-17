@@ -12,7 +12,7 @@ import ApproachFormation from '../components/task/ApproachFormation';
 import Typification from '../components/task/Typification';
 import ClarificationSection from '../components/task/ClarificationSection';
 import Decomposition from '../components/task/Decomposition';
-import TaskFormulation from '../components/task/TaskFormulation';
+import TaskScopeFormulation from '../components/task/TaskFormulation';
 import IFRView from '../components/task/IFRView';
 import Breadcrumbs from '../components/task/Breadcrumbs';
 import { useTaskDetails } from '../hooks/useTaskDetails';
@@ -147,7 +147,7 @@ export default function TaskDetailsPage() {
 
             {task.sub_level === 0 && (
               // defin scope of the task
-              <TaskFormulation
+              <TaskScopeFormulation
                 task={task}
                 isContextGathered={task.state === TaskStates.CONTEXT_GATHERED || task.state === TaskStates.TASK_FORMATION}
                 onFormulate={handleFormulate}
@@ -156,7 +156,7 @@ export default function TaskDetailsPage() {
               />
             )}
 
-            {task.sub_level === 0 && (
+            {task.scope && task.scope.status === "approved" && (
               <IFRView
                 ifr={task.ifr}
                 isGeneratingIFR={isGeneratingIFR}

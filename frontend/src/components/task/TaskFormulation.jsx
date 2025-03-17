@@ -3,7 +3,7 @@ import { CollapsibleSection } from './TaskComponents';
 import { RefreshCcw, FileText, Check, ChevronRight, ArrowRight, AlertCircle } from 'lucide-react';
 import { getFormulationQuestions, submitFormulationAnswers, getDraftScope, validateScope } from '../../utils/api';
 
-export default function TaskFormulation({
+export default function TaskScopeFormulation({
     task,
     isContextGathered,
     onFormulate,
