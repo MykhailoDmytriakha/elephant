@@ -3,10 +3,10 @@ from typing import Dict, Any, Optional
 from .database_service import DatabaseService
 from src.services.openai_service import OpenAIService, ContextSufficiencyResult, ContextQuestion
 from src.model.task import Task, TaskState
-from src.user_interaction import UserInteraction
+from src.model.scope import ScopeFormulationGroup, ScopeQuestion, TaskScope, DraftScope, ValidationScopeResult
 import re
 import logging
-
+from typing import List
 logger = logging.getLogger(__name__)
 
 def extract_level(text):
@@ -55,52 +55,22 @@ class ProblemAnalyzer:
         # After context is gathered, process it to formulate the task
         return result
 
-    def process_context(self, task: Task) -> ContextSufficiencyResult:
-        """Process gathered context and formulate task"""
-        if task.state != TaskState.CONTEXT_GATHERED:
-            return ContextSufficiencyResult(
-                is_context_sufficient=False,
-                questions=[
-                    ContextQuestion(
-                        question="We need more information about your task. Could you elaborate?",
-                        options=[]
-                    )
-                ]
-            )
-
-        # Formulate the task based on gathered context
-        formulation = self.openai_service.formulate_task(task)
-        task.task = formulation["task"]
-        task.scope = formulation["scope"]
-
-        if formulation["is_context_sufficient"]:
-            task.update_state(TaskState.TASK_FORMATION)
-            self.db_service.updated_task(task)
-            
-            return ContextSufficiencyResult(
-                is_context_sufficient=True,
-                questions=[]
-            )
-        else:
-            # We can't transition back to CONTEXT_GATHERING from CONTEXT_GATHERED,
-            # so we'll just update the is_context_sufficient flag without changing state
-            task.is_context_sufficient = False
-            self.db_service.updated_task(task)
-            
-            follow_up_question = formulation.get(
-                "follow_up_question",
-                "Could you provide more details about your requirements?"
-            )
-            
-            return ContextSufficiencyResult(
-                is_context_sufficient=False,
-                questions=[
-                    ContextQuestion(
-                        question=follow_up_question,
-                        options=[]
-                    )
-                ]
-            )
+    async def define_scope_question(self, task: Task, group: str) -> List[ScopeFormulationGroup]:
+        # define scope based on gathered context
+        # Use OpenAI service to get suggestions based on the context
+        result_ai: List[ScopeQuestion] = await self.openai_service.formulate_scope_questions(task, group)
+        
+        # Convert questions to ScopeFormulationGroup using list comprehension
+        result = [ScopeFormulationGroup(**question.__dict__, group=group) for question in result_ai]
+        return result
+    
+    async def generate_draft_scope(self, task: Task) -> DraftScope:
+        draft_scope = await self.openai_service.generate_draft_scope(task)
+        return draft_scope
+    
+    async def validate_scope(self, task: Task, feedback: str) -> ValidationScopeResult:
+        validation_result = await self.openai_service.validate_scope(task, feedback)
+        return validation_result
 
     def analyze(self, task: Task, reAnalyze: bool = False):
         """Analyze the task and update its state"""

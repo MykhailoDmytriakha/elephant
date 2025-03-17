@@ -166,29 +166,56 @@ const TaskOverview = ({
                   </h3>
                   
                   <p className="text-blue-700 text-sm mb-3">
-                    Before we can analyze and break down your task, we need to gather more context about what you're trying to accomplish.
+                    {task.context_answers && task.context_answers.length > 0 
+                      ? "We need some additional information to complete the context gathering process."
+                      : "Before we can analyze and break down your task, we need to gather more context about what you're trying to accomplish."}
                   </p>
                   
                   <p className="text-blue-700 text-sm mb-4">
-                    This process will ask you a series of questions to help us understand your task better.
+                    {task.context_answers && task.context_answers.length > 0 
+                      ? `You've already provided ${task.context_answers.length} answers. Let's continue to ensure we fully understand your requirements.`
+                      : "This process will ask you a series of questions to help us understand your task better."}
                   </p>
                   
                   <button
                     onClick={handleStartGathering}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
-                    Start Context Gathering
+                    {task.context_answers && task.context_answers.length > 0 ? "Continue Context Gathering" : "Start Context Gathering"}
                   </button>
                 </div>
                 
+                {/* Display existing context answers when available but context is not sufficient */}
+                {currentStep === 'start' && task.context_answers && task.context_answers.length > 0 && !task.is_context_sufficient && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm mt-4">
+                    <CollapsibleSection 
+                      title={<span className="text-sm font-medium text-gray-700">Previously Provided Information ({task.context_answers.length})</span>}
+                      defaultOpen={false}
+                    >
+                      <ul className="list-disc pl-5 space-y-3 mt-2">
+                        {task.context_answers.map((item, index) => (
+                          <li key={index} className="pb-2">
+                            <div className="font-medium text-gray-800 mb-1">{item.question}</div>
+                            <div className="text-gray-700 ml-2 border-l-2 border-gray-200 pl-3">
+                              {item.answer}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </CollapsibleSection>
+                  </div>
+                )}
+                
                 {task.state === TaskStates.CONTEXT_GATHERING && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
                     <div className="flex items-start">
                       <AlertCircle className="w-5 h-5 text-yellow-500 mt-0.5 mr-3 flex-shrink-0" />
                       <div className="flex-1">
                         <h4 className="text-sm font-medium text-yellow-800 mb-1">Context Gathering Required</h4>
                         <p className="text-sm text-yellow-700">
-                          This task requires additional context before we can proceed with analysis and solution development.
+                          {task.context_answers && task.context_answers.length > 0 
+                            ? "You've made progress, but additional context is still needed before we can proceed with analysis and solution development."
+                            : "This task requires additional context before we can proceed with analysis and solution development."}
                         </p>
                       </div>
                     </div>

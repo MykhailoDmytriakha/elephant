@@ -73,11 +73,49 @@ export const deleteTask = async (taskId) => {
 };
 
 export const formulate_task = async (taskId) => {
+  // TODO: remove this completely with all dependencies
+  // This endpoint no longer exists - always return mock response
+  console.log('Using mock formulate_task implementation');
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 600));
+  return { success: true, message: "Task formulated successfully" };
+};
+
+export const getFormulationQuestions = async (taskId, groupId) => {
   try {
-      const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/formulate`);
-      return response.data;
+    console.log('Getting formulation questions for task:', taskId, 'and group:', groupId);
+    const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}/formulate/${groupId}`);
+    return response.data;
   } catch (error) {
-      throw new Error('Failed to formulate task');
+    handleApiError(error, 'Failed to get formulation questions');
+  }
+};
+
+export const submitFormulationAnswers = async (taskId, groupId, answers) => {
+  try {
+    console.log('Submitting formulation answers for task:', taskId, 'and group:', groupId, 'with answers:', answers);
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/formulate/${groupId}`, answers);
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'Failed to submit formulation answers');
+  }
+};
+
+export const getDraftScope = async (taskId) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}/draft-scope`);
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'Failed to get draft scope');
+  }
+};
+
+export const validateScope = async (taskId, isApproved, feedback = null) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/validate-scope`, { isApproved, feedback });
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'Failed to validate scope');
   }
 };
 

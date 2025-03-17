@@ -11,13 +11,13 @@ class ContextSufficiencyResult(BaseModel):
     questions: List[ContextQuestion]
     
 
-class ContextAnswer(BaseModel):
+class UserAnswer(BaseModel):
     question: str
     answer: str
     
 
-class ContextAnswers(BaseModel):
-    answers: List[ContextAnswer]
+class UserAnswers(BaseModel):
+    answers: List[UserAnswer]
     
 class ClarifiedTask(BaseModel):
     task: str

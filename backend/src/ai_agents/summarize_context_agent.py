@@ -3,6 +3,8 @@ from typing import List, Dict, Optional, Any
 from src.core.config import settings
 from src.model.task import Task
 from src.model.context import ClarifiedTask
+from src.ai_agents.utils import detect_language, get_language_instruction
+
 logger = logging.getLogger(__name__)
 
 # Try to import the OpenAI Agents SDK
@@ -31,9 +33,14 @@ async def summarize_context(
     if not AGENTS_SDK_AVAILABLE:
         logger.error("OpenAI Agents SDK not installed.")
         raise ImportError("OpenAI Agents SDK not installed. Please install with `pip install openai-agents`")
-
-    # Prepare the task information
-    task_description = task.task or task.short_description or ""
+    
+    # Detect language from task description
+    task_description = task.short_description or ""
+    user_language = detect_language(task_description)
+    logger.info(f"Detected language: {user_language}")
+    
+    # Get language-specific instruction
+    language_instruction = get_language_instruction(user_language)
     
     # Format the context answers if available
     context_answers_text = ""
@@ -52,41 +59,47 @@ async def summarize_context(
     2. A comprehensive context summary
 
     INPUT:
-    - TASK: {task_description}
+    - INITIAL USER INPUT: {task.short_description}
+    - TASK: {task.task}
     - CONTEXT ANSWERS: {context_answers_text}
 
+    {language_instruction}
+
     OUTPUT REQUIREMENTS:
-    1. Task clarification:
-       - Start with the core objective in one clear sentence
-       - List primary requirements in order of priority
-       - Include specific measurable outcomes or deliverables
+    1. Task clarification (What needs to be built):
+       - Begin with a single concise sentence stating the core objective
+       - Include only essential requirements in order of priority
+       - Define clear, measurable outcomes or deliverables
        - Use active voice and direct language
-       - Limit to 2-3 sentences maximum
+       - Limit to 3-5 lines maximum
        - Avoid parenthetical expressions and nested clauses
 
-    2. Context summary:
-       - Analyze and synthesize the context answers to identify:
-         * Core user requirements and preferences
-         * Any evolution or refinement of requirements through Q&A
-         * Conflicts in answers and their resolutions
-       - Structure the summary into these key aspects:
-         * Main objectives (from initial task and refined through Q&A)
-         * User preferences and constraints
-         * Technical requirements
-         * Important clarifications or changes from the Q&A process
-       - Keep focus on information actually provided in answers
-       - Highlight dependencies between different requirements
-       - Note any gaps or ambiguities that might need further clarification
+    2. Context summary (How it should be implemented):
+       - Organize information into these clear sections:
+         * Core Functionality (essential features)
+         * User Experience (user-facing considerations)
+         * Technical Requirements (implementation details)
+         * Open Questions (items needing further clarification)
+       - For each section:
+         * Use concise bullet points (1 line each)
+         * Prioritize requirements within sections
+         * Highlight dependencies between requirements
+         * Reference source information from Q&A where relevant
+       - Focus on synthesizing insights, not listing answers
+       - Separate confirmed requirements from tentative ones
+       - Ensure no contradictions with the task statement
 
-    3. Quality checks:
-       - Verify that task statement is actionable and measurable
-       - Ensure context captures all decision points from Q&A
-       - Confirm no loss of critical details in summarization
-       - Check for clarity and readability
+    3. Quality criteria:
+       - Task: Specific, Measurable, Actionable, Relevant, Time-bound
+       - Context: Comprehensive, Structured, Prioritized, Unambiguous
+       - Alignment: Context details must support and reference task objectives
+       - Clarity: Both outputs must be understandable without additional explanation
 
     The output must be formatted as a JSON object with 'task' and 'context' fields.
     """
     
+    logger.info(f"Summarizing context for the task")
+    logger.info(f"Summarization instructions: {instructions}")
     # Create the agent
     agent = Agent(
         name="ContextSummaryAgent",
@@ -100,5 +113,5 @@ async def summarize_context(
     
     # Process the response
     clarified_task = result.final_output
-    logger.info(f"Clarified task: {clarified_task}")
+    logger.info(f"Clarified task: {clarified_task.model_dump_json(indent=2)}")
     return clarified_task

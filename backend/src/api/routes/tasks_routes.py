@@ -1,16 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Tuple, Optional
-from src.model.context import ContextSufficiencyResult, ContextAnswers
+from src.model.context import ContextSufficiencyResult, UserAnswers, UserAnswer
 from src.api.deps import get_problem_analyzer, get_db_service
 from src.model.task import Task, TaskState
 from src.schemas.task import AnalysisResult, DecompositionResult, MethodSelectionResult, Typification
-from src.schemas.user_query import UserQuery
 from src.services.problem_analyzer import ProblemAnalyzer
 from src.services.database_service import DatabaseService
-from src.model.user_interaction import UserInteraction
+from src.model.scope import TaskScope, DraftScope, ValidationScopeResult
 import logging
 from pydantic import BaseModel
 from typing import List
+from src.model.scope import ScopeFormulationGroup
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,9 @@ class SelectedTools(BaseModel):
     class Config:
         extra = "allow"
 
+class ScopeValidationRequest(BaseModel):
+    isApproved: bool
+    feedback: Optional[str] = None
 
 # @router.post("/", response_model=Task)
 # # task creaeted manually by user
@@ -72,7 +75,7 @@ async def get_task(task_id: str, db: DatabaseService = Depends(get_db_service)):
 @router.post("/{task_id}/context-questions", response_model=ContextSufficiencyResult)
 async def update_task_context(
     task_id: str, 
-    context_answers: Optional[ContextAnswers] = None, 
+    context_answers: Optional[UserAnswers] = None, 
     force: bool = False,
     analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), 
     db: DatabaseService = Depends(get_db_service)
@@ -103,27 +106,146 @@ async def update_task_context(
         db.updated_task(task)
         return await analyzer.clarify_context(task)
     
-@router.post("/{task_id}/formulate", response_model=ContextSufficiencyResult)
+@router.get("/{task_id}/formulate/{group}", response_model=List[ScopeFormulationGroup])
 async def formulate_task(
     task_id: str,
+    group: str,
     analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
     db: DatabaseService = Depends(get_db_service)
 ):
     """Endpoint to explicitly trigger task formulation"""
     task_data = db.fetch_task_by_id(task_id)
     if task_data is None:
+        logger.error(f"Task with ID {task_id} not found")
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
     
     task = Task(**json.loads(task_data['task_json']))
     
-    if task.state != TaskState.CONTEXT_GATHERED:
+    if task.state != TaskState.CONTEXT_GATHERED and task.state != TaskState.TASK_FORMATION:
+        logger.error(f"Task must be in CONTEXT_GATHERED or TASK_FORMATION state. Current state: {task.state}")
         raise HTTPException(
             status_code=400,
-            detail=f"Task must be in CONTEXT_GATHERED state. Current state: {task.state}"
+            detail=f"Task must be in CONTEXT_GATHERED or TASK_FORMATION state. Current state: {task.state}"
+        )
+        
+    if task.scope:
+        if group in task.scope.__dict__.keys():
+            exist_group = getattr(task.scope, group)
+            if exist_group:
+                logger.info(f"Group {group} found in task scope")
+                raise HTTPException(status_code=400, detail=f"Group {group} already exists in task scope")
+    
+    result = await analyzer.define_scope_question(task, group)
+    return result
+
+@router.post("/{task_id}/formulate/{group}", response_model=dict)
+async def submit_formulation_answers(
+    task_id: str,
+    group: str,
+    answers: UserAnswers,
+    db: DatabaseService = Depends(get_db_service)
+):
+    """Submit formulation answers for a specific group"""
+    print(f"Submitting formulation answers for task {task_id} and group {group}")
+    print(f"Answers: {answers.json()}")
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    
+    task = Task(**json.loads(task_data['task_json']))
+    if task.state != TaskState.CONTEXT_GATHERED and task.state != TaskState.TASK_FORMATION:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Task must be in CONTEXT_GATHERED or TASK_FORMATION state. Current state: {task.state}"
         )
     
-    result = analyzer.process_context(task)
-    return result
+    # Update the task scope with formulation answers
+    if not task.scope:
+        task.scope = TaskScope()
+    
+    # Set the answers directly to the appropriate group as a list of UserAnswer objects
+    setattr(task.scope, group, answers.answers)
+    
+    # Update task state
+    task.state = TaskState.TASK_FORMATION
+    
+    # Save the updated task to the database
+    db.updated_task(task)
+    
+    return {"message": "Formulation answers submitted successfully"}
+
+@router.get("/{task_id}/draft-scope", response_model=DraftScope)
+async def get_draft_scope(
+    task_id: str, 
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), 
+    db: DatabaseService = Depends(get_db_service)
+    ):
+    """Get the draft scope for a specific task"""
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        logger.error(f"Task with ID {task_id} not found")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")    
+    
+    task = Task(**json.loads(task_data['task_json']))
+    if task.state != TaskState.TASK_FORMATION:
+        logger.error(f"Task must be in TASK_FORMATION state. Current state: {task.state}")
+        raise HTTPException(status_code=400, detail=f"Task must be in TASK_FORMATION state. Current state: {task.state}")
+    
+    # Generate the draft scope
+    draft_scope = await analyzer.generate_draft_scope(task)
+    
+    # Save the draft scope to the database
+    if not task.scope:
+        task.scope = TaskScope()
+        
+    task.scope.validation_criteria = draft_scope.validation_criteria
+    task.scope.scope = draft_scope.scope
+    task.scope.status = "draft"
+    db.updated_task(task)
+    
+    return draft_scope
+
+@router.post("/{task_id}/validate-scope", response_model=ValidationScopeResult)
+async def validate_scope(
+    task_id: str,
+    request: ScopeValidationRequest,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
+    """Validate the scope for a specific task"""
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        logger.error(f"Task with ID {task_id} not found")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    
+    task = Task(**json.loads(task_data['task_json']))
+    if task.state != TaskState.TASK_FORMATION:
+        logger.error(f"Task must be in TASK_FORMATION state. Current state: {task.state}")
+        raise HTTPException(status_code=400, detail=f"Task must be in TASK_FORMATION state. Current state: {task.state}")
+    
+    # Validate the scope
+    if not request.isApproved and not request.feedback:
+        logger.error("Feedback is required when scope is not approved")
+        raise HTTPException(status_code=400, detail="Feedback is required when scope is not approved")
+    
+    if not request.isApproved and request.feedback:
+        validation_result = await analyzer.validate_scope(task, request.feedback)
+        if task.scope and task.scope.scope:
+            task.scope.scope = validation_result.updatedScope
+            if task.scope.feedback:
+                task.scope.feedback.append(request.feedback)
+            else:
+                task.scope.feedback = [request.feedback]
+            
+        db.updated_task(task)
+        return validation_result
+    
+    # If scope is approved, update DB
+    if task.scope and task.scope.scope:
+        task.scope.status = "approved"
+        db.updated_task(task)
+        return ValidationScopeResult(updatedScope=task.scope.scope, changes=[])
+
 
 
 @router.post("/{task_id}/analyze", response_model=AnalysisResult)

@@ -51,8 +51,8 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
-      <div className="toast-container">
-        {toasts.map(toast => (
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col-reverse gap-3 max-h-[80vh] overflow-y-auto pr-1 toast-container" style={{ pointerEvents: 'none' }}>
+        {toasts.map((toast, index) => (
           <ToastNotification
             key={toast.id}
             message={toast.message}
@@ -60,6 +60,12 @@ export const ToastProvider = ({ children }) => {
             autoClose={toast.autoClose}
             duration={toast.duration}
             onClose={() => removeToast(toast.id)}
+            style={{ 
+              position: 'relative', 
+              bottom: 'auto', 
+              right: 'auto',
+              pointerEvents: 'auto'
+            }}
           />
         ))}
       </div>

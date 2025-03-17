@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, AlertCircle, CheckCircle, Info } from 'lucide-react';
 
 // Different types of notifications with their respective styling
@@ -26,35 +26,77 @@ const TOAST_TYPES = {
   },
 };
 
-const ToastNotification = ({ message, type = 'error', onClose, autoClose = true, duration = 5000 }) => {
+// Calculate appropriate duration based on message length
+// Approximately 500ms per word + 1000ms buffer
+const calculateDuration = (message) => {
+  const words = message.split(' ').length;
+  return Math.min(Math.max(words * 500 + 1000, 3000), 7000); // Between 3-7 seconds
+};
+
+const ToastNotification = ({ 
+  message, 
+  type = 'error', 
+  onClose, 
+  autoClose = true, 
+  duration: propDuration, 
+  style = {} 
+}) => {
   const [visible, setVisible] = useState(true);
+  const [isHovering, setIsHovering] = useState(false);
   const toastStyle = TOAST_TYPES[type] || TOAST_TYPES.error;
   const Icon = toastStyle.icon;
+  const duration = propDuration || calculateDuration(message);
+  
+  const timerRef = useRef(null);
 
+  // Setup auto close timer
   useEffect(() => {
-    if (autoClose && visible) {
-      const timer = setTimeout(() => {
+    if (autoClose && visible && !isHovering) {
+      timerRef.current = setTimeout(() => {
         setVisible(false);
-        if (onClose) setTimeout(onClose, 300); // Allow animation to complete
+        if (onClose) setTimeout(onClose, 400); // Allow animation to complete
       }, duration);
       
-      return () => clearTimeout(timer);
+      return () => clearTimeout(timerRef.current);
     }
-  }, [autoClose, duration, onClose, visible]);
+  }, [autoClose, duration, onClose, visible, isHovering]);
+  
+  // Handle mouse enter/leave to pause auto-close
+  const handleMouseEnter = () => {
+    setIsHovering(true);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+  };
+  
+  const handleMouseLeave = () => {
+    setIsHovering(false);
+    // Restart timer when mouse leaves
+    if (autoClose && visible) {
+      timerRef.current = setTimeout(() => {
+        setVisible(false);
+        if (onClose) setTimeout(onClose, 400);
+      }, duration);
+    }
+  };
 
   const handleClose = () => {
     setVisible(false);
-    if (onClose) setTimeout(onClose, 300); // Allow animation to complete
+    if (onClose) setTimeout(onClose, 400); // Allow animation to complete
   };
 
   return (
     <div
-      className={`fixed top-4 right-4 z-50 flex items-start p-4 mb-4 min-w-[320px] max-w-md 
+      className={`flex items-start p-4 min-w-[320px] max-w-md 
         ${toastStyle.bgColor} ${toastStyle.borderColor} border rounded-lg shadow-md
-        transition-all duration-300 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}
+        transition-all duration-400 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
       role="alert"
+      style={style}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      aria-live={type === 'error' ? 'assertive' : 'polite'}
     >
-      <div className="flex items-center">
+      <div className="flex items-center w-full">
         <Icon className={`w-5 h-5 mr-3 ${toastStyle.iconColor}`} />
         <div className={`text-sm font-medium ${toastStyle.textColor} flex-1 mr-2`}>
           {message}

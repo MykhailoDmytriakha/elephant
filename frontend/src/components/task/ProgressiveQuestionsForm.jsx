@@ -198,7 +198,7 @@ const ProgressiveQuestionsForm = ({
                               (typeof opt === 'string' ? opt : opt.text) === a
                             )
                           ).map((customAnswer, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
+                            <div key={idx} className="flex items-center mb-2">
                               <input
                                 type="text"
                                 value={customAnswer}
@@ -220,8 +220,8 @@ const ProgressiveQuestionsForm = ({
                                     ]
                                   );
                                 }}
-                                className={`mt-1 block w-full rounded-md shadow-sm text-sm
-                                  ${customAnswer === '' ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                                className={`block w-full rounded-md shadow-sm text-sm px-3 py-2 border
+                                  ${customAnswer === '' ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
                                 placeholder="Please specify"
                                 disabled={isSubmitting}
                               />
@@ -246,10 +246,11 @@ const ProgressiveQuestionsForm = ({
                                     ]
                                   );
                                 }}
-                                className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                                className="ml-2 p-2 rounded-full hover:bg-red-100 text-red-500 hover:text-red-700 flex-shrink-0"
                                 disabled={isSubmitting}
+                                aria-label="Remove item"
                               >
-                                <X className="w-4 h-4" />
+                                <X className="w-5 h-5" />
                               </button>
                             </div>
                           ))}
@@ -259,7 +260,7 @@ const ProgressiveQuestionsForm = ({
                             onClick={() => {
                               handleAnswerChange(question.id, [...(answers[question.id] || []), '']);
                             }}
-                            className="flex items-center text-sm text-blue-600 hover:text-blue-700"
+                            className="flex items-center text-sm text-blue-600 hover:text-blue-700 mt-2"
                             disabled={isSubmitting}
                           >
                             <span className="text-lg mr-1">+</span> Add another

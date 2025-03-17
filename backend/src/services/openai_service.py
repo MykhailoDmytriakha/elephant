@@ -1,19 +1,19 @@
 import json
 import logging
-from typing import TypedDict, List, Dict
+from typing import TypedDict, List, Dict, Optional
 from src.model.context import ContextSufficiencyResult, ContextQuestion
+from src.model.scope import ScopeQuestion
 from openai import OpenAI
 from src.services.prompts.analyze_task_prompt import ANALYZE_TASK_FUNCTIONS, ANALYZE_TASK_TOOLS, get_analyze_task_prompt
 from src.services.prompts.typify_task_prompt import TYPIFY_TASK_FUNCTIONS, TYPIFY_TASK_TOOLS, get_typify_task_prompt
 from src.services.prompts.clarifying_questions_prompt import CLARIFYING_QUESTIONS_FUNCTIONS, CLARIFYING_QUESTIONS_TOOLS, get_clarifying_questions_prompt
 from src.services.prompts.context_sufficient_prompt import CONTEXT_SUFFICIENT_FUNCTIONS, CONTEXT_SUFFICIENT_TOOLS, get_context_sufficient_prompt
 from src.services.prompts.generate_approaches_prompt import GENERATE_APPROACHES_FUNCTIONS, GENERATE_APPROACHES_TOOLS, get_generate_approaches_prompt
-from src.services.prompts.decompose_task_prompt import DECOMPOSE_TASK_FUNCTIONS, DECOMPOSE_TASK_TOOLS, get_decompose_task_prompt
-from src.services.prompts.formulate_task_prompt import FORMULATE_TASK_FUNCTIONS, FORMULATE_TASK_TOOLS, get_formulate_task_prompt
 from src.core.config import settings
 from src.model.task import Task
 from src.model.context import ClarifiedTask
-from src.ai_agents import context_sufficiency_agent, summarize_context_agent
+from src.model.scope import DraftScope, ValidationScopeResult
+from src.ai_agents import context_sufficiency_agent, summarize_context_agent, scope_formulation_agent
 
 logger = logging.getLogger(__name__)
 
@@ -84,48 +84,69 @@ class OpenAIService:
             raise e
             
 
-    def formulate_task(self, task: Task) -> dict:
-        """Formulate clear task definition based on gathered context"""
+    async def formulate_scope_questions(self, task: Task, group: str) -> List[ScopeQuestion]:
+        """
+        Formulate scope questions for a given group
+        
+        Args:
+            task: The task containing the context information
+            group: The group of scope questions to formulate
+            
+        Returns:
+            List[ScopeQuestion]: List of scope questions
+        """
+        logger.info("Called formulate_scope_questions method")
         try:
-            prompt = get_formulate_task_prompt(task)
-
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                tools=FORMULATE_TASK_TOOLS,
-                tool_choice={"type": "function", "function": {"name":"formulate_task"}}
-            )
-
-            function = response.choices[0].message.tool_calls[0].function
-            if function:
-                result = json.loads(function.arguments)
-                logger.debug(f"OpenAI API response: {result}")
-                return result
-            else:
-                fallback_result: Dict[str, object] = {
-                    "task": task.short_description,
-                    "is_context_sufficient": False,
-                    "follow_up_question": "Could you provide more details about what needs to be accomplished?",
-                    "scope": {}
-                }
-                logger.warning(f"OpenAI API fallback response: {fallback_result}")
-                return fallback_result
+            # Use the extracted agent logic from the dedicated module
+            return await scope_formulation_agent.formulate_scope_questions(task, group)
+        except ImportError as e:
+            logger.warning(f"OpenAI Agents SDK not installed: {str(e)}")
+            raise e
         except Exception as e:
-            logger.error(f"OpenAI API error in formulate_task: {str(e)}")
-            fallback_result = {
-                "task": task.short_description or "Task undefined due to technical issue",
-                "is_context_sufficient": False,
-                "follow_up_question": "I'm experiencing some technical difficulties with the task formulation. Could you provide more details about what you're trying to accomplish?",
-                "scope": {}
-            }
-            logger.warning(f"OpenAI API error fallback response: {fallback_result}")
-            return fallback_result
+            logger.error(f"Error in formulate_scope_questions: {str(e)}")
+            raise e
+    
+    async def generate_draft_scope(self, task: Task) -> DraftScope:
+        """
+        Generate a draft scope for a given task
+        
+        Args:
+            task: The task containing the context information
+            
+        Returns:
+            str: Draft scope for the task
+        """
+        logger.info("Called generate_draft_scope method")
+        try:
+            # Use the extracted agent logic from the dedicated module
+            return await scope_formulation_agent.generate_draft_scope(task)
+        except ImportError as e:
+            logger.warning(f"OpenAI Agents SDK not installed: {str(e)}")
+            raise e
+        except Exception as e:
+            logger.error(f"Error in generate_draft_scope: {str(e)}")
+            raise e
+    
+    async def validate_scope(self, task: Task, feedback: str) -> ValidationScopeResult:
+        """
+        Validate the scope for a given task
+        """
+        logger.info("Called validate_scope method")
+        try:
+            # Use the extracted agent logic from the dedicated module
+            return await scope_formulation_agent.validate_scope(task, feedback)
+        except ImportError as e:
+            logger.warning(f"OpenAI Agents SDK not installed: {str(e)}")
+            raise e
+        except Exception as e:
+            logger.error(f"Error in validate_scope: {str(e)}")
+            raise e
 
     def analyze_task(self, task: Task) -> dict:
         logger.info("Called analyze_task method")
         try:
             context = self._gather_context(task)
-            prompt = get_analyze_task_prompt(task_description=task.task or task.short_description or "", context=context, scope=task.scope or {})
+            prompt = get_analyze_task_prompt(task_description=task.task or task.short_description or "", context=context, scope={})
             logger.debug(f"OpenAI API prompt: {prompt}")
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -307,49 +328,7 @@ class OpenAIService:
             return fallback_result
 
     def decompose_task(self, task: Task) -> dict:
-        logger.info("Called decompose_task method")
-        try:
-            context = self._gather_context(task)
-            prompt = get_decompose_task_prompt(task, context)
-
-            logger.debug(f"OpenAI API prompt: {prompt}")
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                tools=DECOMPOSE_TASK_TOOLS,
-                tool_choice={"type": "function", "function": {"name":"decompose_task"}}
-            )
-
-            function = response.choices[0].message.tool_calls[0].function
-            if function:
-                result = json.loads(function.arguments)
-                logger.debug(f"OpenAI API response: {result}")
-                return result
-            else:
-                fallback_result: Dict[str, object] = {
-                    "sub_tasks": None
-                }
-                logger.warning(f"OpenAI API fallback response: {fallback_result}")
-                return fallback_result
-        except Exception as e:
-            logger.error(f"OpenAI API error in decompose_task: {str(e)}")
-            # Create a basic subtask structure for default response
-            error_fallback_result: Dict[str, List[Dict[str, object]]] = {
-                "sub_tasks": [
-                    {
-                        "task": task.short_description or "Task",
-                        "short_description": "Technical issue encountered",
-                        "context": "We're experiencing technical difficulties",
-                        "complexity_level": "LEVEL_1",
-                        "order": 1,
-                        "contribution_to_parent_task": "Full task (technical issue)",
-                        "eta": {"time": "Unknown", "explanation": "Technical issue"},
-                        "scope": {}
-                    }
-                ]
-            }
-            logger.warning(f"OpenAI API error fallback response: {error_fallback_result}")
-            return error_fallback_result
+        return {"sub_tasks": []}
 
     
 

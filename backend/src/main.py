@@ -13,7 +13,7 @@ sys.path.append(str(project_root))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.api.routes import user_queries_routes, tasks_routes
+from src.api.routes import user_queries_routes, tasks_routes, util_routes
 import logging
 import uvicorn
 
@@ -42,6 +42,7 @@ app.add_middleware(
 # Include routes
 app.include_router(user_queries_routes.router, prefix="/user-queries", tags=["User Queries"])
 app.include_router(tasks_routes.router, prefix="/tasks", tags=["Tasks"])
+app.include_router(util_routes.router, prefix="/utils", tags=["Utilities"])
 # Add other routes as needed
 
 if __name__ == "__main__":

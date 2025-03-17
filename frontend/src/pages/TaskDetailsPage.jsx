@@ -146,7 +146,7 @@ export default function TaskDetailsPage() {
               // defin scope of the task
               <TaskFormulation
                 task={task}
-                isContextGathered={task.state === TaskStates.CONTEXT_GATHERED}
+                isContextGathered={task.state === TaskStates.CONTEXT_GATHERED || task.state === TaskStates.TASK_FORMATION}
                 onFormulate={handleFormulate}
                 isFormulating={isFormulating}
               />
@@ -154,7 +154,7 @@ export default function TaskDetailsPage() {
 
             <Analysis
               analysis={task.analysis}
-              isContextSufficient={task.is_context_sufficient}
+              isContextSufficient={task.is_context_sufficient && task.state === TaskStates.ANALYSIS}
               isAnalyzing={isAnalyzing}
               onAnalyze={handleAnalyze}
             />

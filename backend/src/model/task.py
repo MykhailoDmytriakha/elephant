@@ -3,7 +3,8 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional, Dict, Any
 from src.model.user_interaction import UserInteraction
-from src.model.context import ContextAnswers, ContextAnswer
+from src.model.context import UserAnswers, UserAnswer
+from src.model.scope import TaskScope
 from pydantic import BaseModel, Field   
 import json
 
@@ -38,13 +39,13 @@ class Task(BaseModel):
     short_description: Optional[str] = ''
     state: TaskState = Field(default=TaskState.NEW)
     is_context_sufficient: bool = False
-    context_answers: List[ContextAnswer] = Field(default_factory=list)
+    context_answers: List[UserAnswer] = Field(default_factory=list)
     context: Optional[str] = None
     level: Optional[str] = None
     complexity: Optional[int] = None
     eta_to_complete: Optional[str] = None
     contribution_to_parent_task: Optional[str] = None
-    scope: Optional[dict] = Field(default_factory=dict, description="Task scope definition")
+    scope: Optional[TaskScope] = None
     # analysis fields
     user_interaction: List[UserInteraction] = Field(default_factory=list)
     analysis: Dict = Field(default_factory=dict)
@@ -88,7 +89,7 @@ class Task(BaseModel):
             approaches={},
         )
         
-    def add_context_answers(self, context_answers: ContextAnswers):
+    def add_context_answers(self, context_answers: UserAnswers):
         for answer in context_answers.answers:
             self.context_answers.append(answer)
 

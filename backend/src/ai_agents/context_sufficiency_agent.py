@@ -4,10 +4,11 @@ from pydantic import BaseModel
 from src.core.config import settings
 from src.model.context import ContextSufficiencyResult, ContextQuestion
 from src.model.task import Task
+from src.ai_agents.utils import detect_language, get_language_instruction
 
 logger = logging.getLogger(__name__)
 try:
-    from agents import Agent, Runner
+    from agents import Agent, Runner  # type: ignore # noqa
     model = settings.OPENAI_MODEL
     AGENTS_SDK_AVAILABLE = True
 except ImportError:
@@ -29,9 +30,14 @@ async def analyze_context_sufficiency(
     if not AGENTS_SDK_AVAILABLE:
         logger.error("OpenAI Agents SDK not installed.")
         raise ImportError("OpenAI Agents SDK not installed. Please install with `pip install openai-agents`")
-
-    # Prepare the task information
-    task_description = task.task or task.short_description or ""
+    
+    # Detect language from task description
+    task_description = task.short_description or ""
+    user_language = detect_language(task_description)
+    logger.info(f"Detected language: {user_language}")
+    
+    # Get language-specific instruction
+    language_instruction = get_language_instruction(user_language)
     
     # Format the context answers if available
     context_answers_text = ""
@@ -45,16 +51,28 @@ async def analyze_context_sufficiency(
     instructions = f"""
     Analyze the following task and context information to determine if there's sufficient context to proceed.
     
-    TASK: {task_description}    
+    TASK: {task.short_description}    
     CONTEXT ANSWERS: {context_answers_text}
+    
+    {language_instruction}
     
     If the context is insufficient, provide questions to gather more information.
     Each question should be specific and focused on resolving ambiguities or filling gaps.
     For each question, provide 3-5 possible options if appropriate.
     Do not include options like "both", "all", "none", etc.
-    Your analysis should be thorough and comprehensive. Ask as many clarifying questions as needed to ensure all aspects of the task are fully understood and all potential ambiguities are resolved. The questions should systematically cover all dimensions of the task context to leave no significant gaps in understanding.
+    
+    IMPORTANT: Do NOT ask follow-up questions about topics where the user has indicated they will address it later 
+    (responses like "we'll determine this later", "we'll figure this out later", "this will be decided later", etc.). 
+    These topics should be deferred to the scope formulation phase instead of being asked again.
+    
+    Your analysis should be thorough and comprehensive. Ask clarifying questions for ambiguous or missing information,
+    but respect when the user has explicitly deferred a decision to later stages. The questions should systematically 
+    cover all dimensions of the task context to leave no significant gaps in understanding, except for intentionally 
+    deferred topics.
     """
     
+    logger.info(f"Analyzing context sufficiency for the task")
+    logger.info(f"Analysis instructions: {instructions}")
     # Create the agent
     agent = Agent(
         name="ContextSufficiencyAgent",
@@ -68,5 +86,5 @@ async def analyze_context_sufficiency(
     
     # Process the response
     result = result.final_output
-    logger.info(f"Context sufficiency result: {result}")
+    logger.info(f"Context sufficiency result: {result.model_dump_json(indent=2)}")
     return result
