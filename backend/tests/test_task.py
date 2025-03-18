@@ -1,7 +1,6 @@
 import unittest
 from datetime import datetime, timedelta
 from src.model.task import Task, TaskState
-from src.model.user_interaction import UserInteraction
 from uuid import UUID
 
 class TestTaskModel(unittest.TestCase):
@@ -18,20 +17,6 @@ class TestTaskModel(unittest.TestCase):
         self.assertEqual(task.state, TaskState.CONTEXT_GATHERING)
         with self.assertRaises(ValueError):
             task.update_state(TaskState.COMPLETED)  # Invalid transition
-
-    def test_add_user_interaction(self):
-        task = Task()
-        interaction = UserInteraction(query="What is the status?", answer="Pending")
-        task.add_user_interaction(interaction)
-        self.assertEqual(len(task.user_interaction), 1)
-        self.assertEqual(task.user_interaction[0].query, "What is the status?")
-
-    def test_formatted_user_interaction(self):
-        task = Task()
-        interaction = UserInteraction(query="What is the status?", answer="Pending")
-        task.add_user_interaction(interaction)
-        formatted = task.formatted_user_interaction
-        self.assertEqual(formatted, "Q: What is the status?\nA: Pending")
 
     def test_to_dict(self):
         task = Task()

@@ -1,14 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
-from typing import Tuple, Optional
-from src.model.context import ContextSufficiencyResult, UserAnswers, UserAnswer
+from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+from src.model.context import ContextSufficiencyResult, UserAnswers
 from src.api.deps import get_problem_analyzer, get_db_service
 from src.model.task import Task, TaskState
-from src.schemas.task import AnalysisResult, DecompositionResult, MethodSelectionResult, Typification
 from src.services.problem_analyzer import ProblemAnalyzer
 from src.services.database_service import DatabaseService
-from src.model.scope import TaskScope, DraftScope, ValidationScopeResult
+from src.model.scope import TaskScope, DraftScope, ValidationScopeResult, ScopeValidationRequest
 import logging
-from pydantic import BaseModel
 from typing import List
 from src.model.scope import ScopeFormulationGroup
 from src.model.ifr import IFR
@@ -17,21 +15,6 @@ logger = logging.getLogger(__name__)
 import json
 
 router = APIRouter()
-
-class ClarificationRequest(BaseModel):
-    message: Optional[str] = None
-
-class SelectedTools(BaseModel):
-    analytical_tools: List[str]
-    practical_methods: List[str]
-    frameworks: List[str]
-    
-    class Config:
-        extra = "allow"
-
-class ScopeValidationRequest(BaseModel):
-    isApproved: bool
-    feedback: Optional[str] = None
 
 # @router.post("/", response_model=Task)
 # # task creaeted manually by user
@@ -268,142 +251,3 @@ async def generate_ifr(
     task.ifr = ifr
     db.updated_task(task)
     return ifr
-
-
-
-@router.post("/{task_id}/analyze", response_model=AnalysisResult)
-async def analyze_task(
-    task_id: str, 
-    reAnalyze: bool = False, 
-    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
-    db: DatabaseService = Depends(get_db_service)
-):
-    """Analyze a task to determine its type and complexity"""
-    task_data = db.fetch_task_by_id(task_id)
-    if task_data is None:
-        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
-    
-    # Convert task_data to Task object
-    task_dict = json.loads(task_data['task_json'])
-    task = Task(**task_dict)
-    
-    if task.state == TaskState.NEW or reAnalyze:
-        try:
-            # Analyze the task
-            analyzer.analyze(task, reAnalyze)
-            task.state = TaskState.ANALYSIS
-            db.updated_task(task)
-            # Update progress to 25% after analysis
-            db.update_user_query_progress(task_id, 25.0)
-            # Create and return the AnalysisResult
-            analysis_result = AnalysisResult(analysis=task.analysis)
-            return analysis_result
-        except Exception as e:
-            logger.error(f"Error analyzing task: {e}")
-            raise HTTPException(status_code=500, detail=f"Error analyzing task: {str(e)}")
-    else:
-        return AnalysisResult(analysis=task.analysis)
-
-@router.post("/{task_id}/typify", response_model=Typification)
-async def typify_task(task_id: str, reTypify: bool = False, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
-    """Typify a task to determine its type and complexity"""
-    task_data = db.fetch_task_by_id(task_id)
-    if task_data is None:
-        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
-    
-    # Convert task_data to Task object
-    task_dict = json.loads(task_data['task_json'])
-    task = Task(**task_dict)
-    
-    if task.state == TaskState.ANALYSIS or reTypify:
-        try:
-            # Typify the task
-            analyzer.typify(task)
-            task.state = TaskState.TYPIFY
-            db.updated_task(task)
-            # Update progress to 50% after typification
-            db.update_user_query_progress(task_id, 50.0)
-            return Typification(typification=task.typification)
-        except Exception as e:
-            logger.error(f"Error typifying task: {e}")
-            raise HTTPException(status_code=500, detail=f"Error typifying task: {str(e)}")
-    else:
-        return Typification(typification=task.typification)
-
-@router.post("/{task_id}/clarify", response_model=dict)
-async def clarify_for_approaches(task_id: str, request: ClarificationRequest, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
-    """
-    Handle the clarification dialogue before approaches generation.
-    If message is None, generate initial questions.
-    If message is provided, process the answer and return next question.
-    """
-    task_data = db.fetch_task_by_id(task_id)
-    if task_data is None:
-        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
-    
-    task_dict = json.loads(task_data['task_json'])
-    task = Task(**task_dict)
-    
-    # Check if task is in appropriate state
-    if task.state not in [TaskState.TYPIFY, TaskState.CLARIFYING]:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Task must be in TYPIFY or CLARIFYING state. Current state: {task.state}"
-        )
-    
-    # Start or continue clarification dialogue
-    clarification_result = analyzer.clarify_for_approaches(task, request.message)
-    
-    return clarification_result 
-
-@router.post("/{task_id}/approaches", response_model=dict)
-async def generate_approaches(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), db: DatabaseService = Depends(get_db_service)):
-    """Generate approaches for a specific task"""
-    task_data = db.fetch_task_by_id(task_id)
-    if task_data is None:
-        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
-    task_dict = json.loads(task_data['task_json'])
-    task = Task(**task_dict)
-    analyzer.generate_approaches(task)
-    return task.approaches
-
-    
-@router.post("/{task_id}/decompose")
-async def decompose_task(
-    task_id: str,
-    selected_tools: SelectedTools,
-    redecompose: bool = False,
-    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
-    db: DatabaseService = Depends(get_db_service)
-):
-    """Decompose a task into subtasks"""
-    task_data = db.fetch_task_by_id(task_id)
-    if task_data is None:
-        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
-    
-    # Convert task_data to Task object
-    task_dict = json.loads(task_data['task_json'])
-    task = Task(**task_dict)
-    
-    if task.state == TaskState.METHOD_SELECTION or redecompose:
-        try:
-            task.approaches['selected_approaches'] = selected_tools.dict()
-            # Decompose the task
-            analyzer.decompose(task, redecompose)
-            task.state = TaskState.DECOMPOSITION
-            db.updated_task(task)
-            # Update progress to 100% after decomposition
-            db.update_user_query_progress(task_id, 100.0)
-            return task.sub_tasks
-        except Exception as e:
-            logger.error(f"Error decomposing task: {e}")
-            raise HTTPException(status_code=500, detail=f"Error decomposing task: {str(e)}")
-    else:
-        return task.sub_tasks
-    
-
-
-@router.get("/{task_id}/tree", response_model=Task)
-async def get_task_tree(task_id: str, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):
-    """Get the task tree for a specific task"""
-    # Implementation here

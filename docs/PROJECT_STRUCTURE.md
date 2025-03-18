@@ -9,9 +9,13 @@ elephant/
 ├── backend/                  # Backend FastAPI application
 │   ├── src/                  # Source code
 │   │   ├── api/              # API endpoint definitions
-│   │   ├── db/               # Database models and access
-│   │   ├── models/           # Data models and schemas
+│   │   │   ├── routes/       # API route handlers
+│   │   │   └── deps.py       # Dependency injection
+│   │   ├── model/            # Data models and schemas
+│   │   ├── schemas/          # Pydantic request/response schemas
 │   │   ├── services/         # Business logic services
+│   │   ├── ai_agents/        # AI agent implementations
+│   │   ├── core/             # Core functionality
 │   │   └── main.py           # Application entry point
 │   ├── tests/                # Test files
 │   ├── .env                  # Environment variables
@@ -23,9 +27,11 @@ elephant/
 │   ├── src/                  # Source code
 │   │   ├── components/       # React components
 │   │   ├── pages/            # Page components
-│   │   ├── services/         # API service calls
+│   │   ├── hooks/            # Custom React hooks
+│   │   ├── context/          # React context providers
 │   │   ├── utils/            # Utility functions
-│   │   ├── App.js            # Main component
+│   │   ├── constants/        # Constant values
+│   │   ├── App.jsx           # Main component
 │   │   └── index.js          # Entry point
 │   ├── public/               # Static assets
 │   ├── package.json          # Node dependencies
@@ -47,7 +53,10 @@ elephant/
 │   ├── API.md                # API reference
 │   ├── ARCHITECTURE.md       # System architecture
 │   ├── PROJECT_STRUCTURE.md  # This file
-│   └── USER_GUIDE.md         # End-user guide
+│   ├── STATE_TRANSITIONS.md  # State transition rules
+│   ├── USER_GUIDE.md         # End-user guide
+│   ├── task-mermaid-diagram.md # Task flow diagram
+│   └── main-page-mermaid-diagram.md # Main page flow diagram
 │
 ├── .vscode/                  # VSCode settings
 ├── .idea/                    # IntelliJ IDEA settings
@@ -67,9 +76,16 @@ The backend directory contains the FastAPI application that provides the REST AP
 
 - **`/backend/src`**: Main source code
   - **`/backend/src/api`**: API route definitions and endpoint handlers
-  - **`/backend/src/db`**: Database models, migrations, and access layer
-  - **`/backend/src/models`**: Pydantic models for request/response validation
+    - **`/backend/src/api/routes`**: API route handlers for different resources
+    - **`/backend/src/api/deps.py`**: Dependency injection for FastAPI
+  - **`/backend/src/model`**: Data models for tasks, context, scope, and IFR
+  - **`/backend/src/schemas`**: Pydantic models for request/response validation
   - **`/backend/src/services`**: Business logic services for task processing
+    - **`/backend/src/services/database_service.py`**: Database operations
+    - **`/backend/src/services/openai_service.py`**: OpenAI API integration
+    - **`/backend/src/services/problem_analyzer.py`**: Task analysis logic
+  - **`/backend/src/ai_agents`**: AI agent implementations for task processing
+  - **`/backend/src/core`**: Core functionality and configurations
   - **`/backend/src/main.py`**: Application entry point and server configuration
 
 - **`/backend/tests`**: Test files for the backend application
@@ -84,9 +100,14 @@ The frontend directory contains the React application that provides the user int
 - **`/frontend/src`**: Main source code
   - **`/frontend/src/components`**: Reusable UI components
   - **`/frontend/src/pages`**: Page-level components (routes)
-  - **`/frontend/src/services`**: API service calls to backend
+    - **`/frontend/src/pages/MainPage.jsx`**: Main dashboard
+    - **`/frontend/src/pages/TaskDetailsPage.jsx`**: Task details view
+  - **`/frontend/src/hooks`**: Custom React hooks
+    - **`/frontend/src/hooks/useTaskDetails.js`**: Task details logic
+  - **`/frontend/src/context`**: React context providers
   - **`/frontend/src/utils`**: Utility functions and helpers
-  - **`/frontend/src/App.js`**: Main component with routing
+  - **`/frontend/src/constants`**: Constant values including task states
+  - **`/frontend/src/App.jsx`**: Main component with routing
   - **`/frontend/src/index.js`**: Application entry point
 
 - **`/frontend/public`**: Static assets and HTML template
@@ -116,7 +137,10 @@ The docs directory contains project documentation for developers and users.
 - **`/docs/API.md`**: API reference documentation
 - **`/docs/ARCHITECTURE.md`**: System architecture documentation
 - **`/docs/PROJECT_STRUCTURE.md`**: Directory structure documentation (this file)
+- **`/docs/STATE_TRANSITIONS.md`**: State transition rules documentation
 - **`/docs/USER_GUIDE.md`**: End-user guide
+- **`/docs/task-mermaid-diagram.md`**: Mermaid diagram for task processing flow
+- **`/docs/main-page-mermaid-diagram.md`**: Mermaid diagram for main page flow
 
 ## Root Files
 
@@ -131,11 +155,12 @@ The docs directory contains project documentation for developers and users.
 1. Frontend development is primarily done in the `/frontend/src` directory
 2. Backend development is primarily done in the `/backend/src` directory
 3. Design changes should be documented in `/data/design`
-4. Database schema changes affect `/backend/src/db` and should be reflected in `/data/design/tables.txt`
+4. Database schema changes affect model definitions and should be reflected in appropriate documentation
 
 ## Related Documentation
 
 - [System Architecture](ARCHITECTURE.md)
 - [API Documentation](API.md)
 - [User Guide](USER_GUIDE.md)
+- [State Transitions](STATE_TRANSITIONS.md)
 - [Main README](../README.md) 

@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any
-from src.model.user_interaction import UserInteraction
+from typing import List, Optional, Dict
 from src.model.context import UserAnswers, UserAnswer
 from src.model.scope import TaskScope
 from src.model.ifr import IFR
@@ -49,7 +48,6 @@ class Task(BaseModel):
     scope: Optional[TaskScope] = None
     ifr: Optional[IFR] = None
     # analysis fields
-    user_interaction: List[UserInteraction] = Field(default_factory=list)
     analysis: Dict = Field(default_factory=dict)
     typification: Dict = Field(default_factory=dict)
     clarification_data: Dict = Field(default_factory=dict)
@@ -86,7 +84,6 @@ class Task(BaseModel):
             sub_level=0,
             is_context_sufficient=False,
             short_description='',
-            user_interaction=[],
             analysis={},
             approaches={},
         )
@@ -94,13 +91,6 @@ class Task(BaseModel):
     def add_context_answers(self, context_answers: UserAnswers):
         for answer in context_answers.answers:
             self.context_answers.append(answer)
-
-    def add_user_interaction(self, user_interaction: UserInteraction):
-        self.user_interaction.append(user_interaction)
-
-    @property
-    def formatted_user_interaction(self) -> str:
-            return "\n".join([f"Q: {user_interaction.query}\nA: {user_interaction.answer}" for user_interaction in self.user_interaction])
 
     def update_state(self, new_state: TaskState):
         if self._is_valid_state_transition(new_state):

@@ -6,12 +6,6 @@ import { useContextGathering } from './useContextGathering';
 import { 
   fetchTaskDetails, 
   deleteTask, 
-  analyzeTask, 
-  generateApproaches, 
-  typifyTask, 
-  clarifyTask, 
-  decomposeTask,
-  formulate_task,
   generateIFR,
 } from '../utils/api';
 
@@ -26,12 +20,6 @@ export function useTaskDetails(taskId) {
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedApproachItems, setSelectedApproachItems] = useState({
-    analytical_tools: [],
-    practical_methods: [],
-    frameworks: [],
-  });
-  const [isDecompositionStarted, setIsDecompositionStarted] = useState(false);
 
   // Load task details
   const loadTask = async () => {
@@ -56,65 +44,12 @@ export function useTaskDetails(taskId) {
   // Context gathering hook - loadTask is used to refresh task data after context operations
   const contextGathering = useContextGathering(taskId, loadTask);
 
-  // Task operation hooks
-  const [handleFormulate, isFormulating] = useTaskOperation(
-    (isReformulate = false) => formulate_task(taskId), 
-    loadTask,
-    { successMessage: 'Task formulated successfully', errorMessage: 'Failed to formulate task' }
-  );
-
-  const [handleAnalyze, isAnalyzing] = useTaskOperation(
-    (isReanalyze = false) => analyzeTask(taskId, isReanalyze),
-    loadTask,
-    { 
-      successMessage: (args) => args[0] ? 'Task reanalyzed successfully' : 'Task analyzed successfully',
-      errorMessage: 'Failed to analyze task'
-    }
-  );
-
   const [handleGenerateIFR, isGeneratingIFR] = useTaskOperation(
     () => generateIFR(taskId),
     loadTask,
     {
       successMessage: 'Ideal Final Result generated successfully',
       errorMessage: 'Failed to generate Ideal Final Result'
-    }
-  );
-
-  const [handleTypify, isTypifying] = useTaskOperation(
-    (isRetypify = false) => typifyTask(taskId, isRetypify),
-    loadTask,
-    {
-      successMessage: (args) => args[0] ? 'Task retypified successfully' : 'Task typified successfully',
-      errorMessage: 'Failed to typify task'
-    }
-  );
-
-  const [handleRegenerateApproaches, isRegeneratingApproaches] = useTaskOperation(
-    () => generateApproaches(taskId),
-    loadTask,
-    { successMessage: 'Approaches regenerated successfully', errorMessage: 'Failed to regenerate approaches' }
-  );
-
-  const [handleClarification, isStartingClarificationLoading] = useTaskOperation(
-    (message = null) => clarifyTask(taskId, message),
-    loadTask,
-    { 
-      successMessage: (args) => args[0] ? 'Clarification response sent' : '',
-      errorMessage: 'Failed to process clarification',
-      showToasts: (args) => !!args[0] // Only show toast for messages, not initial clarification
-    }
-  );
-
-  const [handleDecompose, isDecomposing] = useTaskOperation(
-    (selectedItems, isRedecompose = false) => {
-      setIsDecompositionStarted(true);
-      return decomposeTask(taskId, selectedItems, isRedecompose);
-    },
-    loadTask,
-    {
-      successMessage: (args) => args[1] ? 'Task redecomposed successfully' : 'Task decomposed successfully',
-      errorMessage: 'Failed to decompose task'
     }
   );
 
@@ -133,38 +68,18 @@ export function useTaskDetails(taskId) {
     navigate('/');
   };
 
-  const handleApproachSelectionChange = (selections) => {
-    setSelectedApproachItems(selections);
-  };
-
   return {
     // State
     task,
     loading,
     error,
-    selectedApproachItems,
-    isDecompositionStarted,
     
     // Operations
     loadTask,
     handleBack,
     handleDelete,
-    handleFormulate,
-    isFormulating,
-    handleAnalyze,
-    isAnalyzing,
     handleGenerateIFR,
     isGeneratingIFR,
-    handleTypify,
-    isTypifying,
-    handleRegenerateApproaches,
-    isRegeneratingApproaches,
-    handleClarification,
-    isStartingClarificationLoading,
-    handleDecompose,
-    isDecomposing,
-    handleApproachSelectionChange,
-    
     // Context gathering
     ...contextGathering,
     // Track if we're in force refresh mode

@@ -33,3 +33,7 @@ class TaskScope(BaseModel):
     scope: Optional[str] = None
     status: Optional[str] = None
     feedback: Optional[List[str]] = None
+    
+class ScopeValidationRequest(BaseModel):
+    isApproved: bool
+    feedback: Optional[str] = None

@@ -49,64 +49,40 @@ Retrieves a list of all user queries.
 - **Method**: `GET`
 - **Response**:
   ```json
-  {
-    "status": "success",
-    "data": {
-      "queries": [
-        {
-          "id": "uuid-string",
-          "query": "How does the internet work?",
-          "created_at": "2023-12-06T23:30:55.776380",
-          "task_id": "uuid-string"
-        },
-        // Additional queries
-      ]
-    }
-  }
+  [
+    {
+      "id": 1,
+      "query": "How does the internet work?",
+      "created_at": "2023-12-06T23:30:55.776380",
+      "task_id": "uuid-string",
+      "status": "PENDING",
+      "progress": 0.0
+    },
+    // More queries...
+  ]
   ```
 
-#### Create a New User Query
+#### Create User Query
 
-Creates a new query and initializes the associated task.
+Creates a new user query and associated task.
 
 - **URL**: `/user-queries/`
 - **Method**: `POST`
 - **Request Body**:
   ```json
   {
-    "query": "How does the internet work?"
+    "query": "What is the status of my order?"
   }
   ```
 - **Response**:
   ```json
   {
-    "status": "success",
-    "data": {
-      "query_id": "uuid-string",
-      "task_id": "uuid-string",
-      "query": "How does the internet work?"
-    }
-  }
-  ```
-
-#### Get a Specific User Query
-
-Retrieves details of a specific query by ID.
-
-- **URL**: `/user-queries/{query_id}`
-- **Method**: `GET`
-- **URL Parameters**:
-  - `query_id` - UUID of the query
-- **Response**:
-  ```json
-  {
-    "status": "success",
-    "data": {
-      "id": "uuid-string",
-      "query": "How does the internet work?",
-      "created_at": "2023-12-06T23:30:55.776380",
-      "task_id": "uuid-string"
-    }
+    "id": 1,
+    "query": "What is the status of my order?",
+    "created_at": "2023-12-06T23:30:55.776380",
+    "task_id": "uuid-string",
+    "status": "PENDING",
+    "progress": 0.0
   }
   ```
 
@@ -119,14 +95,64 @@ Deletes all user queries and associated tasks.
 - **Response**:
   ```json
   {
-    "status": "success",
-    "data": {
-      "message": "All user queries deleted successfully"
-    }
+    "message": "All user queries deleted successfully"
   }
   ```
 
+#### Get User Query by ID
+
+Retrieves a specific user query by its ID.
+
+- **URL**: `/user-queries/{query_id}`
+- **Method**: `GET`
+- **URL Parameters**:
+  - `query_id` - Integer ID of the query
+- **Response**:
+  ```json
+  {
+    "id": 1,
+    "query": "How does the internet work?",
+    "created_at": "2023-12-06T23:30:55.776380",
+    "task_id": "uuid-string",
+    "status": "PENDING",
+    "progress": 0.0
+  }
+  ```
+
+#### Get User Queries by Task ID
+
+Retrieves all user queries associated with a specific task.
+
+- **URL**: `/user-queries/tasks/{task_id}`
+- **Method**: `GET`
+- **URL Parameters**:
+  - `task_id` - UUID of the task
+- **Response**:
+  ```json
+  [
+    {
+      "id": 1,
+      "query": "How does the internet work?",
+      "created_at": "2023-12-06T23:30:55.776380",
+      "task_id": "uuid-string",
+      "status": "PENDING",
+      "progress": 0.0
+    },
+    // More queries...
+  ]
+  ```
+
 ### Tasks
+
+#### Get Task by ID
+
+Retrieves a specific task by its ID.
+
+- **URL**: `/tasks/{task_id}`
+- **Method**: `GET`
+- **URL Parameters**:
+  - `task_id` - UUID of the task
+- **Response**: Complete task object with all properties
 
 #### Delete All Tasks
 
@@ -137,10 +163,7 @@ Deletes all tasks in the system.
 - **Response**:
   ```json
   {
-    "status": "success",
-    "data": {
-      "message": "All tasks deleted successfully"
-    }
+    "message": "All tasks deleted successfully"
   }
   ```
 
@@ -155,10 +178,7 @@ Deletes a task by ID.
 - **Response**:
   ```json
   {
-    "status": "success",
-    "data": {
-      "message": "Task deleted successfully"
-    }
+    "message": "Task deleted successfully"
   }
   ```
 
@@ -170,153 +190,143 @@ The following endpoints represent the task analysis pipeline stages. Each stage 
 
 Gathers and processes context information for a task.
 
-TODO: need to update this section
-
-#### Task Formulation
-
-Formulates a clear problem statement based on the gathered context.
-
-- **URL**: `/tasks/{task_id}/formulate`
+- **URL**: `/tasks/{task_id}/context-questions`
 - **Method**: `POST`
+- **URL Parameters**:
+  - `task_id` - UUID of the task
+- **Query Parameters**:
+  - `force` - Boolean to force context gathering even if context is sufficient (default: false)
+- **Request Body**: (Optional)
+  ```json
+  {
+    "answers": [
+      {
+        "question": "What is the main purpose of your project?",
+        "answer": "To build a web application for task management"
+      },
+      // More answers...
+    ]
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "is_sufficient": false,
+    "follow_up_questions": [
+      "What specific features do you need in your task management app?",
+      "Who are the intended users of this application?"
+    ]
+  }
+  ```
+
+#### Scope Formulation - Get Questions for Group
+
+Gets formulation questions for a specific group.
+
+- **URL**: `/tasks/{task_id}/formulate/{group}`
+- **Method**: `GET`
+- **URL Parameters**:
+  - `task_id` - UUID of the task
+  - `group` - Name of the formulation group (e.g., "what", "where", "who", "when", "why", "how")
+- **Response**: Array of formulation questions for the specified group
+
+#### Scope Formulation - Submit Answers
+
+Submits formulation answers for a specific group.
+
+- **URL**: `/tasks/{task_id}/formulate/{group}`
+- **Method**: `POST`
+- **URL Parameters**:
+  - `task_id` - UUID of the task
+  - `group` - Name of the formulation group
+- **Request Body**:
+  ```json
+  {
+    "answers": [
+      {
+        "question": "What is the main goal of this task?",
+        "answer": "To develop a user authentication system"
+      },
+      // More answers...
+    ]
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Formulation answers submitted successfully"
+  }
+  ```
+
+#### Get Draft Scope
+
+Retrieves the draft scope for a task.
+
+- **URL**: `/tasks/{task_id}/draft-scope`
+- **Method**: `GET`
 - **URL Parameters**:
   - `task_id` - UUID of the task
 - **Response**:
   ```json
   {
-    "status": "success",
-    "data": {
-      "task_id": "uuid-string",
-      "task": "Provide a comprehensive overview of how the internet works, including general information, interesting facts, schemas, and illustrations."
-    }
+    "scope": "This task involves developing a user authentication system with login, registration, and password reset functionality.",
+    "validation_criteria": [
+      "The scope clearly defines the objective",
+      "The scope includes necessary functionality",
+      "The scope has appropriate boundaries"
+    ]
   }
   ```
 
-#### Task Analysis
+#### Validate Scope
 
-Analyzes the task to understand its requirements.
+Validates the scope for a task, providing feedback if not approved.
 
-- **URL**: `/tasks/{task_id}/analyze`
-- **Method**: `POST`
-- **URL Parameters**:
-  - `task_id` - UUID of the task
-- **Response**:
-  ```json
-  {
-    "status": "success",
-    "data": {
-      "task_id": "uuid-string",
-      "analysis": {
-        "ideal_final_result": "A comprehensive overview of how the internet works...",
-        "parameters": [
-          "General knowledge about the internet's functioning",
-          "Interesting facts about the internet",
-          // Additional parameters
-        ]
-      }
-    }
-  }
-  ```
-
-#### Task Typification
-
-Categorizes the problem by type and complexity.
-
-- **URL**: `/tasks/{task_id}/typify`
-- **Method**: `POST`
-- **URL Parameters**:
-  - `task_id` - UUID of the task
-- **Response**:
-  ```json
-  {
-    "status": "success",
-    "data": {
-      "task_id": "uuid-string",
-      "level": "LEVEL_2 (complex task: requires adaptation of known solutions)",
-      "complexity": 2,
-      "eta_to_complete": "1 week"
-    }
-  }
-  ```
-
-#### Task Clarification
-
-Requests additional clarification for the task if needed.
-
-- **URL**: `/tasks/{task_id}/clarify`
+- **URL**: `/tasks/{task_id}/validate-scope`
 - **Method**: `POST`
 - **URL Parameters**:
   - `task_id` - UUID of the task
 - **Request Body**:
   ```json
   {
-    "query": "What specific aspects of how the internet works are you interested in?",
-    "answer": "general and some interesting facts, schemas and illustration"
+    "isApproved": false,
+    "feedback": "The scope needs to include two-factor authentication"
   }
   ```
 - **Response**:
   ```json
   {
-    "status": "success",
-    "data": {
-      "task_id": "uuid-string",
-      "user_interaction": [
-        {
-          "query": "What specific aspects of how the internet works are you interested in?",
-          "answer": "general and some interesting facts, schemas and illustration"
-        }
-      ]
-    }
+    "updatedScope": "This task involves developing a user authentication system with login, registration, password reset, and two-factor authentication functionality.",
+    "changes": [
+      "Added two-factor authentication to the scope"
+    ]
   }
   ```
 
-#### Task Approaches
+#### Generate Ideal Final Result (IFR)
 
-Generates possible approaches to solve the problem.
+Generates an ideal final result for a task.
 
-- **URL**: `/tasks/{task_id}/approaches`
+- **URL**: `/tasks/{task_id}/ifr`
 - **Method**: `POST`
+- **URL Parameters**:
+  - `task_id` - UUID of the task
+- **Response**: Complete IFR object with all properties
+
+### Utilities
+
+#### Clear Task Scope
+
+Clears the scope of a specific task.
+
+- **URL**: `/utils/tasks/{task_id}/clear-scope`
+- **Method**: `DELETE`
 - **URL Parameters**:
   - `task_id` - UUID of the task
 - **Response**:
   ```json
   {
-    "status": "success",
-    "data": {
-      "task_id": "uuid-string",
-      "approaches": [
-        "Research-based approach: Gather information from credible sources...",
-        "Visual-first approach: Start with creating schemas and diagrams...",
-        // Additional approaches
-      ]
-    }
-  }
-  ```
-
-#### Task Decomposition
-
-Breaks down the task into smaller, manageable subtasks.
-
-- **URL**: `/tasks/{task_id}/decompose`
-- **Method**: `POST`
-- **URL Parameters**:
-  - `task_id` - UUID of the task
-- **Response**:
-  ```json
-  {
-    "status": "success",
-    "data": {
-      "task_id": "uuid-string",
-      "subtasks": [
-        {
-          "id": "uuid-string",
-          "task": "Research and outline the basic structure of the internet",
-          "short_description": "Internet structure research",
-          "sub_level": 1,
-          "order": 1
-        },
-        // Additional subtasks
-      ]
-    }
+    "message": "Task scope has been successfully cleared"
   }
   ```
 

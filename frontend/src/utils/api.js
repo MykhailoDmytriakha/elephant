@@ -72,15 +72,6 @@ export const deleteTask = async (taskId) => {
   }
 };
 
-export const formulate_task = async (taskId) => {
-  // TODO: remove this completely with all dependencies
-  // This endpoint no longer exists - always return mock response
-  console.log('Using mock formulate_task implementation');
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 600));
-  return { success: true, message: "Task formulated successfully" };
-};
-
 export const getFormulationQuestions = async (taskId, groupId) => {
   try {
     console.log('Getting formulation questions for task:', taskId, 'and group:', groupId);
@@ -127,63 +118,5 @@ export const generateIFR = async (taskId) => {
     return response.data;
   } catch (error) {
     handleApiError(error, 'Failed to generate Ideal Final Result');
-  }
-};
-
-export const analyzeTask = async (taskId, isReanalyze = false) => {
-  try {
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/analyze?reAnalyze=${isReanalyze}`);
-    return response.data;
-  } catch (error) {
-    handleApiError(error, 'Failed to analyze task');
-  }
-};
-
-export const generateApproaches = async (taskId) => {
-  try {
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/approaches`);
-    return response.data;
-  } catch (error) {
-    handleApiError(error, 'Failed to generate approaches');
-  }
-};
-
-export const typifyTask = async (taskId, isRetypify = false) => {
-  try {
-    const response = await axios.post(
-      `${API_BASE_URL}/tasks/${taskId}/typify${isRetypify ? '?reTypify=true' : ''}`
-    );
-    return response.data;
-  } catch (error) {
-    handleApiError(error, 'Failed to typify task');
-  }
-};
-
-export const clarifyTask = async (taskId, message = null) => {
-  try {
-    console.log('Sending clarification request:', { taskId, message });
-    const response = await axios.post(
-      `${API_BASE_URL}/tasks/${taskId}/clarify`,
-      message ? { message: message } : {}
-    );
-    return response.data;
-  } catch (error) {
-    handleApiError(error, 'Failed to clarify task');
-  }
-};
-
-export const decomposeTask = async (taskId, selecedApproaches, isRedecompose = false) => {
-  // verify that selecedApproach has tools, methods, frameworks
-  if (!selecedApproaches.analytical_tools || !selecedApproaches.practical_methods || !selecedApproaches.frameworks) {
-    throw new Error('Selected approach must include tools, methods, and frameworks');
-  }
-  try {
-    const response = await axios.post(
-      `${API_BASE_URL}/tasks/${taskId}/decompose${isRedecompose ? '?redecompose=true' : ''}`,
-      selecedApproaches
-    );
-    return response.data;
-  } catch (error) {
-    handleApiError(error, 'Failed to decompose task');
   }
 };
