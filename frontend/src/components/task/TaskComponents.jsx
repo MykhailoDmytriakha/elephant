@@ -73,7 +73,7 @@ export const CollapsibleSection = ({ title, children, defaultOpen = true, isOpen
         className="flex justify-between items-center cursor-pointer p-4 border-b border-gray-200"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        <div className="text-lg font-semibold text-gray-900">{title}</div>
         {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
       </div>
       {isExpanded && (

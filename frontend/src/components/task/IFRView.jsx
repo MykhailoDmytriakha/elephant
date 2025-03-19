@@ -7,7 +7,9 @@ export default function IFRView({
   ifr,
   isGeneratingIFR,
   onGenerateIFR,
-  taskState
+  taskState,
+  defaultOpen,
+  isCompleted = false
 }) {
   const [localIfr, setLocalIfr] = useState(ifr);
   
@@ -29,7 +31,8 @@ export default function IFRView({
     shouldShowIFR, 
     taskState, 
     canGenerateIFR, 
-    expectedState: TaskStates.TASK_FORMATION 
+    expectedState: TaskStates.TASK_FORMATION,
+    isCompleted
   });
 
   const renderIFRContent = () => {
@@ -147,7 +150,19 @@ export default function IFRView({
   };
 
   return (
-    <CollapsibleSection title="Ideal Final Result (IFR)" defaultOpen={true}>
+    <CollapsibleSection 
+      title={
+        <div className="flex items-center justify-between w-full">
+          <span>Ideal Final Result (IFR)</span>
+          {isCompleted && (
+            <span className="ml-2 text-xs bg-green-100 text-green-800 py-0.5 px-2 rounded-full">
+              Complete
+            </span>
+          )}
+        </div>
+      } 
+      defaultOpen={defaultOpen}
+    >
       {renderIFRContent()}
     </CollapsibleSection>
   );

@@ -3,7 +3,7 @@ from src.services.openai_service import OpenAIService
 from src.model.context import ContextSufficiencyResult
 from src.model.task import Task, TaskState
 from src.model.scope import ScopeFormulationGroup, ScopeQuestion, DraftScope, ValidationScopeResult
-from src.model.ifr import IFR
+from src.model.ifr import IFR, Requirements
 import logging
 from typing import List
 logger = logging.getLogger(__name__)
@@ -73,3 +73,7 @@ class ProblemAnalyzer:
     async def generate_IFR(self, task: Task) -> IFR:
         ifr = await self.openai_service.generate_IFR(task)
         return ifr
+    
+    async def define_requirements(self, task: Task) -> Requirements:
+        requirements = await self.openai_service.define_requirements(task)
+        return requirements

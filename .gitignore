@@ -39,6 +39,7 @@ backend/myenv/
 data/tasks.db
 
 .idea
+.design/
 
 # Coverage
 coverage/

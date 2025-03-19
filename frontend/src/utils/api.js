@@ -138,3 +138,14 @@ export const generateIFR = async (taskId) => {
     handleApiError(error, 'Failed to generate Ideal Final Result');
   }
 };
+
+export const generateRequirements = async (taskId) => {
+  try {
+    console.log('Generating requirements for task:', taskId);
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/requirements`);
+    console.log('Requirements response:', response.data);
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'Failed to generate Requirements');
+  }
+};

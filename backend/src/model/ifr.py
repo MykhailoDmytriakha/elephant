@@ -15,3 +15,11 @@ class IFR(BaseModel):
     quality_metrics: List[Metric]
     validation_checklist: List[ValidationItem]
     ideal_final_result: str
+
+class Requirements(BaseModel):
+    requirements: List[str]
+    constraints: List[str]
+    limitations: List[str]
+    resources: List[str]
+    tools: List[str]
+    definitions: List[str]

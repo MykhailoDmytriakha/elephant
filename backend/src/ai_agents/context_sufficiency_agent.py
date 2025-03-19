@@ -49,9 +49,13 @@ async def analyze_context_sufficiency(
     
     # Create the instruction for the agent
     instructions = f"""
+    This is an initial interaction with the user, so treat it as user has: 
+     - a problem that should be converted into a task or 
+     - idea/task that should be clarified, like more "crystallized".
+    The main goal is to understand the user intent, and missing information that should be clarified.
     Analyze the following task and context information to determine if there's sufficient context to proceed.
     
-    TASK: {task.short_description}
+    INITITAL USER INPUT (TASK): {task.short_description}
     ---
     CONTEXT ANSWERS: {context_answers_text}
     ---

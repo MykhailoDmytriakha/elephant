@@ -9,6 +9,7 @@ import TaskOverview from '../components/task/TaskOverview';
 import Metadata from '../components/task/Metadata';
 import TaskScope from '../components/task/TaskScope';
 import IFRView from '../components/task/IFRView';
+import TaskRequirements from '../components/task/TaskRequirements';
 import Breadcrumbs from '../components/task/Breadcrumbs';
 import { useTaskDetails } from '../hooks/useTaskDetails';
 
@@ -29,6 +30,8 @@ export default function TaskDetailsPage() {
     handleDelete,
     handleGenerateIFR,
     isGeneratingIFR,
+    handleGenerateRequirements,
+    isGeneratingRequirements,
     
     // Context gathering
     contextQuestions,
@@ -123,11 +126,11 @@ export default function TaskDetailsPage() {
               isForceRefreshMode={isForceRefreshMode}
             />
 
-            {task.sub_level === 0 && (
+            {task.sub_level === 0 && task.is_context_sufficient &&(
               // defin scope of the task
               <TaskScope
                 task={task}
-                isContextGathered={task.state === TaskStates.CONTEXT_GATHERED || task.state === TaskStates.TASK_FORMATION}
+                isContextGathered={task.is_context_sufficient}
                 defaultOpen={!(task.scope && task.scope.status === "approved")}
               />
             )}
@@ -137,6 +140,17 @@ export default function TaskDetailsPage() {
                 ifr={task.ifr}
                 isGeneratingIFR={isGeneratingIFR}
                 onGenerateIFR={handleGenerateIFR}
+                taskState={task.state}
+                defaultOpen={!(task.requirements && Object.keys(task.requirements).length > 0)}
+                isCompleted={task.requirements && Object.keys(task.requirements).length > 0}
+              />
+            )}
+
+            {task.ifr && (
+              <TaskRequirements
+                requirements={task.requirements}
+                isGeneratingRequirements={isGeneratingRequirements}
+                onGenerateRequirements={handleGenerateRequirements}
                 taskState={task.state}
               />
             )}

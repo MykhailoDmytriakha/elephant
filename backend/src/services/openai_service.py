@@ -8,7 +8,7 @@ from src.model.task import Task
 from src.model.context import ClarifiedTask
 from src.model.scope import DraftScope, ValidationScopeResult
 from src.ai_agents import context_sufficiency_agent, summarize_context_agent, scope_formulation_agent, ifr_agent
-from src.model.ifr import IFR
+from src.model.ifr import IFR, Requirements
 
 logger = logging.getLogger(__name__)
 
@@ -138,4 +138,19 @@ class OpenAIService:
             raise e
         except Exception as e:
             logger.error(f"Error in generate_IFR: {str(e)}")
+            raise e
+    
+    async def define_requirements(self, task: Task) -> Requirements:
+        """
+        Define requirements for a given task
+        """
+        logger.info("Called define_requirements method")
+        try:
+            # Use the extracted agent logic from the dedicated module
+            return await ifr_agent.define_requirements(task)
+        except ImportError as e:
+            logger.warning(f"OpenAI Agents SDK not installed: {str(e)}")
+            raise e
+        except Exception as e:
+            logger.error(f"Error in define_requirements: {str(e)}")
             raise e

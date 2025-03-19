@@ -7,6 +7,7 @@ import {
   fetchTaskDetails, 
   deleteTask, 
   generateIFR,
+  generateRequirements
 } from '../utils/api';
 
 /**
@@ -53,6 +54,15 @@ export function useTaskDetails(taskId) {
     }
   );
 
+  const [handleGenerateRequirements, isGeneratingRequirements] = useTaskOperation(
+    () => generateRequirements(taskId),
+    loadTask,
+    {
+      successMessage: 'Requirements generated successfully',
+      errorMessage: 'Failed to generate Requirements'
+    }
+  );
+
   const [handleDelete] = useTaskOperation(
     async () => {
       if (window.confirm('Are you sure you want to delete this task?')) {
@@ -80,6 +90,8 @@ export function useTaskDetails(taskId) {
     handleDelete,
     handleGenerateIFR,
     isGeneratingIFR,
+    handleGenerateRequirements,
+    isGeneratingRequirements,
     // Context gathering
     ...contextGathering,
     // Track if we're in force refresh mode

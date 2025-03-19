@@ -1,7 +1,7 @@
 import logging
 from src.core.config import settings
 from src.model.task import Task
-from src.model.ifr import IFR, Metric, ValidationItem
+from src.model.ifr import IFR, Metric, ValidationItem, Requirements
 from src.ai_agents.utils import detect_language, get_language_instruction
 
 logger = logging.getLogger(__name__)
@@ -63,12 +63,19 @@ async def generate_IFR(
     instructions = f"""
     Generate an Ideal Final Result (IFR) for the following task based on the provided context.
     
+    ---
     INITITAL USER INPUT: {task_description}
+    ---
     TASK: {clarified_task}
+    ---
     CONTEXT ANSWERS: {context_answers_text}
+    ---
     CONTEXT: {task_context}
+    ---
     SCOPE ANSWERS: {previous_scope_answers}
+    ---
     SCOPE: {task.scope.scope if task.scope else ""}
+    ---
     
     {language_instruction}
     
@@ -143,3 +150,117 @@ async def generate_IFR(
     ifr_result = result.final_output
     logger.info(f"Generated IFR: {ifr_result.model_dump_json(indent=2)}")
     return ifr_result
+
+
+async def define_requirements(
+    task: Task,
+) -> Requirements:
+    """
+    Define requirements, constraints, limitations, resources, tools for a given task
+    """
+    if not AGENTS_SDK_AVAILABLE:
+        logger.error("OpenAI Agents SDK not installed.")
+        raise ImportError("OpenAI Agents SDK not installed. Please install with `pip install openai-agents`")
+    
+    # Detect language from task description
+    task_description = task.short_description or ""
+    clarified_task = task.task
+    task_context = task.context
+    task_scope = task.scope.scope if task.scope else ""
+    scope_clarification = "\n".join([
+        f"Q: {criterion.question}\nA: {criterion.answer}" 
+        for criterion in task.scope.validation_criteria
+    ]) if task.scope and task.scope.validation_criteria else ""
+    
+    ifr = task.ifr.ideal_final_result if task.ifr else ""
+    success_criteria = task.ifr.success_criteria if task.ifr else ""
+    expected_outcomes = task.ifr.expected_outcomes if task.ifr else ""
+    quality_metrics = "\n".join([
+        f"Metric: {metric.metric_name} | Value: {metric.metric_value}"
+        for metric in task.ifr.quality_metrics
+    ]) if task.ifr and task.ifr.quality_metrics else ""
+    validation_checklist = "\n".join([
+        f"Checklist: {checklist.item} | Criteria: {checklist.criteria}"
+        for checklist in task.ifr.validation_checklist
+    ]) if task.ifr and task.ifr.validation_checklist else ""
+    
+    user_language = detect_language(task_description)
+    logger.info(f"Detected language: {user_language}")
+    
+    # Get language-specific instruction
+    language_instruction = get_language_instruction(user_language)
+    instructions = f"""
+    Define requirements, constraints, limitations, resources, tools for the following task:
+    
+    ---
+    INITITAL USER INPUT: {task_description}
+    ---
+    TASK: {clarified_task}
+    ---
+    CONTEXT: {task_context}
+    ---
+    SCOPE: {task_scope}
+    SCOPE CLARIFICATION: {scope_clarification}
+    ---
+    IFR(Ideal Final Result): {ifr}
+    SUCCESS CRITERIA: {success_criteria}
+    EXPECTED OUTCOMES: {expected_outcomes}
+    QUALITY METRICS: {quality_metrics}
+    VALIDATION CHECKLIST: {validation_checklist}
+    ---
+    
+    {language_instruction}
+    
+    Think how complex the task is and how many requirements, constraints, limitations, resources, tools are needed.
+    If the task is complex, you can add more items to the list.
+    If the task is simple, you can reduce the number of items in the list.
+    
+    OUTPUT REQUIREMENTS:
+    1. Requirements:
+       - List 5-12 concrete, measurable functional requirements of the system (not metrics)
+       - Focus on WHAT the system does, not HOW WELL it does it
+       - Format: "[System component]: [enables/performs] [specific capability]"
+       - Each criterion must address a different core capability, avoiding overlap with quality metrics
+       - DO NOT include specific performance thresholds here (those belong in quality metrics)
+    2. Constraints:
+       - List 5-12 constraints that limit or restrict the system's implementation or operation
+       - Include only constraints explicitly mentioned in the task or absolutely necessary
+       - Format: "[Constraint]: [specific system constraint]"
+    3. Limitations:
+       - List 5-12 limitations of the system's capabilities or performance boundaries
+       - Include only limitations directly related to the described system
+       - Format: "[Limitation]: [specific system limitation]"
+    4. Resources:
+       - List 5-12 resources required by or available to the system
+       - Include only resources explicitly mentioned in the task or absolutely necessary
+       - Format: "[Resource]: [specific system resource]"
+    5. Tools:
+       - List 4-12 tools used by or integrated with the system
+       - Include ONLY tools explicitly mentioned in the task or absolutely necessary for its operation
+       - DO NOT add development tools if they are not part of the functional requirements
+       - Format: "[Tool name]: [specific tool for the system]"
+    6. Definitions:
+       - List only 5-12 key definitions of main components and concepts of the system
+       - Include only terms explicitly mentioned in the task description or absolutely necessary for understanding
+       - Format: "[Term]: [specific definition related to the system]"
+    """
+    
+    logger.info(f"Generating requirements for task: {task.id}")
+    logger.info(f"Generation instructions: {instructions}")
+    # Create the agent
+    agent = Agent(
+        name="RequirementsDefinitionAgent",
+        instructions=instructions,
+        output_type=Requirements,
+        model=model
+    )
+    
+    # Run the agent
+    result = await Runner.run(agent, "Define requirements, constraints, limitations, resources, tools for the task")
+    
+    # Process the response
+    requirements_result = result.final_output
+    logger.info(f"Generated requirements: {requirements_result.model_dump_json(indent=2)}")
+    return requirements_result
+    
+    

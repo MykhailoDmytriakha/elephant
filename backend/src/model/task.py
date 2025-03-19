@@ -4,7 +4,7 @@ from enum import Enum
 from typing import List, Optional, Dict
 from src.model.context import UserAnswers, UserAnswer
 from src.model.scope import TaskScope
-from src.model.ifr import IFR
+from src.model.ifr import IFR, Requirements
 from pydantic import BaseModel, Field   
 import json
 
@@ -13,19 +13,20 @@ class TaskState(Enum):
     CONTEXT_GATHERING = "2. Context Gathering"
     CONTEXT_GATHERED = "3. Context Gathered"
     TASK_FORMATION = "3.5. Task Formation"
-    ANALYSIS = "4. Analysis"
-    TYPIFY = "5. Typify"
-    CLARIFYING = "6. Clarifying"
-    CLARIFICATION_COMPLETE = "7. Clarification Complete"    
-    APPROACH_FORMATION = "8. Approach Formation"
-    METHOD_SELECTION = "9. Method Selection"
-    DECOMPOSITION = "10. Decomposition"
-    METHOD_APPLICATION = "11. Method Application"
-    SOLUTION_DEVELOPMENT = "12. Solution Development"
-    EVALUATION = "13. Evaluation"
-    INTEGRATION = "14. Integration"
-    OUTPUT_GENERATION = "15. Output Generation"
-    COMPLETED = "16. Completed"
+    IFR_GENERATED = "4. IFR Generated"
+    ANALYSIS = "5. Analysis"
+    TYPIFY = "6. Typify"
+    CLARIFYING = "7. Clarifying"
+    CLARIFICATION_COMPLETE = "8. Clarification Complete"    
+    APPROACH_FORMATION = "9. Approach Formation"
+    METHOD_SELECTION = "10. Method Selection"
+    DECOMPOSITION = "11. Decomposition"
+    METHOD_APPLICATION = "12. Method Application"
+    SOLUTION_DEVELOPMENT = "13. Solution Development"
+    EVALUATION = "14. Evaluation"
+    INTEGRATION = "15. Integration"
+    OUTPUT_GENERATION = "16. Output Generation"
+    COMPLETED = "17. Completed"
 
 
 class Task(BaseModel):
@@ -47,6 +48,7 @@ class Task(BaseModel):
     contribution_to_parent_task: Optional[str] = None
     scope: Optional[TaskScope] = None
     ifr: Optional[IFR] = None
+    requirements: Optional[Requirements] = None
     # analysis fields
     analysis: Dict = Field(default_factory=dict)
     typification: Dict = Field(default_factory=dict)
