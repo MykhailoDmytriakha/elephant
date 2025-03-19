@@ -1,13 +1,13 @@
 import React, { useEffect, useCallback, useState } from 'react';
-import { CollapsibleSection } from './TaskComponents';
+import { CollapsibleSection } from '../TaskComponents';
 import { RefreshCcw, FileText, Check, ArrowRight, AlertCircle } from 'lucide-react';
-import { getFormulationQuestions, submitFormulationAnswers, getDraftScope, validateScope } from '../../utils/api';
-import ScopeValidation from './scope/ScopeValidation';
-import FinalScopeScreen from './scope/FinalScopeScreen';
-import ScopeQuestionsSection from './scope/ScopeQuestionsSection';
-import ScopeProgress from './scope/ScopeProgress';
-import useTaskScopeState from '../../hooks/useTaskScopeState';
-import { formatGroupName, findNextUnansweredGroup as findNext } from '../../utils/scopeUtils';
+import { getFormulationQuestions, submitFormulationAnswers, getDraftScope, validateScope } from '../../../utils/api';
+import ScopeValidation from './ScopeValidation';
+import FinalScopeScreen from './FinalScopeScreen';
+import ScopeQuestionsSection from './ScopeQuestionsSection';
+import ScopeProgress from './ScopeProgress';
+import useTaskScopeState from '../../../hooks/useTaskScopeState';
+import { formatGroupName, findNextUnansweredGroup as findNext } from '../../../utils/scopeUtils';
 
 export default function TaskScope({
     task,

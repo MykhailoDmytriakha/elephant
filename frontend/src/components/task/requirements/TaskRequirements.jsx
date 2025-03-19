@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RefreshCw, ChevronRight, ArrowLeft } from 'lucide-react';
-import { CollapsibleSection } from './TaskComponents';
-import RequirementsList from './requirements/RequirementsList';
+import { CollapsibleSection } from '../TaskComponents';
+import RequirementsList from './RequirementsList';
 
 /**
  * Component for displaying and generating task requirements with card-based navigation

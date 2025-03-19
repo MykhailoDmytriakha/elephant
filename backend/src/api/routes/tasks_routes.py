@@ -272,6 +272,7 @@ async def define_requirements(
     
     requirements = await analyzer.define_requirements(task)
     task.requirements = requirements
+    task.state = TaskState.REQUIREMENTS_GENERATED
     db.updated_task(task)
     return requirements
 

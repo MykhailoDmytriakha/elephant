@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 import json
 from src.api.deps import get_db_service
-from src.model.task import Task
+from src.model.task import Task, TaskState
 from src.services.database_service import DatabaseService
 
 router = APIRouter()
@@ -88,6 +88,7 @@ async def clear_task_requirements(
     task_dict = json.loads(task_data['task_json'])
     
     task_dict['requirements'] = None
+    task_dict['state'] = TaskState.IFR_GENERATED
     
     task = Task(**task_dict)
     db.updated_task(task)

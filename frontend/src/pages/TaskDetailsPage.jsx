@@ -7,9 +7,10 @@ import { TaskStates } from '../constants/taskStates';
 import { getStateColor } from '../constants/taskStates';
 import TaskOverview from '../components/task/TaskOverview';
 import Metadata from '../components/task/Metadata';
-import TaskScope from '../components/task/TaskScope';
+import TaskScope from '../components/task/scope/TaskScope';
 import IFRView from '../components/task/IFRView';
-import TaskRequirements from '../components/task/TaskRequirements';
+import TaskRequirements from '../components/task/requirements/TaskRequirements';
+import TaskContext from '../components/task/context/TaskContext';
 import Breadcrumbs from '../components/task/Breadcrumbs';
 import { useTaskDetails } from '../hooks/useTaskDetails';
 
@@ -114,6 +115,13 @@ export default function TaskDetailsPage() {
           {/* Main Content */}
           <div className="col-span-2 space-y-6">
             <TaskOverview
+              task={task}
+              onStartContextGathering={handleStartContextGathering}
+              isContextGatheringLoading={isContextGatheringLoading}
+              isForceRefreshMode={isForceRefreshMode}
+            />
+
+            <TaskContext
               task={task}
               onStartContextGathering={handleStartContextGathering}
               isContextGatheringLoading={isContextGatheringLoading}
