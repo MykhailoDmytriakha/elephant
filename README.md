@@ -140,7 +140,7 @@ Finally, the system breaks down the task into smaller, manageable subtasks:
    - Windows: `.venv\Scripts\activate`
    - Unix/MacOS: `source .venv/bin/activate`
 4. Install dependencies: `pip install -r requirements.txt`
-5. Copy `.env_example` to `.env` and configure environment variables
+5. Copy `.env_example` to `.env` and configure environment variables (OpenAI API key and model)
 6. Run the server: `python -m src.main`
 
 ### Frontend Setup
@@ -162,15 +162,15 @@ Key endpoints include:
 - `DELETE /user-queries/` - Delete all user queries
 
 ### Tasks
+- `GET /tasks/{task_id}` - Get a specific task
 - `DELETE /tasks/` - Delete all tasks
 - `DELETE /tasks/{task_id}` - Delete a specific task
-- Various endpoints for the task analysis pipeline:
-  - `/tasks/{task_id}/formulate` - Formulate the task based on gathered context
-  - `/tasks/{task_id}/analyze` - Analyze the formulated task
-  - `/tasks/{task_id}/typify` - Categorize the task
-  - `/tasks/{task_id}/clarify` - Request specific clarifications
-  - `/tasks/{task_id}/approaches` - Generate solution approaches
-  - `/tasks/{task_id}/decompose` - Break down the task into subtasks
+- `POST /tasks/{task_id}/context-questions` - Update task context
+- `GET /tasks/{task_id}/formulate/{group}` - Formulate a specific aspect of the task
+- `POST /tasks/{task_id}/formulate/{group}` - Submit formulation answers
+- `GET /tasks/{task_id}/draft-scope` - Get the draft scope for a task
+- `POST /tasks/{task_id}/validate-scope` - Validate the task scope
+- `POST /tasks/{task_id}/ifr` - Generate ideal final result
 
 ## Documentation
 
@@ -180,8 +180,6 @@ The project includes comprehensive documentation in the [docs](docs/README.md) d
 - [State Transition Rules](docs/STATE_TRANSITIONS.md) - Understanding task state transitions and workflow
 - [API Documentation](docs/API.md)
 - [User Guide](docs/USER_GUIDE.md)
-
-For a detailed directory structure, see the [Project Structure Documentation](docs/PROJECT_STRUCTURE.md).
 
 ## Development
 

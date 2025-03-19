@@ -59,10 +59,12 @@ async def summarize_context(
     2. A comprehensive context summary
 
     INPUT:
-    - INITIAL USER INPUT: {task.short_description}
-    - TASK: {task.task}
-    - CONTEXT ANSWERS: {context_answers_text}
-
+    INITIAL USER INPUT: {task.short_description}
+    ---
+    TASK: {task.task}
+    ---
+    CONTEXT ANSWERS: {context_answers_text}
+    ---
     {language_instruction}
 
     OUTPUT REQUIREMENTS:

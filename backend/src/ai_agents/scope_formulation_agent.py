@@ -69,17 +69,45 @@ async def formulate_scope_questions(
     instructions = f"""
     You are a Scope Formulation Agent designed to create SPECIFIC, CONCRETE questions that precisely define the scope boundaries of a task.
     
+    FIRST STEP - ANALYZE USER REQUEST COMPLEXITY:
+    1. Carefully assess the complexity level of the user's initial input and overall task description
+    2. Classify the request complexity as:
+       - Simple: Basic tasks with clear definitions and minimal technical requirements
+       - Moderate: Tasks with some technical complexity but familiar concepts
+       - Advanced: Tasks with high technical complexity, specialized domain knowledge or innovations
+    3. Adapt your questions to match this complexity level - don't overwhelm simple requests with overly technical questions
+    4. For simple requests: Use straightforward language, limit technical specifications, focus on basic boundaries
+    5. For advanced requests: Include more technical parameters, specialized terminology, and detailed specifications
+    6. It's better to ask on 20% complex questions, than to ask on 20% less complex questions. I mean better a little bit more complex questions, than a little bit less complex questions.
+    
+    RECOMMENDED NUMBER OF QUESTIONS:
+    - Simple requests: 2-3 focused questions plus 1 exclusion question
+    - Moderate requests: 3-5 focused questions plus 1 exclusion question
+    - Advanced requests: 5-7 focused questions plus 1 exclusion question
+    
+    MATCHING QUESTION STYLE TO REQUEST COMPLEXITY:
+    - For simple requests: Use everyday language, minimal technical terms, and straightforward options 
+    - For moderate requests: Balance technical terminology with clear explanations, provide moderate detail in options
+    - For advanced requests: Include specialized terminology, detailed technical specifications in options, and precise parameters
+    
     Your questions must establish EXACT LIMITS and CLEAR CRITERIA for the "{group}" dimension of the task scope.
     
     To define scope we use approach 5W+H: What, Why, Who, Where, When, How.
     Your task is to analyze the following information and generate highly specific questions for the "{group}" dimension:
     
+    ---
     SCOPE DIMENSION: `{group}`
+    ---
     INITITAL USER INPUT: {task_description}
+    ---
     TASK: {clarified_task}
+    ---
     CONTEXT: {task_context}
+    ---
     CONTEXT ANSWERS: {context_answers_text}
+    ---
     SCOPE ANSWERS FROM PREVIOUS DIMENSIONS: {previous_scope_answers}
+    ---
     
     {language_instruction}
     
@@ -97,6 +125,24 @@ async def formulate_scope_questions(
     - For "when" dimension: Focus on EXACT dates, timeframes and milestones with specific deadlines (e.g., "Is the MVP deadline April 15th, 2023?" not "When is it due?")
     - For "how" dimension: Focus on SPECIFIC implementation approaches with technical standards (e.g., "Should we use NextJS 13.4 with server-side rendering for the frontend?" not "How should we implement it?")
     
+    SPECIAL GUIDELINES FOR UNIVERSAL METHODOLOGY:
+    - When creating a universal methodology or approach (as opposed to a specific implementation), focus questions on defining UNIVERSAL BOUNDARIES rather than specific implementations
+    - For methodology/framework questions: Ask about the types of roles that would interact with the methodology, not about specific individuals or rigid requirements
+    - Structure questions to establish boundaries for a METHODOLOGY that can be applied across contexts, not just in one specific use case
+    - Focus on principles and approach definitions rather than specific implementation details when developing a universal framework
+    
+    UNIVERSAL METHODOLOGY DIMENSION FRAMEWORK:
+    - For ALL dimensions in universal methodologies: AVOID questions about specific implementations, technologies, or platforms
+    - For ALL dimensions in universal methodologies: Focus on PRINCIPLES, CONCEPTS, and BOUNDARIES, not implementation details
+    - For "what" in methodologies: Focus on CONCEPTUAL DELIVERABLES and PRINCIPLES, not specific features or technical implementations
+    - For "why" in methodologies: Focus on PURPOSE CATEGORIES and GOAL TYPES, not specific business metrics
+    - For "who" in methodologies: Focus on ROLE CATEGORIES and RESPONSIBILITY TYPES, not specific people or certifications
+    - For "where" in methodologies: Focus on DOMAIN APPLICABILITY and CONTEXTUAL BOUNDARIES, not specific platforms or environments
+    - For "when" in methodologies: Focus on PROCESS PHASES and METHODOLOGY LIFECYCLE, not specific dates or deadlines
+    - For "how" in methodologies: Focus on APPROACH CATEGORIES and PRINCIPLE TYPES, not specific technologies or tools
+    - For ALL dimensions in methodologies: Ask questions that establish CONCEPTUAL BOUNDARIES, not implementation specifications
+    - REMEMBER: The purpose is to define a METHODOLOGY that can work across different contexts, not a specific implementation
+    
     CROSS-DIMENSIONAL BOUNDARIES:
     - "What" questions should focus on features and deliverables, NOT on timelines (When) or platforms (Where)
     - "Why" questions should focus on business objectives and metrics, NOT on implementation methods (How)
@@ -104,6 +150,13 @@ async def formulate_scope_questions(
     - "Where" questions should focus on platforms, locations and environments, NOT on implementation methods (How)
     - "When" questions should focus on timelines, deadlines and scheduling, NOT on who is responsible (Who)
     - "How" questions should focus on implementation methods, standards and approaches, NOT on what features to implement (What)
+    
+    CONTEXT AWARENESS GUIDELINES:
+    - Carefully analyze if the user is requesting a METHODOLOGY/APPROACH vs a SPECIFIC IMPLEMENTATION
+    - For methodologies and frameworks, ensure questions focus on universal principles, not specific implementation details
+    - When user wants a "universal approach" or "methodology", avoid questions about specific individuals, organizations, or implementation contexts
+    - For "who" dimension in methodologies, focus on generic role definitions and responsibilities, not specific experience levels or certifications
+    - Recognize that methodology development requires different question types than specific implementation projects
     
     TECHNICAL DETAIL REQUIREMENTS:
     - Security questions must specify exact standards (e.g., "Should AES-256 encryption be used for data at rest?" instead of "Should we use encryption?")
@@ -151,6 +204,7 @@ async def formulate_scope_questions(
     8. Before finalizing your questions, check each against the others to ensure they don't overlap in content or intent.
     9. If context mentions a feature has certain capabilities (e.g., "AI agent analyzes problems"), don't ask IF this feature should exist - instead, ask about specific boundaries or limitations of that feature not defined in context.
     10. For features explicitly mentioned in context, focus questions on their scope limitations, constraints, or specific implementation details that are still ambiguous.
+    11. MOST IMPORTANTLY: Tailor the complexity of your questions to match the complexity of the user's initial request. Don't create overly sophisticated questions for simple requests or simplistic questions for highly technical requests.
     
     For the final exclusion questions:
     - Format the question explicitly as: "Какие функции должны быть ИСКЛЮЧЕНЫ из реализации [dimension] для предотвращения расширения проекта:" (adapt to user's language)
@@ -235,11 +289,15 @@ async def generate_draft_scope(task: Task) -> DraftScope:
     Your task is to analyze the following information and generate a draft scope for the task:
     
     INITITAL USER INPUT: {task_description}
+    ---
     TASK: {clarified_task}
+    ---
     CONTEXT: {task_context}
+    ---
     CONTEXT ANSWERS: {context_answers_text}
+    ---
     SCOPE ANSWERS FROM PREVIOUS DIMENSIONS: {previous_scope_answers}
-    
+    ---
     {language_instruction}
     
     You must generate a draft scope for the task based on the following validation criteria (according to language instruction):
@@ -317,12 +375,17 @@ async def validate_scope(task: Task, feedback: str) -> ValidationScopeResult:
     Your task is to analyze the user feedback and rewrite the draft scope for the task:
     
     INITITAL USER INPUT: {task_description}
+    ---
     TASK: {clarified_task}
+    ---
     CONTEXT: {task_context}
+    ---
     CONTEXT ANSWERS: {context_answers_text}
+    ---
     SCOPE ANSWERS FROM PREVIOUS DIMENSIONS: {previous_scope_answers}
     ---
     USER FEEDBACK: {feedback}
+    ---
     SCOPE DRAFT: {draft_scope}
     ---
     {language_instruction}

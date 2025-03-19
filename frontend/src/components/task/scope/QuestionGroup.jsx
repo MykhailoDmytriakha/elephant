@@ -14,8 +14,18 @@ export default function QuestionGroup({
   // Local state for this group's answers - this will be managed here but passed to parent on submit
   const [answers, setAnswers] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
+  // Add state to track skipped questions
+  const [skippedQuestions, setSkippedQuestions] = useState({});
   
   const handleAnswerChange = (questionId, value, isMultiSelect = false) => {
+    // If a question is being answered, make sure it's not skipped
+    if (skippedQuestions[questionId]) {
+      setSkippedQuestions(prev => ({
+        ...prev,
+        [questionId]: false
+      }));
+    }
+    
     setAnswers(prev => {
       if (isMultiSelect) {
         // For multi-select, toggle the value in an array
@@ -53,6 +63,24 @@ export default function QuestionGroup({
     });
   };
 
+  // Handle skip button click
+  const handleSkipQuestion = (questionId) => {
+    setSkippedQuestions(prev => ({
+      ...prev,
+      [questionId]: !prev[questionId]
+    }));
+    
+    // Clear answers for skipped questions
+    if (!skippedQuestions[questionId]) {
+      setAnswers(prev => {
+        const newAnswers = { ...prev };
+        delete newAnswers[questionId];
+        delete newAnswers[`${questionId}_custom_text`];
+        return newAnswers;
+      });
+    }
+  };
+
   const isOptionSelected = (questionId, option) => {
     const answer = answers[questionId];
     if (Array.isArray(answer)) {
@@ -85,13 +113,22 @@ export default function QuestionGroup({
   };
 
   const validateAnswers = () => {
-    // Check if all questions in the current group have been answered
+    // Check if all questions are skipped
+    const allSkipped = questions.every(question => skippedQuestions[question.id]);
+    
+    if (allSkipped) {
+      setErrorMessage('You must answer at least one question. Please unskip a question and provide an answer.');
+      return false;
+    }
+    
+    // Check if all non-skipped questions in the current group have been answered
     const unansweredQuestions = questions.filter(
-      question => !answers[question.id] || 
-                 (Array.isArray(answers[question.id]) && answers[question.id].length === 0) ||
-                 (Array.isArray(answers[question.id]) && 
-                 answers[question.id].includes('__custom__') && 
-                 !getCustomAnswer(question.id))
+      question => !skippedQuestions[question.id] && // Skip validation for skipped questions
+              (!answers[question.id] || 
+               (Array.isArray(answers[question.id]) && answers[question.id].length === 0) ||
+               (Array.isArray(answers[question.id]) && 
+               answers[question.id].includes('__custom__') && 
+               !getCustomAnswer(question.id)))
     );
     
     if (unansweredQuestions.length > 0) {
@@ -120,9 +157,15 @@ export default function QuestionGroup({
   const formatAnswersForSubmission = () => {
     const formattedAnswers = [];
     
-    // Process each question's answer
+    // Process each question's answer, excluding skipped questions
     questions.forEach(question => {
       const questionId = question.id;
+      
+      // Skip questions that have been marked as skipped
+      if (skippedQuestions[questionId]) {
+        return;
+      }
+      
       const answer = answers[questionId];
       
       if (!answer) return;
@@ -186,9 +229,22 @@ export default function QuestionGroup({
       <div className="space-y-6">
         {questions.map(question => (
           <div key={question.id} className="border rounded-lg p-4">
-            <h4 className="font-medium mb-2">{question.question}</h4>
+            <div className="flex justify-between items-start mb-2">
+              <h4 className="font-medium">{question.question}</h4>
+              <button
+                type="button"
+                onClick={() => handleSkipQuestion(question.id)}
+                className={`text-xs px-2 py-1 ml-2 rounded border ${
+                  skippedQuestions[question.id] 
+                    ? 'bg-red-50 text-red-600 border-red-300' 
+                    : 'border-red-300 text-red-600 hover:bg-red-50'
+                }`}
+              >
+                {skippedQuestions[question.id] ? 'Skipped' : 'Skip'}
+              </button>
+            </div>
             
-            <div className="space-y-2">
+            <div className={`space-y-2 ${skippedQuestions[question.id] ? 'opacity-50 pointer-events-none' : ''}`}>
               {/* Options */}
               {question.options && question.options.length > 0 ? (
                 <>
@@ -200,7 +256,7 @@ export default function QuestionGroup({
                           className="mr-3"
                           checked={isOptionSelected(question.id, option)}
                           onChange={() => handleAnswerChange(question.id, option, true)}
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || skippedQuestions[question.id]}
                         />
                         <span>{option}</span>
                       </label>
@@ -215,7 +271,7 @@ export default function QuestionGroup({
                         className="mt-1 mr-3"
                         checked={hasCustomAnswer(question.id)}
                         onChange={() => handleAnswerChange(question.id, '__custom__', true)}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || skippedQuestions[question.id]}
                       />
                       <div className="w-full">
                         <div className="font-medium">Other</div>
@@ -227,7 +283,7 @@ export default function QuestionGroup({
                               placeholder="Enter your custom response..."
                               value={getCustomAnswer(question.id)}
                               onChange={(e) => handleAnswerChange(question.id, e.target.value, false)}
-                              disabled={isSubmitting}
+                              disabled={isSubmitting || skippedQuestions[question.id]}
                             />
                           </div>
                         )}
@@ -244,7 +300,7 @@ export default function QuestionGroup({
                     placeholder="Enter your response..."
                     value={answers[question.id] || ''}
                     onChange={(e) => handleAnswerChange(question.id, e.target.value, false)}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || skippedQuestions[question.id]}
                   />
                 </div>
               )}

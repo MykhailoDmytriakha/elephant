@@ -2,6 +2,9 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000';
 
+// Flags to prevent duplicate requests
+let isValidateScopeInProgress = false;
+
 const handleApiError = (error, defaultMessage) => {
   if (error.response) {
     const message = error.response.data?.detail || 
@@ -102,11 +105,26 @@ export const getDraftScope = async (taskId) => {
 };
 
 export const validateScope = async (taskId, isApproved, feedback = null) => {
+  // If there's already a request in progress, ignore this one
+  if (isValidateScopeInProgress) {
+    console.log('validateScope: Request already in progress, ignoring duplicate call');
+    return null;
+  }
+  
+  // Set flag to prevent duplicate requests
+  isValidateScopeInProgress = true;
+  
   try {
+    console.log('validateScope: Making API call', {taskId, isApproved, feedback});
     const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/validate-scope`, { isApproved, feedback });
     return response.data;
   } catch (error) {
     handleApiError(error, 'Failed to validate scope');
+  } finally {
+    // Reset flag after a short delay to catch very fast duplicate clicks
+    setTimeout(() => {
+      isValidateScopeInProgress = false;
+    }, 500);
   }
 };
 

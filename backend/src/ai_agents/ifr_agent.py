@@ -105,7 +105,14 @@ async def generate_IFR(
        
     5. VALIDATION CHECKLIST:
        - List 10-12 test procedures with specific pass/fail criteria
-       - Format: "[Test procedure]: Verify [specific element] [meets exact requirement]" (language based on user's language)
+       - Format: "[Test procedure]: [verification word] [specific element] [meets exact requirement]"
+         where [verification word] should be:
+         * English: "Verify"
+         * Russian: "Проверить"
+         * Spanish: "Verificar"
+         * French: "Vérifier"
+         * German: "Überprüfen"
+         * Or appropriate term in the user's language
        - Each validation item must include both what to test and how to determine success
     
     CRITICAL REQUIREMENTS:

@@ -78,16 +78,21 @@ export default function ScopeValidation({
 
   // Handler for approval/changes
   const handleValidation = async (isApproved, feedbackText = null) => {
+    console.log(`handleValidation called with isApproved=${isApproved}, feedbackText=${feedbackText}`);
+    
     onSetLoading(true);
     onSetErrorMessage('');
     
     try {
       // If feedbackText is provided, use it; otherwise use the feedback state
       const feedbackToSubmit = feedbackText !== null ? feedbackText : feedback;
+      console.log(`Submitting to API: isApproved=${isApproved}, feedbackToSubmit=${feedbackToSubmit}`);
       
       const response = await validateScope(task.id, isApproved, feedbackToSubmit);
+      console.log('API response received:', response);
       
       if (isApproved) {
+        console.log('Handling approval path');
         try {
           // Final scope approved - set local approval state
           onSetLocallyApproved(true);
@@ -120,6 +125,7 @@ export default function ScopeValidation({
           onSetErrorMessage('Scope approved, but there was an issue finalizing the task. The scope is still saved.');
         }
       } else {
+        console.log('Handling feedback path');
         // Display updated scope and stay on validation screen
         if (response && response.updatedScope) {
           // Preserve validation criteria when updating draft scope
@@ -251,7 +257,13 @@ export default function ScopeValidation({
           <div className="flex gap-4 mb-6">
             {!showFeedbackForm && (
               <button
-                onClick={() => handleValidation(true, null)}
+                onClick={(e) => {
+                  console.log('Approve button clicked');
+                  // Отключаем кнопку немедленно, чтобы предотвратить двойные клики
+                  e.currentTarget.disabled = true;
+                  e.currentTarget.innerHTML = 'Approving...';
+                  handleValidation(true, null);
+                }}
                 className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 disabled={isLoading}
               >

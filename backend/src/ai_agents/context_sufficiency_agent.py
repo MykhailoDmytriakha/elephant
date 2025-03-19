@@ -51,9 +51,10 @@ async def analyze_context_sufficiency(
     instructions = f"""
     Analyze the following task and context information to determine if there's sufficient context to proceed.
     
-    TASK: {task.short_description}    
+    TASK: {task.short_description}
+    ---
     CONTEXT ANSWERS: {context_answers_text}
-    
+    ---
     {language_instruction}
     
     If the context is insufficient, provide questions to gather more information.
@@ -64,6 +65,9 @@ async def analyze_context_sufficiency(
     IMPORTANT: Do NOT ask follow-up questions about topics where the user has indicated they will address it later 
     (responses like "we'll determine this later", "we'll figure this out later", "this will be decided later", etc.). 
     These topics should be deferred to the scope formulation phase instead of being asked again.
+    
+    IMPORTANT: If the user has repeatedly answered "не знаю" (I don't know) or provided very limited information,
+    consider the context sufficient with what we have and DO NOT ask more questions on those topics.
     
     Your analysis should be thorough and comprehensive. Ask clarifying questions for ambiguous or missing information,
     but respect when the user has explicitly deferred a decision to later stages. The questions should systematically 

@@ -27,7 +27,12 @@ class ProblemAnalyzer:
         
         if not force:
             task.update_state(TaskState.CONTEXT_GATHERING)
-            result = await self.openai_service.is_context_sufficient(task)
+            max_question_rounds = 20
+            if task.context_answers and len(task.context_answers) >= max_question_rounds:
+                logger.info(f"Force marking context as sufficient after {len(task.context_answers)} rounds of questions")
+                result = ContextSufficiencyResult(is_context_sufficient=True, questions=[])
+            else:
+                result = await self.openai_service.is_context_sufficient(task)
 
             if not result.is_context_sufficient:
                 return result
