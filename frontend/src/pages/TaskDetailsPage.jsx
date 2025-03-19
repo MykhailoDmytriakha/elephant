@@ -116,9 +116,6 @@ export default function TaskDetailsPage() {
           <div className="col-span-2 space-y-6">
             <TaskOverview
               task={task}
-              onStartContextGathering={handleStartContextGathering}
-              isContextGatheringLoading={isContextGatheringLoading}
-              isForceRefreshMode={isForceRefreshMode}
             />
 
             <TaskContext
