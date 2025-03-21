@@ -11,3 +11,6 @@ logging.getLogger("openai.agents").setLevel(logging.INFO)
 
 # Export utility functions for easy access
 from src.ai_agents.utils import detect_language, get_language_instruction 
+
+# Export planning agent functionality
+from src.ai_agents.planning_agent import generate_network_plan 

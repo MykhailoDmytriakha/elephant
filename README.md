@@ -57,44 +57,55 @@ Before the AI can effectively help users, it must thoroughly understand:
 - Providing a user-friendly conversation experience
 - Balancing thoroughness with efficiency in information gathering
 
-### 2. Task Formulation
+### 2. Task Scope Formulation
 Once sufficient context is gathered, the system formulates a clear problem statement that includes:
 - Clear objectives
 - Scope boundaries (what's included and excluded)
 - Key requirements and constraints
 - Expected deliverables
 
-### 3. Problem Analysis
-The system then analyzes the formulated task to understand:
-- The nature of the problem
-- Required approaches and methodologies
-- Resources needed
-- Potential challenges
+## AI Agent Workflow
 
-### 4. Task Typification
-The problem is categorized based on:
-- Domain (e.g., software development, design, research)
-- Complexity level
-- Required expertise
-- Time sensitivity
+The Elephant system uses specialized AI agents to process user requests through a coordinated sequence:
 
-### 5. Clarification (If Needed)
-Additional clarifications may be requested based on:
-- Ambiguities discovered during analysis
-- Conflicting requirements
-- Areas requiring deeper understanding
+### 1. Context Sufficiency Analysis
+- The system analyzes the initial user request to determine if there's sufficient information
+- If context is insufficient, it generates specific follow-up questions
+- Questions are prioritized and may include multiple options for the user to choose from
+- The system intelligently avoids asking about topics users have indicated will be addressed later
 
-### 6. Approach Generation
-The system suggests possible approaches to solve the problem:
-- Analytical tools and methods
-- Practical implementation strategies
-- Frameworks and technologies
+### 2. Context Summarization
+- Once sufficient context is gathered, the system processes all accumulated information
+- It produces two key outputs:
+  - A clarified task statement (concisely stating what needs to be built)
+  - A comprehensive context summary organized into sections: Core Functionality, User Experience, Technical Requirements, and Open Questions
+- This establishes a clear understanding of what needs to be accomplished
 
-### 7. Task Decomposition
-Finally, the system breaks down the task into smaller, manageable subtasks:
-- Hierarchical structure with dependencies
-- Clear progression path
-- Manageable work units
+### 3. Scope Formulation
+- The system defines precise boundaries using the 5W+H framework:
+  - What: Exact deliverables with quantifiable criteria
+  - Why: Specific objectives with measurable outcomes
+  - Who: Precise audience definitions
+  - Where: Explicit platforms and environments
+  - When: Exact dates, timeframes, and milestones
+  - How: Specific implementation approaches
+- The number and complexity of questions adapt to the complexity of the user's request
+- Once all dimensions are addressed, a draft scope is generated and validated
+
+### 4. Ideal Final Result (IFR) Generation
+- The system creates an Ideal Final Result based on the clarified task and scope
+- The IFR includes:
+  - A concise statement describing the perfect solution
+  - Concrete, measurable success criteria (functional requirements)
+  - Expected outcomes addressing the user's original goals
+  - Precise quality metrics with exact numerical values
+  - Validation items with specific pass/fail criteria for testing
+
+### 5. Requirements Definition
+- Finally, detailed technical requirements are generated based on all previous steps
+- These requirements establish the specific technical specifications needed to implement the solution
+
+The system automatically detects the user's language and adapts its responses accordingly, ensuring a consistent experience regardless of the language used in the initial request.
 
 ## User Flow
 

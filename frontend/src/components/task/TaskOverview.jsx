@@ -1,6 +1,6 @@
 // src/components/task/TaskOverview.jsx
 import React, { useState } from 'react';
-import { HelpCircle, FileText, Target, Compass, Clock, AlignLeft, Microscope, Lightbulb } from 'lucide-react';
+import { HelpCircle, FileText, Target, Compass, Clock, AlignLeft, Microscope, Lightbulb, CheckCircle, Check, TrendingUp } from 'lucide-react';
 
 // Help tooltip component
 const HelpTooltip = ({ text }) => {
@@ -128,6 +128,39 @@ const TaskOverview = ({ task }) => {
               <p className="text-gray-900 whitespace-pre-line">{task.ifr.ideal_final_result}</p>
             </div>
           </div>
+
+          {/* Task Expected Outcomes */}
+          <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
+            <h3 className="text-sm font-medium text-gray-600 flex items-center mb-2">
+              <TrendingUp className="w-4 h-4 mr-1.5 text-gray-500" />
+              Expected Outcomes
+            </h3>
+            <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-100 space-y-2">
+              {task.ifr.expected_outcomes.map((outcome, index) => (
+                <div key={index} className="flex items-start">
+                  <Check className="w-4 h-4 mt-1 mr-2 text-gray-400 flex-shrink-0" />
+                  <p className="text-gray-900 whitespace-pre-line">{outcome}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Task Success Criteria */}
+          <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
+            <h3 className="text-sm font-medium text-gray-600 flex items-center mb-2">
+              <CheckCircle className="w-4 h-4 mr-1.5 text-gray-500" />
+              Success Criteria
+            </h3>
+            <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-100 space-y-2">
+              {task.ifr.success_criteria.map((criteria, index) => (
+                <div key={index} className="flex items-start">
+                  <Check className="w-4 h-4 mt-1 mr-2 text-gray-400 flex-shrink-0" />
+                  <p className="text-gray-900 whitespace-pre-line">{criteria}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          
           
           {/* Task metadata */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -10,6 +10,7 @@ import logging
 from typing import List
 from src.model.scope import ScopeFormulationGroup
 from src.model.ifr import IFR, Requirements
+from src.model.planning import NetworkPlan
 logger = logging.getLogger(__name__)
 
 import json
@@ -275,4 +276,26 @@ async def define_requirements(
     task.state = TaskState.REQUIREMENTS_GENERATED
     db.updated_task(task)
     return requirements
+
+@router.post("/{task_id}/network-plan", response_model=NetworkPlan)
+async def generate_network_plan(
+    task_id: str,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
+    """Generate a network plan for a specific task"""
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        logger.error(f"Task with ID {task_id} not found")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    
+    task = Task(**json.loads(task_data['task_json']))
+    if task.state != TaskState.REQUIREMENTS_GENERATED:
+        logger.error(f"Task must be in REQUIREMENTS_GENERATED state. Current state: {task.state}")
+        raise HTTPException(status_code=400, detail=f"Task must be in REQUIREMENTS_GENERATED state. Current state: {task.state}")
+    
+    network_plan = await analyzer.generate_network_plan(task)
+    return network_plan
+    
+
 

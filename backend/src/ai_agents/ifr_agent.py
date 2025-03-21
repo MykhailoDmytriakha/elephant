@@ -90,17 +90,16 @@ async def generate_IFR(
        - Format: precise, direct statements that clearly define the end goal
        - Absolutely no vague adjectives like "effective," "quality," "advanced," "optimal," etc.
     
-    2. SUCCESS CRITERIA:
+    2. SUCCESS CRITERIA (How will we know when the task is done?):
        - List 10-12 concrete, measurable functional requirements (not metrics)
        - Focus on WHAT the system does, not HOW WELL it does it
        - Format: "[System component] [enables/performs] [specific capability]"
        - Each criterion must address a different core capability, avoiding overlap with quality metrics
        - DO NOT include specific performance thresholds here (those belong in quality metrics)
     
-    3. EXPECTED OUTCOMES:
-       - List 10-12 direct answers to "What did the user want to achieve with this project?"
-       - Format: "[Specific problem] is solved by [concrete solution approach]"
-       - Example: "Vehicle owners' wait time for assistance is reduced by enabling direct mechanic communication"
+    3. EXPECTED OUTCOMES (What will we get?):
+       - List 10-12 direct answers to "What will the user get from this project?"
+       - Format: "[Specific outcome] is achieved by [concrete solution approach]"
        - Each outcome must directly relate to the user's original request and primary goals
        - Focus on practical benefits that the stakeholders will receive
        

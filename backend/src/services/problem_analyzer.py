@@ -4,6 +4,7 @@ from src.model.context import ContextSufficiencyResult
 from src.model.task import Task, TaskState
 from src.model.scope import ScopeFormulationGroup, ScopeQuestion, DraftScope, ValidationScopeResult
 from src.model.ifr import IFR, Requirements
+from src.model.planning import NetworkPlan
 import logging
 from typing import List
 logger = logging.getLogger(__name__)
@@ -77,3 +78,7 @@ class ProblemAnalyzer:
     async def define_requirements(self, task: Task) -> Requirements:
         requirements = await self.openai_service.define_requirements(task)
         return requirements
+    
+    async def generate_network_plan(self, task: Task) -> NetworkPlan:
+        network_plan = await self.openai_service.generate_network_plan(task)
+        return network_plan
