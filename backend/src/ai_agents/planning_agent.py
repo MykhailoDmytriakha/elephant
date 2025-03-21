@@ -4,6 +4,7 @@ from src.model.task import Task
 from src.model.planning import NetworkPlan, Stage, Connection
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, ConfigDict
+from src.ai_agents.utils import detect_language, get_language_instruction
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +161,11 @@ def create_plan(wrapper: RunContextWrapper[PlanningContext]) -> NetworkPlan:
     logger.info(f"\033[32m Creator: Next iteration: {context.iteration}\033[0m")
     if context.iteration == 3:
         logger.info(f"\033[31m Creator:\033[0m It's last iteration. After generating the plan, we'll return it.")
+        
+    # Detect language from task description
+    user_language = detect_language(context.task.short_description or "")
+    logger.info(f"Detected language: {user_language}")
+    language_instruction = get_language_instruction(user_language)
     
     if context.last_updated_plan is None:
         prompt = f"""
@@ -177,6 +183,8 @@ def create_plan(wrapper: RunContextWrapper[PlanningContext]) -> NetworkPlan:
         Tools: {"\n- ".join(context.task.requirements.tools)}
         Definitions: {"\n- ".join(context.task.requirements.definitions)}
         ---
+        {language_instruction}
+        
         Generate network plan for the task.
         """
     else:
@@ -199,8 +207,9 @@ def create_plan(wrapper: RunContextWrapper[PlanningContext]) -> NetworkPlan:
         ---
         CRITIC FEEDBACK: {context.critic_feedback}
         ---
-        VALIDATOR FEEDBACK: {context.validator_feedback}
-        ---
+        
+        {language_instruction}
+        
         Please generate an improved network plan taking into account the TASK DETAILS, PREVIOUS PLAN, and CRITIC FEEDBACK.
         """
     
@@ -227,6 +236,11 @@ def critic_plan(wrapper: RunContextWrapper[PlanningContext]) -> str:
     if not context.last_updated_plan:
         raise ValueError("No plan available in context to critique")
     
+    # Detect language from task description
+    user_language = detect_language(context.task.short_description or "")
+    logger.info(f"Detected language: {user_language}")
+    language_instruction = get_language_instruction(user_language)
+    
     prompt = f"""
     TASK DETAILS:
     Task: {context.task.task}
@@ -243,6 +257,8 @@ def critic_plan(wrapper: RunContextWrapper[PlanningContext]) -> str:
     Definitions: {"\n- ".join(context.task.requirements.definitions)}
     ---
     Critique the following plan: {context.last_updated_plan.model_dump_json()}
+    ---
+    {language_instruction}
     
     Remember to focus ONLY on the NetworkPlan structure (stages, checkpoints and connections). Do not critique implementation details, 
     methodologies, or features that aren't explicitly part of the NetworkPlan object.
@@ -304,8 +320,7 @@ triage_agent = Agent(
         "Follow this exact pattern: 1) Call what_tool_to_call_next, 2) Call the exact tool it returns if it's a function, or finish if it returns STOP_AND_RETURN_PLAN, 3) Call what_tool_to_call_next again, 4) Repeat."
         "You have NO DISCRETION in tool selection - you must call EXACTLY the tool returned by what_tool_to_call_next."
     ),
-    output_type=NetworkPlan,
-    model = model,
+    model = 'gpt-4o-mini',
     tools=[what_tool_to_call_next, create_plan, critic_plan]
 )
 
@@ -349,6 +364,9 @@ async def generate_network_plan(
     
     result = result.final_output
     # logger.info(f"History: {context.get_history_summary()}")
-    logger.info(f"Final network plan: {result}")
+    logger.info(f"Final network plan: {context.last_updated_plan}")
     logger.info(f"It takes {context.iteration} iterations to generate the plan")
-    return result
+    logger.info(f"final_output: {result}")
+    if context.last_updated_plan:
+        return context.last_updated_plan
+    raise Exception("No plan generated")

@@ -10,6 +10,7 @@ import Metadata from '../components/task/Metadata';
 import TaskScope from '../components/task/scope/TaskScope';
 import IFRView from '../components/task/IFRView';
 import TaskRequirements from '../components/task/requirements/TaskRequirements';
+import NetworkPlanView from '../components/task/network_plan/NetworkPlanView';
 import TaskContext from '../components/task/context/TaskContext';
 import Breadcrumbs from '../components/task/Breadcrumbs';
 import { useTaskDetails } from '../hooks/useTaskDetails';
@@ -33,6 +34,8 @@ export default function TaskDetailsPage() {
     isGeneratingIFR,
     handleGenerateRequirements,
     isGeneratingRequirements,
+    handleGenerateNetworkPlan,
+    isGeneratingNetworkPlan,
     
     // Context gathering
     contextQuestions,
@@ -156,6 +159,15 @@ export default function TaskDetailsPage() {
                 requirements={task.requirements}
                 isGeneratingRequirements={isGeneratingRequirements}
                 onGenerateRequirements={handleGenerateRequirements}
+                taskState={task.state}
+              />
+            )}
+
+            {task.requirements && (
+              <NetworkPlanView
+                networkPlan={task.network_plan}
+                isGeneratingNetworkPlan={isGeneratingNetworkPlan}
+                onGenerateNetworkPlan={handleGenerateNetworkPlan}
                 taskState={task.state}
               />
             )}

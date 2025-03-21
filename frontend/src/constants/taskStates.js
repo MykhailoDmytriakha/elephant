@@ -6,7 +6,7 @@ export const TaskStates = {
   TASK_FORMATION: "3.5. Task Formation",
   IFR_GENERATED: "4. IFR Generated",
   REQUIREMENTS_GENERATED: "5. Requirements Defined",
-  ANALYSIS: "6. Analysis",
+  NETWORK_PLAN_GENERATED: "6. Network (Stages) Plan Generated",
   TYPIFY: "7. Typify",
   CLARIFYING: "8. Clarifying",
   CLARIFICATION_COMPLETE: "9. Clarification Complete",

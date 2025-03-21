@@ -5,6 +5,7 @@ from typing import List, Optional, Dict
 from src.model.context import UserAnswers, UserAnswer
 from src.model.scope import TaskScope
 from src.model.ifr import IFR, Requirements
+from src.model.planning import NetworkPlan
 from pydantic import BaseModel, Field   
 import json
 
@@ -15,7 +16,7 @@ class TaskState(Enum):
     TASK_FORMATION = "3.5. Task Formation"
     IFR_GENERATED = "4. IFR Generated"
     REQUIREMENTS_GENERATED = "5. Requirements Defined"
-    ANALYSIS = "6. Analysis"
+    NETWORK_PLAN_GENERATED = "6. Network (Stages) Plan Generated"
     TYPIFY = "7. Typify"
     CLARIFYING = "8. Clarifying"
     CLARIFICATION_COMPLETE = "9. Clarification Complete"    
@@ -36,6 +37,10 @@ class Task(BaseModel):
     sub_level: int = 0
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+    level: Optional[str] = None
+    complexity: Optional[int] = None
+    eta_to_complete: Optional[str] = None
+    contribution_to_parent_task: Optional[str] = None
     # task fields
     task: Optional[str] = None
     short_description: Optional[str] = ''
@@ -43,23 +48,10 @@ class Task(BaseModel):
     is_context_sufficient: bool = False
     context_answers: List[UserAnswer] = Field(default_factory=list)
     context: Optional[str] = None
-    level: Optional[str] = None
-    complexity: Optional[int] = None
-    eta_to_complete: Optional[str] = None
-    contribution_to_parent_task: Optional[str] = None
     scope: Optional[TaskScope] = None
     ifr: Optional[IFR] = None
     requirements: Optional[Requirements] = None
-    # analysis fields
-    analysis: Dict = Field(default_factory=dict)
-    typification: Dict = Field(default_factory=dict)
-    clarification_data: Dict = Field(default_factory=dict)
-    approaches: Dict = Field(default_factory=dict)
-    # decomposition fields
-    sub_tasks: List[str] = Field(default_factory=list)
-    decomposed_tasks: List[Dict] = Field(default_factory=list)
-    parent_task: Optional[str] = None
-    order: Optional[int] = None
+    network_plan: Optional[NetworkPlan] = None
     
     def __init__(self, **data):
         super().__init__(**data)

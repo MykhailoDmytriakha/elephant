@@ -295,6 +295,9 @@ async def generate_network_plan(
         raise HTTPException(status_code=400, detail=f"Task must be in REQUIREMENTS_GENERATED state. Current state: {task.state}")
     
     network_plan = await analyzer.generate_network_plan(task)
+    task.network_plan = network_plan
+    task.state = TaskState.NETWORK_PLAN_GENERATED
+    db.updated_task(task)
     return network_plan
     
 

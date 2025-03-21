@@ -56,4 +56,5 @@ def get_language_instruction(language: str) -> str:
     IMPORTANT: The user's request appears to be in a language other than English (detected: {language}).
     Please formulate your response in the same language as the user's original request.
     Use the user's language patterns and terminology from their initial description.
+    RESPONSE IN `{language}` LANGUAGE.
     """ 

@@ -149,3 +149,14 @@ export const generateRequirements = async (taskId) => {
     handleApiError(error, 'Failed to generate Requirements');
   }
 };
+
+export const generateNetworkPlan = async (taskId) => {
+  try {
+    console.log('Generating network plan for task:', taskId);
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/network-plan`);
+    console.log('Network plan response:', response.data);
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'Failed to generate Network Plan');
+  }
+};

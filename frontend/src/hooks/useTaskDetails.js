@@ -7,7 +7,8 @@ import {
   fetchTaskDetails, 
   deleteTask, 
   generateIFR,
-  generateRequirements
+  generateRequirements,
+  generateNetworkPlan
 } from '../utils/api';
 
 /**
@@ -78,6 +79,15 @@ export function useTaskDetails(taskId) {
     navigate('/');
   };
 
+  const [handleGenerateNetworkPlan, isGeneratingNetworkPlan] = useTaskOperation(
+    () => generateNetworkPlan(taskId),
+    loadTask,
+    {
+      successMessage: 'Network Plan generated successfully',
+      errorMessage: 'Failed to generate Network Plan'
+    }
+  );
+
   return {
     // State
     task,
@@ -97,6 +107,9 @@ export function useTaskDetails(taskId) {
     // Track if we're in force refresh mode
     isForceRefreshMode: contextGathering.isForceRefreshMode,
     // Add an alias for retry handler for better semantics
-    onRetryContextGathering: () => contextGathering.startContextGathering(false)
+    onRetryContextGathering: () => contextGathering.startContextGathering(false),
+    // Network Plan
+    isGeneratingNetworkPlan,
+    handleGenerateNetworkPlan,
   };
 } 
