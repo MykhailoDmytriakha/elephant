@@ -160,6 +160,8 @@ export default function TaskDetailsPage() {
                 isGeneratingRequirements={isGeneratingRequirements}
                 onGenerateRequirements={handleGenerateRequirements}
                 taskState={task.state}
+                defaultOpen={!(task.network_plan && Object.keys(task.network_plan).length > 0)}
+                isCompleted={task.network_plan && Object.keys(task.network_plan).length > 0}
               />
             )}
 

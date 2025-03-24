@@ -280,6 +280,7 @@ async def define_requirements(
 @router.post("/{task_id}/network-plan", response_model=NetworkPlan)
 async def generate_network_plan(
     task_id: str,
+    force: bool = False,
     analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
     db: DatabaseService = Depends(get_db_service)
 ):
@@ -290,7 +291,7 @@ async def generate_network_plan(
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
     
     task = Task(**json.loads(task_data['task_json']))
-    if task.state != TaskState.REQUIREMENTS_GENERATED:
+    if task.state != TaskState.REQUIREMENTS_GENERATED and not force:
         logger.error(f"Task must be in REQUIREMENTS_GENERATED state. Current state: {task.state}")
         raise HTTPException(status_code=400, detail=f"Task must be in REQUIREMENTS_GENERATED state. Current state: {task.state}")
     

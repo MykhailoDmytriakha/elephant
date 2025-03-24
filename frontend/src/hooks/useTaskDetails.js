@@ -80,7 +80,7 @@ export function useTaskDetails(taskId) {
   };
 
   const [handleGenerateNetworkPlan, isGeneratingNetworkPlan] = useTaskOperation(
-    () => generateNetworkPlan(taskId),
+    (forceRefresh = false) => generateNetworkPlan(taskId, forceRefresh),
     loadTask,
     {
       successMessage: 'Network Plan generated successfully',

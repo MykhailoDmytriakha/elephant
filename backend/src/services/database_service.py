@@ -4,7 +4,7 @@ import logging
 from contextlib import contextmanager
 from typing import Any, Dict, List
 import os
-
+from datetime import datetime
 from src.core.config import settings
 from src.model.task import Task
 
@@ -108,6 +108,7 @@ class DatabaseService:
 
     def updated_task(self, task: Task):
         logger.info(f"Updating task with ID: {task.id}")
+        task.updated_at = datetime.now().isoformat()
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()

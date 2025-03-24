@@ -79,6 +79,28 @@ export default function StageDetails({ stage }) {
         <p className="mt-2 text-gray-700">{stage.description}</p>
       </div>
 
+      {stage.result && stage.result.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Results</h3>
+          <ul className="space-y-1 pl-6 list-disc text-sm">
+            {stage.result.map((result, index) => (
+              <li key={`result-${index}`}>{result}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {stage.what_should_be_delivered && stage.what_should_be_delivered.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">What should be delivered</h3>
+          <ul className="space-y-1 pl-6 list-disc text-sm">
+            {stage.what_should_be_delivered.map((item, index) => (
+              <li key={`delivered-item-${index}`}>{item}</li> 
+            ))}
+          </ul>
+        </div>
+      )}
+
       {stage.checkpoints && stage.checkpoints.length > 0 && (
         <div className="mt-8">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Checkpoints</h3>

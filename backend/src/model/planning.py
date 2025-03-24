@@ -26,6 +26,8 @@ class Stage(BaseModel):
     id: str = Field(..., description="Number of the stage (e.g. 1, 2, 3, etc.)")
     name: str = Field(..., description="Name of the stage")
     description: str = Field(..., description="Description of the stage")
+    result: List[str] = Field(default_factory=list, description="Shaping the result of the stage")
+    what_should_be_delivered: List[str] | None = Field(default=None, description="What should be delivered after the stage is completed")
     checkpoints: List[Checkpoint] = Field(default_factory=list)
 
 class Connection(BaseModel):

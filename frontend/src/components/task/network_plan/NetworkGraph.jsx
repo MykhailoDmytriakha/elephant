@@ -204,7 +204,7 @@ export default function NetworkGraph({
     console.log('Stages received:', stages);
     
     // Set up grid layout
-    const columns = Math.min(2, stages.length);
+    const columns = Math.min(3, stages.length);
     const baseNodeWidth = 220;
     const baseNodeHeight = 120;
     const horizontalGap = 150;
@@ -495,7 +495,7 @@ export default function NetworkGraph({
         onInit={setReactFlowInstance}
         fitView
         fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.8}
+        minZoom={0.5}
         maxZoom={1.5}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         nodeTypes={nodeTypes}
@@ -503,10 +503,8 @@ export default function NetworkGraph({
         proOptions={{ hideAttribution: true }}
         elementsSelectable={true}
         nodesDraggable={false}
-        panOnScroll={false}
-        panOnDrag={false}
         className="bg-gray-50 rounded-lg"
-        connectionMode={ConnectionMode.Strict}
+        connectionMode={ConnectionMode.Loose}
         connectionLineType="smoothstep"
         defaultEdgeOptions={{
           type: 'customEdge',

@@ -109,7 +109,7 @@ export default function NetworkPlanView({
 
         <div className="flex justify-end">
           <button
-            onClick={onGenerateNetworkPlan}
+            onClick={() => onGenerateNetworkPlan(true)}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />

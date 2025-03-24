@@ -150,10 +150,10 @@ export const generateRequirements = async (taskId) => {
   }
 };
 
-export const generateNetworkPlan = async (taskId) => {
+export const generateNetworkPlan = async (taskId, forceRefresh = false) => {
   try {
     console.log('Generating network plan for task:', taskId);
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/network-plan`);
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/network-plan?force=${forceRefresh}`);
     console.log('Network plan response:', response.data);
     return response.data;
   } catch (error) {

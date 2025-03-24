@@ -103,20 +103,10 @@ class Task(BaseModel):
         valid_transitions = {
             TaskState.NEW: [TaskState.CONTEXT_GATHERING, TaskState.CONTEXT_GATHERED],
             TaskState.CONTEXT_GATHERING: [TaskState.CONTEXT_GATHERED],
-            TaskState.CONTEXT_GATHERED: [TaskState.TASK_FORMATION, TaskState.ANALYSIS],
-            TaskState.TASK_FORMATION: [TaskState.ANALYSIS],
-            TaskState.ANALYSIS: [TaskState.TYPIFY, TaskState.CLARIFICATION_COMPLETE],
-            TaskState.TYPIFY: [TaskState.CLARIFYING],
-            TaskState.CLARIFYING: [TaskState.CLARIFICATION_COMPLETE],
-            TaskState.CLARIFICATION_COMPLETE: [TaskState.APPROACH_FORMATION],
-            TaskState.APPROACH_FORMATION: [TaskState.METHOD_SELECTION],
-            TaskState.METHOD_SELECTION: [TaskState.DECOMPOSITION],
-            TaskState.DECOMPOSITION: [TaskState.METHOD_APPLICATION, TaskState.METHOD_SELECTION, TaskState.APPROACH_FORMATION],
-            TaskState.METHOD_APPLICATION: [TaskState.SOLUTION_DEVELOPMENT],
-            TaskState.SOLUTION_DEVELOPMENT: [TaskState.EVALUATION],
-            TaskState.EVALUATION: [TaskState.INTEGRATION],
-            TaskState.INTEGRATION: [TaskState.OUTPUT_GENERATION],
-            TaskState.OUTPUT_GENERATION: [TaskState.COMPLETED],
+            TaskState.CONTEXT_GATHERED: [TaskState.IFR_GENERATED],
+            TaskState.IFR_GENERATED: [TaskState.REQUIREMENTS_GENERATED],
+            TaskState.REQUIREMENTS_GENERATED: [TaskState.NETWORK_PLAN_GENERATED],
+            TaskState.NETWORK_PLAN_GENERATED: [TaskState.COMPLETED],
             TaskState.COMPLETED: []
         }
         return new_state in valid_transitions.get(self.state, [])

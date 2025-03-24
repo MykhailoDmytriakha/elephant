@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { InfoCard, StatusBadge, ProgressBar } from './TaskComponents';
 import { RefreshCcw } from "lucide-react";
 import { fetchTaskDetails } from '../../utils/api';
+import { TaskStates, getStateNumber, getReadableState } from '../../constants/taskStates';
 
 export default function Metadata({ task }) {
   const navigate = useNavigate();
@@ -70,53 +71,30 @@ export default function Metadata({ task }) {
               {new Date(task.updated_at).toLocaleString()}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            {task.sub_level !== undefined && (
+          {/* show stages */}
+          {task.network_plan && (
+            <>
+              <hr className="my-3 border-gray-200" />
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Sub Level</h3>
-                <p className="mt-1 text-gray-900">{task.sub_level}</p>
-              </div>
-            )}
-            {task.complexity !== undefined && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Complexity</h3>
-                <p className="mt-1 text-gray-900">{task.complexity}</p>
-              </div>
-            )}
-          </div>
-          {task.progress !== undefined && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Progress</h3>
-              <ProgressBar progress={task.progress} />
-            </div>
-          )}
-          {task.sub_tasks?.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Sub Tasks</h3>
-              <div className="mt-2 space-y-2">
-                {isLoadingSubtasks ? (
-                  <div className="text-center py-4">
-                    <RefreshCcw className="w-5 h-5 animate-spin mx-auto" />
-                    <p className="text-sm text-gray-500 mt-2">Loading subtasks...</p>
-                  </div>
-                ) : (
-                  [...subtaskDetails]
-                    .sort((a, b) => (a.order || 0) - (b.order || 0))
-                    .map((subTask, index) => (
-                      <div 
-                        key={subTask.id}
-                        onClick={() => navigate(`/tasks/${subTask.id}`)}
-                        className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors relative"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <StatusBadge state={subTask.state} />
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-500">Stages</h3>
+                </div>
+                {task.network_plan?.stages && task.network_plan.stages.length > 0 && (
+                  <div className="mt-3">
+                    <div className="space-y-1.5">
+                      {task.network_plan.stages.map((stage, index) => (
+                        <div 
+                          key={index} 
+                          className="flex items-center p-2 rounded-md hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-200"
+                        >
+                          <span className="text-sm font-medium text-gray-900">{stage.name}</span>
                         </div>
-                        <p className="text-sm text-gray-900">{subTask.short_description}</p>
-                      </div>
-                  ))
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
+            </>
           )}
         </div>
       </InfoCard>

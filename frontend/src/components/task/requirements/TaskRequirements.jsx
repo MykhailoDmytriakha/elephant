@@ -10,7 +10,9 @@ export default function TaskRequirements({
   requirements,
   isGeneratingRequirements,
   onGenerateRequirements,
-  taskState
+  taskState,
+  isCompleted,
+  defaultOpen
 }) {
   // State for tracking the active category
   const [activeCategory, setActiveCategory] = useState(null);
@@ -158,7 +160,16 @@ export default function TaskRequirements({
   };
   
   return (
-    <CollapsibleSection title="Requirements" defaultOpen={true}>
+    <CollapsibleSection title={
+      <div className="flex items-center justify-between w-full">
+        <span>Requirements</span>
+        {isCompleted && (
+          <span className="ml-2 text-xs bg-green-100 text-green-800 py-0.5 px-2 rounded-full">
+            Complete
+          </span>
+        )}
+      </div>
+    }  defaultOpen={defaultOpen}>
       {hasRequirements ? (
         <div className="space-y-6">
           {/* Content area showing either cards or detailed list */}
