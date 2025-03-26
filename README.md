@@ -96,23 +96,16 @@ Elephant uses a client-server architecture:
 *   **Frontend:** React application (`/frontend`) using React Router, Axios, Tailwind CSS, and `@xyflow/react` for graph visualization.
 *   **Backend:** FastAPI application (`/backend`) using Pydantic, OpenAI Agents SDK, and SQLite for data persistence.
 
-For more details, see the [Architecture Documentation](docs/ARCHITECTURE.md).
-
 ## Project Structure
 
 ```
 elephant/
 ├── backend/          # FastAPI Backend
 ├── frontend/         # React Frontend
-├── data/             # Database, Examples, Design Docs
-├── docs/             # Project Documentation
 ├── scripts/          # Utility Scripts
 ├── .env              # Environment variables (backend)
-├── TODO.md           # Development Tasks
 └── README.md         # This file
 ```
-
-For a detailed structure, see the [Project Structure Documentation](docs/PROJECT_STRUCTURE.md).
 
 ## Getting Started
 
@@ -190,19 +183,6 @@ The backend exposes a RESTful API for managing queries and tasks. Key endpoints 
 *   `POST /tasks/{task_id}/requirements`: Generate Requirements.
 *   `POST /tasks/{task_id}/network-plan`: Generate Network Plan.
 
-For the complete reference, see the [API Documentation](docs/API.md).
-
-## Documentation
-
-Comprehensive documentation is available in the [docs](docs/) directory:
-
-*   [User Guide](docs/USER_GUIDE.md)
-*   [API Documentation](docs/API.md)
-*   [Architecture](docs/ARCHITECTURE.md)
-*   [Project Structure](docs/PROJECT_STRUCTURE.md)
-*   [State Transitions](docs/STATE_TRANSITIONS.md)
-*   [Data & Design Docs](data/README.md)
-
 ## Development Status & Roadmap
 
 The project is under active development. Current priorities include:
@@ -212,8 +192,6 @@ The project is under active development. Current priorities include:
 *   **Context Gathering Enhancements:** Adding structured questions and multi-turn conversations.
 *   **UI/UX Improvements:** Enhancing loading states, filtering, and user feedback.
 *   **Decomposition Implementation:** Building out the **Stage -> Work -> Task -> Subtask** decomposition logic.
-
-See the [TODO.md](TODO.md) file for a detailed list of tasks and known issues.
 
 ## Contributing
 

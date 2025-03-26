@@ -4,9 +4,11 @@ from src.model.context import ContextSufficiencyResult
 from src.model.task import Task, TaskState
 from src.model.scope import ScopeFormulationGroup, ScopeQuestion, DraftScope, ValidationScopeResult
 from src.model.ifr import IFR, Requirements
-from src.model.planning import NetworkPlan
+from src.model.planning import NetworkPlan, Stage
+from src.model.work import Work
 import logging
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 logger = logging.getLogger(__name__)
 
 class ProblemAnalyzer:
@@ -82,3 +84,44 @@ class ProblemAnalyzer:
     async def generate_network_plan(self, task: Task) -> NetworkPlan:
         network_plan = await self.openai_service.generate_network_plan(task)
         return network_plan
+    
+    async def generate_stage_work(self, task: Task, stage_id: str) -> List[Work]:
+        """
+        Generates Work packages for a specific stage and updates the task.
+        """
+        logger.info(f"Generating work for Task {task.id}, Stage {stage_id}")
+
+        if not task.network_plan or not task.network_plan.stages:
+            logger.error(f"Task {task.id} does not have a network plan or stages.")
+            raise ValueError("Network plan with stages must exist before generating work.")
+
+        # Find the target stage
+        target_stage: Optional[Stage] = None
+        for stage in task.network_plan.stages:
+            if stage.id == stage_id:
+                target_stage = stage
+                break
+
+        if not target_stage:
+            logger.error(f"Stage with ID {stage_id} not found in Task {task.id}'s network plan.")
+            raise ValueError(f"Stage ID {stage_id} not found in the network plan.")
+
+        # Call the AI service to generate work packages
+        generated_work_packages = await self.openai_service.generate_work_for_stage(task, target_stage)
+
+        if not generated_work_packages:
+             logger.warning(f"AI service returned no work packages for Stage {stage_id}.")
+             # Decide if this is an error or just an empty list case
+             # For now, let's treat it as potentially valid (maybe the stage is simple)
+             # but update the task anyway
+             generated_work_packages = []
+
+
+        # Update the stage within the task object
+        target_stage.work_packages = generated_work_packages
+
+        # Save the updated task back to the database
+        self.db_service.updated_task(task)
+        logger.info(f"Updated Task {task.id} with {len(generated_work_packages)} work packages for Stage {stage_id}")
+
+        return generated_work_packages

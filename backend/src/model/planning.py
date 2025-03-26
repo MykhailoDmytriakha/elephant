@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
+from src.model.work import Work
 
 class Artifact(BaseModel):
     """
@@ -29,6 +30,7 @@ class Stage(BaseModel):
     result: List[str] = Field(default_factory=list, description="Shaping the result of the stage")
     what_should_be_delivered: List[str] | None = Field(default=None, description="What should be delivered after the stage is completed")
     checkpoints: List[Checkpoint] = Field(default_factory=list)
+    work_packages: Optional[List[Work]] = Field(default_factory=list, description="List of work packages decomposing this stage")
 
 class Connection(BaseModel):
     """

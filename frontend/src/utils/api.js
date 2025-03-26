@@ -160,3 +160,22 @@ export const generateNetworkPlan = async (taskId, forceRefresh = false) => {
     handleApiError(error, 'Failed to generate Network Plan');
   }
 };
+
+/**
+ * Generates Work packages for a specific stage of a task.
+ * @param {string} taskId - The ID of the task.
+ * @param {string} stageId - The ID of the stage.
+ * @returns {Promise<Array>} A promise that resolves to the list of generated Work packages.
+ */
+export const generateWorkForStage = async (taskId, stageId) => {
+  try {
+    console.log(`Generating work packages for task ${taskId}, stage ${stageId}`);
+    // POST request, no body needed based on the endpoint definition
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/generate-work`, {});
+    console.log(`Work packages response for stage ${stageId}:`, response.data);
+    // The backend returns the list of work packages directly
+    return response.data;
+  } catch (error) {
+    handleApiError(error, `Failed to generate Work Packages for stage ${stageId}`);
+  }
+};

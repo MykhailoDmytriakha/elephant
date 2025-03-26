@@ -11,6 +11,7 @@ from typing import List
 from src.model.scope import ScopeFormulationGroup
 from src.model.ifr import IFR, Requirements
 from src.model.planning import NetworkPlan
+from src.model.work import Work
 logger = logging.getLogger(__name__)
 
 import json
@@ -301,5 +302,88 @@ async def generate_network_plan(
     db.updated_task(task)
     return network_plan
     
+@router.post("/{task_id}/stages/{stage_id}/generate-work", response_model=List[Work])
+async def generate_work_for_stage_endpoint(
+    task_id: str,
+    stage_id: str,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Generates a list of Work packages for a specific Stage within a Task.
+    The Task must have a Network Plan generated (state NETWORK_PLAN_GENERATED).
+    """
+    logger.info(f"Received request to generate work for Task {task_id}, Stage {stage_id}")
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        logger.error(f"Task {task_id} not found.")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
 
+    try:
+        task = Task(**json.loads(task_data['task_json']))
+    except Exception as e:
+        logger.error(f"Failed to deserialize task {task_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load task data.")
 
+    # Ensure the task is in the correct state
+    if task.state != TaskState.NETWORK_PLAN_GENERATED:
+        logger.error(f"Task {task_id} is not in the required state ({TaskState.NETWORK_PLAN_GENERATED}). Current state: {task.state}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Task must be in state '{TaskState.NETWORK_PLAN_GENERATED.value}' to generate work packages. Current state: '{task.state.value}'"
+        )
+
+    try:
+        # Call the analyzer method which handles finding the stage, calling AI, and updating DB
+        generated_work = await analyzer.generate_stage_work(task, stage_id)
+        return generated_work
+    except ValueError as ve: # Catch errors like stage not found
+        logger.error(f"Value error during work generation for Task {task_id}, Stage {stage_id}: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
+    except ImportError as ie: # Catch SDK import errors
+         logger.error(f"Import error during work generation: {ie}")
+         raise HTTPException(status_code=501, detail="Work generation feature requires additional dependencies.")
+    except Exception as e:
+        logger.error(f"Unexpected error generating work for Task {task_id}, Stage {stage_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred while generating work packages.")
+
+@router.post("/{task_id}/stages/generate-work", response_model=NetworkPlan)
+async def generate_work_packages_for_all_stages(
+    task_id: str,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Generates a list of Work packages for all stages within a Task.
+    The Task must have a Network Plan generated (state NETWORK_PLAN_GENERATED).
+    """
+    logger.info(f"Received request to generate work for Task {task_id}")
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        logger.error(f"Task {task_id} not found.")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    
+    try:
+        task = Task(**json.loads(task_data['task_json']))
+    except Exception as e:
+        logger.error(f"Failed to deserialize task {task_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load task data.")
+    
+    if task.state != TaskState.NETWORK_PLAN_GENERATED:
+        logger.error(f"Task {task_id} is not in the required state ({TaskState.NETWORK_PLAN_GENERATED}). Current state: {task.state}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Task must be in state '{TaskState.NETWORK_PLAN_GENERATED.value}' to generate work packages. Current state: '{task.state.value}'"
+        )
+    
+    # Ensure the network plan is not None
+    if not task.network_plan:
+        logger.error(f"Task {task_id} does not have a network plan.")
+        raise HTTPException(status_code=400, detail="Task does not have a network plan.")
+    
+    # Generate work packages for all stages
+    for stage in task.network_plan.stages:
+        generated_work = await analyzer.generate_stage_work(task, stage.id)
+        logger.info(f"Generated work for Stage {stage.id}: {generated_work}")
+        
+    return task.network_plan

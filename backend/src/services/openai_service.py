@@ -7,9 +7,10 @@ from src.core.config import settings
 from src.model.task import Task
 from src.model.context import ClarifiedTask
 from src.model.scope import DraftScope, ValidationScopeResult
-from src.ai_agents import context_sufficiency_agent, summarize_context_agent, scope_formulation_agent, ifr_agent, planning_agent
+from src.ai_agents import context_sufficiency_agent, summarize_context_agent, scope_formulation_agent, ifr_agent, planning_agent, work_generation_agent
 from src.model.ifr import IFR, Requirements
-from src.model.planning import NetworkPlan
+from src.model.planning import NetworkPlan, Stage
+from src.model.work import Work
 
 logger = logging.getLogger(__name__)
 
@@ -169,4 +170,18 @@ class OpenAIService:
             raise e
         except Exception as e:
             logger.error(f"Error in generate_network_plan: {str(e)}")
+            raise e
+    
+    async def generate_work_for_stage(self, task: Task, stage: Stage) -> List[Work]:
+        """
+        Generates a list of Work packages for a specific Stage.
+        """
+        logger.info(f"Called generate_work_for_stage for Stage ID: {stage.id}")
+        try:
+            return await work_generation_agent.generate_work_packages_for_stage(task, stage)
+        except ImportError as e:
+            logger.warning(f"OpenAI Agents SDK not installed: {str(e)}")
+            raise e
+        except Exception as e:
+            logger.error(f"Error in generate_work_for_stage: {str(e)}")
             raise e
