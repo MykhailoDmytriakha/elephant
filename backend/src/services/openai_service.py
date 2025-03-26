@@ -7,11 +7,12 @@ from src.core.config import settings
 from src.model.task import Task
 from src.model.context import ClarifiedTask
 from src.model.scope import DraftScope, ValidationScopeResult
-from src.ai_agents import context_sufficiency_agent, summarize_context_agent, scope_formulation_agent, ifr_agent, planning_agent, work_generation_agent, task_generation_agent
+from src.ai_agents import context_sufficiency_agent, summarize_context_agent, scope_formulation_agent, ifr_agent, planning_agent, work_generation_agent, task_generation_agent, subtask_generation_agent
 from src.model.ifr import IFR, Requirements
 from src.model.planning import NetworkPlan, Stage
 from src.model.work import Work
 from src.model.executable_task import ExecutableTask
+from src.model.subtask import Subtask
 
 logger = logging.getLogger(__name__)
 
@@ -200,4 +201,19 @@ class OpenAIService:
             raise e
         except Exception as e:
             logger.error(f"Error in generate_tasks_for_work: {str(e)}")
+            raise e
+    
+    async def generate_subtasks_for_executable_task(self, task: Task, stage: Stage, work: Work, executable_task: ExecutableTask) -> List[Subtask]:
+        """
+        Generates a list of Subtask units for a specific ExecutableTask.
+        """
+        logger.info(f"Called generate_subtasks_for_executable_task for ExecutableTask ID: {executable_task.id}")
+        try:
+            # Use the agent from the dedicated module
+            return await subtask_generation_agent.generate_subtasks(task, stage, work, executable_task)
+        except ImportError as e:
+            logger.warning(f"OpenAI Agents SDK not installed: {str(e)}")
+            raise e
+        except Exception as e:
+            logger.error(f"Error in generate_subtasks_for_executable_task: {str(e)}")
             raise e

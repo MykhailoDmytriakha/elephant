@@ -192,3 +192,77 @@ export const generateTasksForWork = async (taskId, stageId, workId) => {
     handleApiError(error, `Failed to generate Executable Tasks for work ${workId}`);
   }
 };
+
+export const generateSubtasksForTask = async (taskId, stageId, workId, executableTaskId) => {
+  try {
+    console.log(`Generating subtasks for task ${taskId}, stage ${stageId}, work ${workId}, execTask ${executableTaskId}`);
+    // POST request, no body needed based on the endpoint definition
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/tasks/${executableTaskId}/generate-subtasks`, {});
+    console.log(`Subtasks response for executable task ${executableTaskId}:`, response.data);
+    // The backend returns the list of subtasks directly
+    return response.data;
+  } catch (error) {
+    handleApiError(error, `Failed to generate Subtasks for executable task ${executableTaskId}`);
+  }
+};
+
+/**
+ * Generates Executable Tasks for ALL tasks within a specific Work package.
+ * @param {string} taskId - The ID of the task.
+ * @param {string} stageId - The ID of the stage.
+ * @param {string} workId - The ID of the work package.
+ * @returns {Promise<Array>} A promise that resolves to the updated list of Executable Tasks for the Work package.
+ */
+export const generateAllTasksForWork = async (taskId, stageId, workId) => {
+  try {
+    console.log(`Generating ALL executable tasks for task ${taskId}, stage ${stageId}, work ${workId}`);
+    // Note: This endpoint name in the backend seems slightly misleading based on its path.
+    // It generates tasks for *all* tasks within the specified work_id, not *all* works in the stage.
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/generate-tasks`, {}); // Reusing the existing endpoint as it generates all tasks for the specified work
+    console.log(`Executable tasks response for ALL tasks in work ${workId}:`, response.data);
+    // Backend returns the list of executable tasks for this work package
+    return response.data;
+  } catch (error) {
+    handleApiError(error, `Failed to generate ALL Executable Tasks for work ${workId}`);
+  }
+};
+
+
+/**
+ * Generates Subtasks for ALL Executable Tasks within a specific Work package.
+ * @param {string} taskId - The ID of the task.
+ * @param {string} stageId - The ID of the stage.
+ * @param {string} workId - The ID of the work package.
+ * @returns {Promise<Array>} A promise that resolves to the updated list of Executable Tasks (containing subtasks) for the Work package.
+ */
+export const generateAllSubtasksForWork = async (taskId, stageId, workId) => {
+  try {
+    console.log(`Generating ALL subtasks for task ${taskId}, stage ${stageId}, work ${workId}`);
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/tasks/generate-subtasks`, {});
+    console.log(`Subtasks response for ALL tasks in work ${workId}:`, response.data);
+    // Backend returns the updated list of Executable Tasks for the work package, now containing subtasks
+    return response.data;
+  } catch (error) {
+    handleApiError(error, `Failed to generate ALL Subtasks for work ${workId}`);
+  }
+};
+
+/**
+ * Generates Executable Tasks for ALL Work packages within a specific Stage.
+ * Calls the POST /tasks/{task_id}/stages/{stage_id}/works/generate-tasks endpoint.
+ * @param {string} taskId - The ID of the task.
+ * @param {string} stageId - The ID of the stage.
+ * @returns {Promise<Array>} A promise that resolves to the updated list of Work packages for the stage.
+ */
+export const generateAllTasksForStage = async (taskId, stageId) => {
+  try {
+    console.log(`Generating ALL executable tasks for task ${taskId}, stage ${stageId}`);
+    // POST request to the endpoint for generating tasks for all works in a stage
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/works/generate-tasks`, {});
+    console.log(`Executable tasks response for ALL works in stage ${stageId}:`, response.data);
+    // Backend returns the updated list of Work packages for the stage
+    return response.data;
+  } catch (error) {
+    handleApiError(error, `Failed to generate ALL Executable Tasks for stage ${stageId}`);
+  }
+};

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { X, AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-react';
 
 // Different types of notifications with their respective styling
 const TOAST_TYPES = {
@@ -23,6 +23,13 @@ const TOAST_TYPES = {
     borderColor: 'border-blue-200',
     textColor: 'text-blue-800',
     iconColor: 'text-blue-500',
+  },
+  warning: {
+    icon: AlertTriangle,
+    bgColor: 'bg-amber-50',
+    borderColor: 'border-amber-200',
+    textColor: 'text-amber-800',
+    iconColor: 'text-amber-500',
   },
 };
 

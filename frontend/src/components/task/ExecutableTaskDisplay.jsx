@@ -1,9 +1,32 @@
-// src/components/task/ExecutableTaskDisplay.jsx
-import React from 'react';
-import { Activity, Download, Upload, ShieldCheck, ChevronsRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Activity, Download, Upload, ShieldCheck, ChevronsRight, RefreshCw, AlertCircle, ListTree } from 'lucide-react';
+import { CollapsibleSection } from './TaskComponents';
+import { SubtaskDisplay } from './SubtaskDisplay';
 
-export const ExecutableTaskDisplay = ({ task, taskIndex }) => {
-  if (!task) return null;
+export const ExecutableTaskDisplay = ({ task, taskIndex, taskId, stageId, workId, onGenerateSubtasks }) => {
+  const [isGeneratingSubtasks, setIsGeneratingSubtasks] = useState(false);
+  const [subtaskGenerationError, setSubtaskGenerationError] = useState(null);
+  const subtasks = task?.subtasks || [];
+  const hasSubtasks = subtasks.length > 0;
+
+  const handleGenerateClick = async () => {
+    setIsGeneratingSubtasks(true);
+    setSubtaskGenerationError(null);
+    try {
+      await onGenerateSubtasks(task.id);
+    } catch (error) {
+      setSubtaskGenerationError(error.message || "Failed to generate subtasks.");
+    } finally {
+      setIsGeneratingSubtasks(false);
+    }
+  };
+
+  let generateButtonText = 'Generate Subtasks';
+  if (isGeneratingSubtasks) {
+      generateButtonText = 'Generating...';
+  } else if (hasSubtasks) {
+      generateButtonText = 'Regenerate Subtasks';
+  }
 
   return (
     <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm space-y-3">
@@ -43,8 +66,6 @@ export const ExecutableTaskDisplay = ({ task, taskIndex }) => {
           </h6>
           <div className="space-y-1">
             {task.required_inputs.map((artifact, idx) => (
-              // Reuse ArtifactDisplay if it's suitable and exported
-              // Or use a simpler format here
               <div key={`in-${idx}`} className="text-xs flex items-center gap-1 bg-gray-50 p-1 rounded border border-gray-100">
                 <span className="font-medium">{artifact.name}</span>
                 <span className="text-gray-500">({artifact.type})</span>
@@ -84,6 +105,62 @@ export const ExecutableTaskDisplay = ({ task, taskIndex }) => {
           </ul>
         </div>
       )}
+
+      {/* --- NEW: Subtasks Section --- */}
+      <div className="pt-3 mt-3 border-t border-dashed border-gray-200 ml-7">
+        <CollapsibleSection
+            title={
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <ListTree className="w-4 h-4 text-gray-500" />
+                    Subtasks ({subtasks.length})
+                </div>
+            }
+            className="bg-transparent shadow-none border-none p-0"
+        >
+           <div className="mt-3 space-y-3">
+                {isGeneratingSubtasks && (
+                    <div className="text-center py-4">
+                        <RefreshCw className="w-5 h-5 text-blue-600 mx-auto animate-spin mb-1" />
+                        <p className="text-xs text-gray-500">Generating subtasks...</p>
+                    </div>
+                )}
+
+                {!isGeneratingSubtasks && subtaskGenerationError && (
+                    <div className="bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded text-xs mb-2 flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        Error: {subtaskGenerationError}
+                    </div>
+                )}
+
+                {!isGeneratingSubtasks && !subtaskGenerationError && (
+                    <>
+                        {hasSubtasks ? (
+                            <div className="space-y-2">
+                                {subtasks.map((subtaskItem) => (
+                                    <SubtaskDisplay key={subtaskItem.id} subtask={subtaskItem} />
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-500 italic text-center py-2">No subtasks generated yet.</p>
+                        )}
+
+                        <div className="mt-3 text-right">
+                            <button
+                                onClick={handleGenerateClick}
+                                disabled={isGeneratingSubtasks}
+                                className="px-2.5 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                            >
+                                {isGeneratingSubtasks ? <RefreshCw className="w-3 h-3 animate-spin" /> : <ListTree className="w-3 h-3" />}
+                                {generateButtonText}
+                            </button>
+                        </div>
+                    </>
+                )}
+           </div>
+        </CollapsibleSection>
+      </div>
+      {/* --- END: Subtasks Section --- */}
+
     </div>
   );
 };

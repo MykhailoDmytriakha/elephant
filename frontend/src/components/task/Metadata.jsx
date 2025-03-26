@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom'; // <<< Import Link
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { InfoCard } from './TaskComponents';
-import { RefreshCcw, Copy, Check } from "lucide-react"; // <<< Use Copy/Check icons
-import { fetchTaskDetails } from '../../utils/api';
-// Remove unused imports if any (ProgressBar, TaskStates, etc.)
+import { Copy, Check } from "lucide-react";
 
 export default function Metadata({ task }) {
-    const navigate = useNavigate();
     const [copied, setCopied] = useState(false);
     // Removed subtask state as it wasn't used in the provided code for linking
 

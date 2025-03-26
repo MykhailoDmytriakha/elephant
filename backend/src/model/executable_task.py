@@ -4,7 +4,7 @@ from typing import List, Optional, Dict, Any, Literal
 from enum import Enum
 import uuid
 from src.model.artifact import Artifact
-
+from src.model.subtask import Subtask
 class ExecutableTask(BaseModel):
     id: str = Field(default_factory=lambda: f"ET-{uuid.uuid4()}", description="Unique identifier for the executable task")
     name: str = Field(..., description="Concise name for the executable task (e.g., 'Call Analysis API', 'Move Gripper to Position X')")
@@ -18,6 +18,7 @@ class ExecutableTask(BaseModel):
     # Make generated_artifacts optional
     generated_artifacts: Optional[List[Artifact]] = Field(default_factory=lambda: [], description="Specific artifacts produced by completing this executable task (if any)")
     validation_criteria: List[str] = Field(default_factory=lambda: [], description="Specific, automatable criteria to verify successful completion of *this* task. Min 1 item.")
+    subtasks: Optional[List[Subtask]] = Field(default_factory=list, description="List of atomic subtasks decomposing this executable task")
 
 class ExecutableTaskList(BaseModel):
     tasks: List[ExecutableTask]

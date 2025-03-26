@@ -13,6 +13,7 @@ from src.model.ifr import IFR, Requirements
 from src.model.planning import NetworkPlan, Stage
 from src.model.work import Work
 from src.model.executable_task import ExecutableTask
+from src.model.subtask import Subtask
 logger = logging.getLogger(__name__)
 
 import json
@@ -495,4 +496,116 @@ async def generate_tasks_for_all_works_endpoint(
         
     return target_stage.work_packages
 
-        
+@router.post("/{task_id}/stages/{stage_id}/work/{work_id}/tasks/{executable_task_id}/generate-subtasks", response_model=List[Subtask])
+async def generate_subtasks_for_task_endpoint(
+    task_id: str,
+    stage_id: str,
+    work_id: str,
+    executable_task_id: str,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Generates a list of atomic Subtask units for a specific ExecutableTask.
+    The Task must have the parent ExecutableTask generated.
+    """
+    logger.info(f"API endpoint called: Generate Subtasks for Task {task_id}, Stage {stage_id}, Work {work_id}, ExecutableTask {executable_task_id}")
+
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        logger.error(f"Task {task_id} not found.")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+
+    try:
+        task = Task(**json.loads(task_data['task_json']))
+    except Exception as e:
+        logger.error(f"Failed to deserialize task {task_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load task data.")
+
+    # Basic state check (adjust if more specific states are added later)
+    if task.state != TaskState.NETWORK_PLAN_GENERATED:
+        logger.error(f"Task {task_id} is not in the required state ({TaskState.NETWORK_PLAN_GENERATED}). Current state: {task.state}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Task must be in state '{TaskState.NETWORK_PLAN_GENERATED.value}' to generate subtasks. Current state: '{task.state.value}'"
+        )
+
+    try:
+        generated_subtasks = await analyzer.generate_subtasks_for_executable_task(task, stage_id, work_id, executable_task_id)
+        logger.info(f"Successfully generated {len(generated_subtasks)} subtasks for ExecutableTask {executable_task_id}.")
+        return generated_subtasks
+    except ValueError as ve:
+        # Handle cases where Task, Stage, Work, or ExecutableTask is not found
+        logger.error(f"Value error generating subtasks: {ve}")
+        if "not found" in str(ve).lower():
+            raise HTTPException(status_code=404, detail=str(ve))
+        else:
+            # Treat other ValueErrors (like wrong state or missing components) as Bad Request
+            raise HTTPException(status_code=400, detail=str(ve))
+    except ImportError as ie:
+         logger.error(f"Import error during subtask generation: {ie}")
+         raise HTTPException(status_code=501, detail="Subtask generation feature requires additional dependencies.")
+    except Exception as e:
+        logger.error(f"Unexpected error generating subtasks for ExecutableTask {executable_task_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred while generating subtasks.")
+
+@router.post("/{task_id}/stages/{stage_id}/work/{work_id}/tasks/generate-subtasks", response_model=List[ExecutableTask])
+async def generate_subtasks_for_all_tasks_endpoint(
+    task_id: str,
+    stage_id: str,
+    work_id: str,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Generates a list of atomic Subtask units for all ExecutableTasks in a Work package.
+    The Task must have the parent ExecutableTask generated.
+    """
+    logger.info(f"API endpoint called: Generate Subtasks for all Tasks in Work {work_id} of Stage {stage_id} of Task {task_id}")
+    
+    task_data = db.fetch_task_by_id(task_id)
+    if task_data is None:
+        logger.error(f"Task {task_id} not found.")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+    
+    try:
+        task = Task(**json.loads(task_data['task_json']))
+    except Exception as e:
+        logger.error(f"Failed to deserialize task {task_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load task data.")
+    
+    if task.state != TaskState.NETWORK_PLAN_GENERATED:
+        logger.error(f"Task {task_id} is not in the required state ({TaskState.NETWORK_PLAN_GENERATED}). Current state: {task.state}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Task must be in state '{TaskState.NETWORK_PLAN_GENERATED.value}' to generate subtasks. Current state: '{task.state.value}'"
+        )
+    
+    # Ensure the network plan is not None
+    if not task.network_plan:
+        logger.error(f"Task {task_id} does not have a network plan.")
+        raise HTTPException(status_code=400, detail="Task does not have a network plan.")
+    
+    # Find Stage
+    target_stage: Optional[Stage] = next((s for s in task.network_plan.stages if s.id == stage_id), None)
+    if not target_stage:
+        logger.error(f"Stage {stage_id} not found in Task {task_id}.")
+        raise ValueError(f"Stage ID {stage_id} not found.") 
+    
+    if not target_stage.work_packages:
+        logger.error(f"Stage {stage_id} of Task {task_id} does not have any Work packages.")
+        raise ValueError(f"Stage {stage_id} of Task {task_id} does not have any Work packages.")
+    
+    # Find Work
+    target_work: Optional[Work] = next((w for w in target_stage.work_packages if w.id == work_id), None)
+    if not target_work:
+        logger.error(f"Work {work_id} not found in Stage {stage_id} of Task {task_id}.")
+        raise ValueError(f"Work ID {work_id} not found.")
+    
+    # Generate subtasks for all tasks in the work
+    if target_work.tasks:
+        for executable_task in target_work.tasks:
+            generated_subtasks = await analyzer.generate_subtasks_for_executable_task(task, stage_id, work_id, executable_task.id)
+            logger.info(f"Successfully generated {len(generated_subtasks)} subtasks for ExecutableTask {executable_task.id}.")
+    
+    return target_work.tasks

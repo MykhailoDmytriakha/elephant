@@ -7,6 +7,7 @@ from src.model.ifr import IFR, Requirements
 from src.model.planning import NetworkPlan, Stage
 from src.model.work import Work
 from src.model.executable_task import ExecutableTask
+from src.model.subtask import Subtask
 import logging
 from typing import List, Optional
 from datetime import datetime
@@ -172,3 +173,56 @@ class ProblemAnalyzer:
         logger.info(f"Updated Task {task.id}, Stage {stage_id}, Work {work_id} with {len(generated_tasks)} executable tasks.")
 
         return generated_tasks
+
+    async def generate_subtasks_for_executable_task(self, task: Task, stage_id: str, work_id: str, executable_task_id: str) -> List[Subtask]:
+        """
+        Generates Subtask units for a specific ExecutableTask and updates the task.
+        """
+        logger.info(f"Generating Subtasks for Task {task.id}, Stage {stage_id}, Work {work_id}, ExecutableTask {executable_task_id}")
+
+        if not task.network_plan or not task.network_plan.stages:
+            logger.error(f"Task {task.id} does not have a network plan or stages.")
+            raise ValueError("Network plan with stages must exist.")
+
+        # Find Stage
+        target_stage: Optional[Stage] = next((s for s in task.network_plan.stages if s.id == stage_id), None)
+        if not target_stage:
+            logger.error(f"Stage {stage_id} not found in Task {task.id}.")
+            raise ValueError(f"Stage ID {stage_id} not found.")
+
+        # Find Work package
+        if not target_stage.work_packages:
+             logger.error(f"Stage {stage_id} has no work packages.")
+             raise ValueError(f"Work packages not generated for Stage {stage_id}.")
+        target_work: Optional[Work] = next((w for w in target_stage.work_packages if w.id == work_id), None)
+        if not target_work:
+            logger.error(f"Work package {work_id} not found in Stage {stage_id}.")
+            raise ValueError(f"Work package ID {work_id} not found.")
+
+        # Find Executable Task
+        if not target_work.tasks:
+            logger.error(f"Work package {work_id} has no executable tasks.")
+            raise ValueError(f"Executable tasks not generated for Work package {work_id}.")
+        target_executable_task: Optional[ExecutableTask] = next((et for et in target_work.tasks if et.id == executable_task_id), None)
+        if not target_executable_task:
+            logger.error(f"Executable task {executable_task_id} not found in Work package {work_id}.")
+            raise ValueError(f"Executable task ID {executable_task_id} not found.")
+
+        # Call the AI service
+        generated_subtasks = await self.openai_service.generate_subtasks_for_executable_task(task, target_stage, target_work, target_executable_task)
+
+        if generated_subtasks is None: # Explicitly check for None
+             logger.warning(f"AI service returned None for subtasks for ExecutableTask {executable_task_id}.")
+             generated_subtasks = []
+        elif not isinstance(generated_subtasks, list):
+             logger.error(f"AI service returned non-list for subtasks: {type(generated_subtasks)}")
+             generated_subtasks = []
+
+        # Update the executable task within the task object
+        target_executable_task.subtasks = generated_subtasks
+
+        # Save the updated task back to the database
+        self.db_service.updated_task(task)
+        logger.info(f"Updated Task {task.id}, Stage {stage_id}, Work {work_id}, ExecutableTask {executable_task_id} with {len(generated_subtasks)} subtasks.")
+
+        return generated_subtasks

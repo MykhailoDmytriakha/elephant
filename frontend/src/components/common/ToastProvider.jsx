@@ -39,13 +39,17 @@ export const ToastProvider = ({ children }) => {
     
   const showInfo = useCallback((message, options = {}) => 
     addToast(message, 'info', options), [addToast]);
+    
+  const showWarning = useCallback((message, options = {}) => 
+    addToast(message, 'warning', options), [addToast]);
 
   const contextValue = {
     addToast,
     removeToast,
     showError,
     showSuccess,
-    showInfo
+    showInfo,
+    showWarning
   };
 
   return (
