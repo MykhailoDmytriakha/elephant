@@ -1,16 +1,8 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from src.model.work import Work
+from src.model.artifact import Artifact
 
-class Artifact(BaseModel):
-    """
-    Artifact of a checkpoint.
-    """
-    type: str = Field(..., description="Type of the artifact")
-    name: str = Field(..., description="Name of the artifact")
-    description: str = Field(..., description="Description of the artifact")
-    location: str = Field(..., description="Location of the artifact")
-    
 class Checkpoint(BaseModel):
     """
     Checkpoint of a stage.

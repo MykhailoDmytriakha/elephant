@@ -1,14 +1,18 @@
+// src/pages/StageDetailPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, Link, useNavigate } from 'react-router-dom';
 import {
-    ArrowLeft, CheckCircle2, ChevronRight, FileText, ShieldCheck, Layers, Cpu, Activity, Clock, Check, AlertCircle, Info, RefreshCw
+    ArrowLeft, CheckCircle2, ChevronRight, FileText, ShieldCheck, Layers, Cpu, Activity, Clock, Check, AlertCircle, Info, RefreshCw, TerminalSquare, ChevronsRight, Download, Upload
 } from 'lucide-react';
-import { InfoCard, CollapsibleSection } from '../components/task/TaskComponents'; // Reuse existing components
-import { useToast } from '../components/common/ToastProvider'; // Import useToast
-import { generateWorkForStage } from '../utils/api'; // Import the API function
+import { InfoCard, CollapsibleSection } from '../components/task/TaskComponents';
+import { useToast } from '../components/common/ToastProvider';
+// Import the new API function and the display component
+import { generateWorkForStage, generateTasksForWork } from '../utils/api';
+import { ExecutableTaskDisplay } from '../components/task/ExecutableTaskDisplay'; // Import the new component
 
-// Helper component for Artifacts (can be moved to a shared file later)
-const ArtifactDisplay = ({ artifact, title = "Artifact" }) => (
+// Helper component for Artifacts (assuming it's defined or imported correctly)
+// Make sure ArtifactDisplay is exported if it's in a separate file
+export const ArtifactDisplay = ({ artifact, title = "Artifact" }) => (
     <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
         <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>
         <div className="flex items-start gap-2">
@@ -26,21 +30,18 @@ const ArtifactDisplay = ({ artifact, title = "Artifact" }) => (
     </div>
 );
 
-// Helper component for Work Packages
-const WorkPackageCard = ({ work }) => {
+// Modified WorkPackageCard - Now includes Executable Tasks section
+const WorkPackageCard = ({ work, onGenerateTasks, isGeneratingTasks, taskGenerationError }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'PENDING': return 'bg-gray-100 text-gray-700';
-            case 'READY': return 'bg-yellow-100 text-yellow-700';
-            case 'IN_PROGRESS': return 'bg-blue-100 text-blue-700';
-            case 'COMPLETED': return 'bg-green-100 text-green-700';
-            case 'FAILED': return 'bg-red-100 text-red-700';
-            case 'BLOCKED': return 'bg-orange-100 text-orange-700';
-            default: return 'bg-gray-100 text-gray-700';
-        }
-    };
+    // Determine button state and text
+    const hasTasks = work.tasks && work.tasks.length > 0;
+    let generateButtonText = 'Generate Tasks';
+    if (isGeneratingTasks) {
+        generateButtonText = 'Generating...';
+    } else if (hasTasks) {
+        generateButtonText = 'Regenerate Tasks';
+    }
 
     return (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
@@ -57,24 +58,24 @@ const WorkPackageCard = ({ work }) => {
 
             {isExpanded && (
                 <div className="p-4 border-t border-gray-200 bg-gray-50 space-y-4">
+                    {/* Existing Work Details */}
                     <p className="text-sm text-gray-800">{work.description}</p>
+                    {/* ... other work details like dependencies, inputs, outcomes ... */}
+                    {work.dependencies?.length > 0 && (
+                        <div className="text-xs text-gray-600 flex items-center gap-2">
+                          <ChevronsRight className="w-4 h-4 text-gray-400" />
+                          <span className="font-medium">Depends on Work IDs:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {work.dependencies.map(depId => (
+                              <span key={depId} className="font-mono bg-gray-200 px-1.5 py-0.5 rounded">{depId}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                         {work.dependencies?.length > 0 && (
-                            <div className="col-span-2">
-                                <span className="font-medium text-gray-600 block">Depends On (Work IDs):</span>
-                                <div className="flex flex-wrap gap-1">
-                                    {work.dependencies.map(depId => (
-                                        <span key={depId} className="font-mono text-xs bg-gray-200 px-1.5 py-0.5 rounded">{depId}</span>
-                                    ))}
-                                </div>
-                            </div>
-                         )}
-                    </div>
-
-                    {work.required_inputs?.length > 0 && (
+                     {work.required_inputs?.length > 0 && (
                          <div>
-                            <h5 className="text-sm font-medium text-gray-700 mb-1">Required Inputs:</h5>
+                            <h5 className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1"><Download className="w-3 h-3"/> Required Inputs:</h5>
                             <div className="space-y-2">
                                 {work.required_inputs.map((artifact, idx) => (
                                     <ArtifactDisplay key={`in-${idx}`} artifact={artifact} title="" />
@@ -90,7 +91,7 @@ const WorkPackageCard = ({ work }) => {
 
                     {work.generated_artifacts?.length > 0 && (
                          <div>
-                            <h5 className="text-sm font-medium text-gray-700 mb-1">Generated Artifacts:</h5>
+                            <h5 className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1"><Upload className="w-3 h-3"/> Generated Artifacts:</h5>
                             <div className="space-y-2">
                                 {work.generated_artifacts.map((artifact, idx) => (
                                     <ArtifactDisplay key={`out-${idx}`} artifact={artifact} title="" />
@@ -111,47 +112,101 @@ const WorkPackageCard = ({ work }) => {
                             </ul>
                         </div>
                     )}
+
+                    {/* --- NEW: Executable Tasks Section --- */}
+                    <div className="pt-4 mt-4 border-t border-gray-200">
+                        <h5 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <TerminalSquare className="w-5 h-5 text-purple-600" />
+                            Executable Tasks
+                        </h5>
+
+                        {/* Task Generation Loading State */}
+                        {isGeneratingTasks && (
+                            <div className="text-center py-6">
+                                <RefreshCw className="w-6 h-6 text-blue-600 mx-auto animate-spin mb-2" />
+                                <p className="text-sm text-gray-600">Generating executable tasks...</p>
+                            </div>
+                        )}
+
+                        {/* Task Generation Error State */}
+                        {!isGeneratingTasks && taskGenerationError && (
+                            <div className="bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded text-sm mb-3 flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4" />
+                                Error: {taskGenerationError}
+                                {/* Optional: Add a retry button here */}
+                            </div>
+                        )}
+
+                        {/* Task List or Generate Button */}
+                        {!isGeneratingTasks && !taskGenerationError && (
+                            <>
+                                {hasTasks ? (
+                                    <div className="space-y-3">
+                                        {work.tasks.map((task, index) => (
+                                            <ExecutableTaskDisplay key={task.id || index} task={task} taskIndex={index} />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-500 italic">No executable tasks generated yet.</p>
+                                )}
+
+                                {/* Generate/Regenerate Button */}
+                                <div className="mt-4 text-right">
+                                    <button
+                                        onClick={() => onGenerateTasks(work.id)}
+                                        disabled={isGeneratingTasks}
+                                        className="px-3 py-1.5 text-xs bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                                    >
+                                        {isGeneratingTasks ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Cpu className="w-3 h-3" />}
+                                        {generateButtonText}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    {/* --- END: Executable Tasks Section --- */}
                 </div>
             )}
         </div>
     );
 };
 
-
+// Main Stage Detail Page Component
 export default function StageDetailPage() {
     const { taskId, stageId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const toast = useToast(); // Get toast functions
+    const toast = useToast();
 
     // --- State Management ---
     const [currentStageData, setCurrentStageData] = useState(location.state?.stage || null);
-    const [taskInfo] = useState({ // Store task info separately
+    const [taskInfo] = useState({
         shortDescription: location.state?.taskShortDescription,
         id: location.state?.taskId
     });
     const [isGeneratingWork, setIsGeneratingWork] = useState(false);
-    const [generationError, setGenerationError] = useState(null);
+    const [workGenerationError, setWorkGenerationError] = useState(null);
+    // NEW State for Task Generation
+    const [generatingTasksForWorkId, setGeneratingTasksForWorkId] = useState(null); // Track which work ID is generating tasks
+    const [taskGenerationErrors, setTaskGenerationErrors] = useState({}); // Map workId to error message
     // --- End State Management ---
 
-    // Effect to handle missing initial state (optional but good practice)
+    // Effect to handle missing initial state
     useEffect(() => {
         if (!currentStageData && taskId) {
             console.warn("Stage data missing from location state. Consider fetching task data.");
-            // You could potentially fetch the full task here and find the stage,
-            // but for now, we rely on the error message below.
         }
-         // Reset generation state if stage changes (e.g., if component is reused without full unmount)
          setIsGeneratingWork(false);
-         setGenerationError(null);
-    }, [currentStageData, taskId, stageId]); // Add stageId to dependencies
+         setWorkGenerationError(null);
+         setGeneratingTasksForWorkId(null);
+         setTaskGenerationErrors({});
+    }, [currentStageData, taskId, stageId]);
 
-    // Handle case where state is missing
+    // Error handling if data is missing
     if (!currentStageData) {
-        // Use taskInfo.id if available, otherwise taskId from params
         const backTaskId = taskInfo.id || taskId;
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
                 <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
                     <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                     <h2 className="text-xl font-semibold text-red-700 mb-2">Error</h2>
@@ -167,43 +222,76 @@ export default function StageDetailPage() {
         );
     }
 
-    // --- Handler Function ---
+    // --- Handler Functions ---
     const handleGenerateWork = async () => {
         setIsGeneratingWork(true);
-        setGenerationError(null);
+        setWorkGenerationError(null);
         try {
-            // Ensure we use the correct taskId and stageId
             const currentTaskId = taskInfo.id || taskId;
             const currentStageId = stageId || currentStageData.id;
-
-            if (!currentTaskId || !currentStageId) {
-                throw new Error("Task ID or Stage ID is missing.");
-            }
+            if (!currentTaskId || !currentStageId) throw new Error("Task ID or Stage ID missing.");
 
             const generatedWorkPackages = await generateWorkForStage(currentTaskId, currentStageId);
-
-            // Update the local stage data state
-            setCurrentStageData(prevStageData => ({
-                ...prevStageData,
-                work_packages: generatedWorkPackages || [] // Ensure it's an array
-            }));
-
-            toast.showSuccess(`Successfully generated ${generatedWorkPackages?.length || 0} work packages for Stage ${currentStageId}.`);
-
+            setCurrentStageData(prev => ({ ...prev, work_packages: generatedWorkPackages || [] }));
+            toast.showSuccess(`Successfully generated ${generatedWorkPackages?.length || 0} work packages.`);
         } catch (error) {
-            console.error("Failed to generate work packages:", error);
-            const errorMsg = error.message || "An unknown error occurred.";
-            setGenerationError(errorMsg);
-            toast.showError(`Error generating work packages: ${errorMsg}`);
+            const errorMsg = error.message || "Unknown error generating work.";
+            setWorkGenerationError(errorMsg);
+            toast.showError(`Error generating work: ${errorMsg}`);
         } finally {
             setIsGeneratingWork(false);
         }
     };
-    // --- End Handler Function ---
 
-    // Use currentStageData for rendering
+    // NEW Handler for Generating Tasks for a specific Work package
+    const handleGenerateTasksForWork = async (workId) => {
+        setGeneratingTasksForWorkId(workId); // Set loading state for this specific workId
+        setTaskGenerationErrors(prev => ({ ...prev, [workId]: null })); // Clear previous error for this workId
+        try {
+            const currentTaskId = taskInfo.id || taskId;
+            const currentStageId = stageId || currentStageData.id;
+            if (!currentTaskId || !currentStageId || !workId) throw new Error("Task, Stage, or Work ID missing.");
+
+            const generatedTasks = await generateTasksForWork(currentTaskId, currentStageId, workId);
+
+            // Update the currentStageData state IMMUTABLY
+            setCurrentStageData(prevStageData => {
+                if (!prevStageData || !prevStageData.work_packages) return prevStageData;
+
+                // Find the index of the work package to update
+                const workIndex = prevStageData.work_packages.findIndex(wp => wp.id === workId);
+                if (workIndex === -1) return prevStageData; // Work package not found
+
+                // Create a new work_packages array
+                const newWorkPackages = [...prevStageData.work_packages];
+
+                // Create a new work package object with the updated tasks
+                newWorkPackages[workIndex] = {
+                    ...newWorkPackages[workIndex],
+                    tasks: generatedTasks || [] // Ensure tasks is always an array
+                };
+
+                // Return the new stage data object
+                return {
+                    ...prevStageData,
+                    work_packages: newWorkPackages
+                };
+            });
+
+            toast.showSuccess(`Generated ${generatedTasks?.length || 0} tasks for Work ID ${workId}.`);
+
+        } catch (error) {
+            const errorMsg = error.message || `Unknown error generating tasks for ${workId}.`;
+            setTaskGenerationErrors(prev => ({ ...prev, [workId]: errorMsg })); // Store error by workId
+            toast.showError(`Error generating tasks: ${errorMsg}`);
+        } finally {
+            setGeneratingTasksForWorkId(null); // Clear loading state
+        }
+    };
+    // --- End Handler Functions ---
+
     const stage = currentStageData;
-    const backTaskId = taskInfo.id || taskId; // Ensure we have a task ID for the back button
+    const backTaskId = taskInfo.id || taskId;
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
@@ -211,28 +299,17 @@ export default function StageDetailPage() {
             <header className="sticky top-0 z-10 bg-white border-b border-gray-200">
                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="h-16 flex items-center">
-                        <button
-                            onClick={() => navigate(`/tasks/${backTaskId}`)} // Navigate back to the main task page
-                            className="mr-4 text-gray-600 hover:text-gray-900 transition-colors"
-                            title="Back to Task"
-                        >
+                        <button onClick={() => navigate(`/tasks/${backTaskId}`)} className="mr-4 text-gray-600 hover:text-gray-900" title="Back to Task">
                             <ArrowLeft className="w-5 h-5" />
                         </button>
-                        <div className="flex-1 min-w-0"> {/* Added min-w-0 for flex truncation */}
-                            {/* Optional Breadcrumbs */}
+                        <div className="flex-1 min-w-0">
                             <nav className="flex items-center space-x-1 text-sm text-gray-500 truncate">
-                                <Link to={`/tasks/${backTaskId}`} className="hover:text-gray-700 flex-shrink-0" title={taskInfo.shortDescription}>
-                                    Task:
-                                </Link>
-                                <span className="truncate flex-1 mx-1" title={taskInfo.shortDescription}>
-                                     {taskInfo.shortDescription || backTaskId}
-                                </span>
+                                <Link to={`/tasks/${backTaskId}`} className="hover:text-gray-700 flex-shrink-0" title={taskInfo.shortDescription}>Task:</Link>
+                                <span className="truncate flex-1 mx-1" title={taskInfo.shortDescription}>{taskInfo.shortDescription || backTaskId}</span>
                                 <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                 <span className="font-medium text-gray-700 flex-shrink-0">Stage {stage.id}</span>
                             </nav>
-                             <h1 className="text-xl font-bold text-gray-900 truncate" title={stage.name}>
-                                Stage {stage.id}: {stage.name}
-                            </h1>
+                             <h1 className="text-xl font-bold text-gray-900 truncate" title={stage.name}>Stage {stage.id}: {stage.name}</h1>
                         </div>
                     </div>
                 </div>
@@ -241,36 +318,30 @@ export default function StageDetailPage() {
              {/* Content */}
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-                {/* Stage Overview */}
                 <InfoCard title="Stage Overview">
                     <p className="text-gray-700">{stage.description}</p>
                 </InfoCard>
 
-                {/* Results & Deliverables */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {stage.result?.length > 0 && (
+                    {/* ... Results & Deliverables ... */}
+                     {stage.result?.length > 0 && (
                         <InfoCard title="Expected Results">
                              <ul className="space-y-1 pl-5 list-disc text-sm text-gray-700">
-                                {stage.result.map((res, index) => (
-                                <li key={`res-${index}`}>{res}</li>
-                                ))}
+                                {stage.result.map((res, index) => ( <li key={`res-${index}`}>{res}</li> ))}
                             </ul>
                         </InfoCard>
                     )}
                      {stage.what_should_be_delivered?.length > 0 && (
                         <InfoCard title="Tangible Deliverables">
                              <ul className="space-y-1 pl-5 list-disc text-sm text-gray-700">
-                                {stage.what_should_be_delivered.map((del, index) => (
-                                <li key={`del-${index}`}>{del}</li>
-                                ))}
+                                {stage.what_should_be_delivered.map((del, index) => ( <li key={`del-${index}`}>{del}</li> ))}
                             </ul>
                         </InfoCard>
                     )}
                 </div>
 
-                {/* Checkpoints */}
-                {stage.checkpoints?.length > 0 && (
-                     <CollapsibleSection title="Checkpoints" defaultOpen={false}> {/* Default closed */}
+                 {stage.checkpoints?.length > 0 && (
+                     <CollapsibleSection title="Checkpoints" defaultOpen={false}>
                          <div className="space-y-4">
                             {stage.checkpoints.map((checkpoint, index) => (
                                 <div key={`cp-${index}`} className="border border-gray-200 rounded-lg p-4 bg-white">
@@ -279,18 +350,13 @@ export default function StageDetailPage() {
                                         <div>
                                             <h4 className="font-medium text-gray-900">{checkpoint.checkpoint}</h4>
                                             <p className="text-sm text-gray-600 mt-1">{checkpoint.description}</p>
-
-                                            {checkpoint.artifact && (
-                                                <ArtifactDisplay artifact={checkpoint.artifact} />
-                                            )}
-
-                                            {checkpoint.validations?.length > 0 && (
+                                            {checkpoint.artifact && <ArtifactDisplay artifact={checkpoint.artifact} />}
+                                            {/* ... validations ... */}
+                                             {checkpoint.validations?.length > 0 && (
                                                 <div className="mt-3">
                                                     <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Validations</h5>
                                                      <ul className="space-y-1 pl-5 list-disc text-sm text-gray-600">
-                                                        {checkpoint.validations.map((val, valIdx) => (
-                                                            <li key={`val-${index}-${valIdx}`}>{val}</li>
-                                                        ))}
+                                                        {checkpoint.validations.map((val, valIdx) => ( <li key={`val-${index}-${valIdx}`}>{val}</li> ))}
                                                     </ul>
                                                 </div>
                                             )}
@@ -302,10 +368,9 @@ export default function StageDetailPage() {
                     </CollapsibleSection>
                 )}
 
-
-                 {/* Work Packages - Modified Section */}
+                 {/* Modified Work Packages Section with Task Generation */}
                 <CollapsibleSection title="Work Packages" defaultOpen={true}>
-                    {/* Loading State */}
+                    {/* Work Generation Loading State */}
                     {isGeneratingWork && (
                         <div className="text-center py-10 px-4">
                             <RefreshCw className="w-8 h-8 text-blue-600 mx-auto animate-spin mb-3" />
@@ -313,59 +378,48 @@ export default function StageDetailPage() {
                         </div>
                     )}
 
-                    {/* Error State */}
-                    {!isGeneratingWork && generationError && (
+                    {/* Work Generation Error State */}
+                    {!isGeneratingWork && workGenerationError && (
                         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                            <strong className="font-bold">Error!</strong>
-                            <span className="block sm:inline ml-2">{generationError}</span>
-                            <button
-                                onClick={() => setGenerationError(null)} // Allow dismissing error
-                                className="absolute top-0 bottom-0 right-0 px-4 py-3"
-                            >
-                                <span className="text-xl leading-none">×</span>
-                            </button>
+                            <strong className="font-bold">Error!</strong> <span className="block sm:inline ml-2">{workGenerationError}</span>
+                            <button onClick={() => setWorkGenerationError(null)} className="absolute top-0 bottom-0 right-0 px-4 py-3"><span className="text-xl leading-none">×</span></button>
                         </div>
                     )}
 
                     {/* Content: Button or Work Packages List */}
-                    {!isGeneratingWork && !generationError && (
+                    {!isGeneratingWork && !workGenerationError && (
                         (!stage.work_packages || stage.work_packages.length === 0) ? (
-                            // Show Generate button if no work packages exist
                             <div className="text-center py-6 px-4">
                                 <Layers className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-                                <p className="text-gray-600">No work packages have been generated for this stage yet.</p>
-                                <button
-                                    onClick={handleGenerateWork}
-                                    disabled={isGeneratingWork} // Disable while generating
-                                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-                                >
-                                    <Cpu className="w-4 h-4" />
-                                    Generate Work Packages
+                                <p className="text-gray-600">No work packages generated yet.</p>
+                                <button onClick={handleGenerateWork} disabled={isGeneratingWork} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 inline-flex items-center gap-2">
+                                    <Cpu className="w-4 h-4" /> Generate Work Packages
                                 </button>
                             </div>
                         ) : (
-                            // Show Work Packages list if they exist
                             <div className="space-y-4">
+                                {/* Regenerate Work Button */}
                                 <div className="flex justify-end mb-2">
-                                     <button
-                                        onClick={handleGenerateWork}
-                                        disabled={isGeneratingWork} // Disable while generating
-                                        className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
-                                        title="Regenerate Work Packages"
-                                    >
-                                        <RefreshCw className="w-3 h-3" />
-                                        Regenerate
+                                     <button onClick={handleGenerateWork} disabled={isGeneratingWork} className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 inline-flex items-center gap-1" title="Regenerate Work Packages">
+                                        <RefreshCw className="w-3 h-3" /> Regenerate Work
                                     </button>
                                 </div>
+                                {/* Render Work Packages */}
                                 {stage.work_packages.map((work) => (
-                                    <WorkPackageCard key={work.id} work={work} />
+                                    <WorkPackageCard
+                                        key={work.id}
+                                        work={work}
+                                        // Pass task generation props
+                                        onGenerateTasks={handleGenerateTasksForWork}
+                                        isGeneratingTasks={generatingTasksForWorkId === work.id}
+                                        taskGenerationError={taskGenerationErrors[work.id]}
+                                    />
                                 ))}
                             </div>
                         )
                     )}
                 </CollapsibleSection>
                 {/* End Modified Work Packages Section */}
-
             </div>
         </div>
     );

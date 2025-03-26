@@ -179,3 +179,16 @@ export const generateWorkForStage = async (taskId, stageId) => {
     handleApiError(error, `Failed to generate Work Packages for stage ${stageId}`);
   }
 };
+
+export const generateTasksForWork = async (taskId, stageId, workId) => {
+  try {
+    console.log(`Generating executable tasks for task ${taskId}, stage ${stageId}, work ${workId}`);
+    // POST request, no body needed based on the endpoint definition
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/generate-tasks`, {});
+    console.log(`Executable tasks response for work ${workId}:`, response.data);
+    // The backend returns the list of executable tasks directly
+    return response.data;
+  } catch (error) {
+    handleApiError(error, `Failed to generate Executable Tasks for work ${workId}`);
+  }
+};

@@ -6,6 +6,7 @@ from src.model.scope import ScopeFormulationGroup, ScopeQuestion, DraftScope, Va
 from src.model.ifr import IFR, Requirements
 from src.model.planning import NetworkPlan, Stage
 from src.model.work import Work
+from src.model.executable_task import ExecutableTask
 import logging
 from typing import List, Optional
 from datetime import datetime
@@ -125,3 +126,49 @@ class ProblemAnalyzer:
         logger.info(f"Updated Task {task.id} with {len(generated_work_packages)} work packages for Stage {stage_id}")
 
         return generated_work_packages
+    
+    async def generate_tasks_for_work(self, task: Task, stage_id: str, work_id: str) -> List[ExecutableTask]:
+        """
+        Generates ExecutableTask units for a specific Work package and updates the task.
+        """
+        logger.info(f"Generating ExecutableTasks for Task {task.id}, Stage {stage_id}, Work {work_id}")
+
+        if not task.network_plan or not task.network_plan.stages:
+            logger.error(f"Task {task.id} does not have a network plan or stages.")
+            raise ValueError("Network plan with stages must exist before generating tasks.")
+
+        # Find Stage
+        target_stage: Optional[Stage] = next((s for s in task.network_plan.stages if s.id == stage_id), None)
+        if not target_stage:
+            logger.error(f"Stage {stage_id} not found in Task {task.id}.")
+            raise ValueError(f"Stage ID {stage_id} not found.")
+
+        # Find Work package
+        if not target_stage.work_packages:
+             logger.error(f"Stage {stage_id} has no work packages defined.")
+             raise ValueError(f"Work packages not generated for Stage {stage_id}.")
+
+        target_work: Optional[Work] = next((w for w in target_stage.work_packages if w.id == work_id), None)
+        if not target_work:
+            logger.error(f"Work package {work_id} not found in Stage {stage_id}.")
+            raise ValueError(f"Work package ID {work_id} not found.")
+
+        # Call the AI service
+        generated_tasks = await self.openai_service.generate_tasks_for_work(task, target_stage, target_work)
+
+        if generated_tasks is None: # Explicitly check for None
+             logger.warning(f"AI service returned None for executable tasks for Work {work_id}.")
+             generated_tasks = []
+        elif not isinstance(generated_tasks, list):
+             logger.error(f"AI service returned non-list for executable tasks: {type(generated_tasks)}")
+             generated_tasks = []
+
+
+        # Update the work package within the task object
+        target_work.tasks = generated_tasks
+
+        # Save the updated task back to the database
+        self.db_service.updated_task(task)
+        logger.info(f"Updated Task {task.id}, Stage {stage_id}, Work {work_id} with {len(generated_tasks)} executable tasks.")
+
+        return generated_tasks
