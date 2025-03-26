@@ -87,7 +87,7 @@ export default function Metadata({ task }) {
                           key={index} 
                           className="flex items-center p-2 rounded-md hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-200"
                         >
-                          <span className="text-sm font-medium text-gray-900">{stage.name}</span>
+                          <span className="text-sm font-medium text-gray-900">{index + 1}. {stage.name}</span>
                         </div>
                       ))}
                     </div>

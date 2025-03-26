@@ -495,9 +495,8 @@ export default function NetworkGraph({
         onInit={setReactFlowInstance}
         fitView
         fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.5}
+        minZoom={0.75}
         maxZoom={1.5}
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         proOptions={{ hideAttribution: true }}
