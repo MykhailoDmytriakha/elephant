@@ -7,18 +7,6 @@ export const TaskStates = {
   IFR_GENERATED: "4. IFR Generated",
   REQUIREMENTS_GENERATED: "5. Requirements Defined",
   NETWORK_PLAN_GENERATED: "6. Network (Stages) Plan Generated",
-  TYPIFY: "7. Typify",
-  CLARIFYING: "8. Clarifying",
-  CLARIFICATION_COMPLETE: "9. Clarification Complete",
-  APPROACH_FORMATION: "10. Approach Formation",
-  METHOD_SELECTION: "11. Method Selection",
-  DECOMPOSITION: "12. Decomposition",
-  METHOD_APPLICATION: "13. Method Application",
-  SOLUTION_DEVELOPMENT: "14. Solution Development",
-  EVALUATION: "15. Evaluation",
-  INTEGRATION: "16. Integration",
-  OUTPUT_GENERATION: "17. Output Generation",
-  COMPLETED: "18. Completed"
 };
 
   export const getStateNumber = (state) => {

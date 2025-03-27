@@ -132,7 +132,7 @@ async def generate_IFR(
     """
     
     logger.info(f"Generating IFR for task: {task.id}")
-    logger.info(f"Generation instructions: {instructions}")
+    # logger.info(f"Generation instructions: {instructions}")
     
     # Create the agent
     agent = Agent(

@@ -6,7 +6,7 @@ from src.model.executable_task import ExecutableTask
 from src.model.artifact import Artifact
 
 class Work(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Unique identifier for the work package")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Unique identifier for the work package.")
     name: str = Field(..., description="Concise name summarizing the work (min 5 chars)")
     description: str = Field(..., description="Detailed description of the work package's objective and scope within the stage (min 20 chars)")
     stage_id: str = Field(..., description="Identifier of the parent Stage")

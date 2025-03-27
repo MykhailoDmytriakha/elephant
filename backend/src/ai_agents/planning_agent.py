@@ -170,7 +170,7 @@ def create_plan(wrapper: RunContextWrapper[PlanningContext]) -> NetworkPlan:
         
     # Detect language from task description
     user_language = detect_language(context.task.short_description or "")
-    logger.info(f"Detected language: {user_language}")
+    # logger.info(f"Detected language: {user_language}")
     language_instruction = get_language_instruction(user_language)
     
     if context.last_updated_plan is None:
@@ -244,7 +244,7 @@ def critic_plan(wrapper: RunContextWrapper[PlanningContext]) -> str:
     
     # Detect language from task description
     user_language = detect_language(context.task.short_description or "")
-    logger.info(f"Detected language: {user_language}")
+    # logger.info(f"Detected language: {user_language}")
     language_instruction = get_language_instruction(user_language)
     
     prompt = f"""

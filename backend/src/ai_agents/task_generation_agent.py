@@ -82,7 +82,7 @@ async def generate_tasks_for_work(
     EXECUTABLE TASK DECOMPOSITION INSTRUCTIONS:
     1.  **Analyze the Work Package:** Understand its specific objective, inputs, expected outcome, and validation criteria based on the TARGET WORK PACKAGE details. Use the OVERALL TASK CONTEXT for constraints, tools, and alignment.
     2.  **Define Executable Tasks:** Break down the work into a logical sequence of atomic actions. For each action, create an `ExecutableTask` object with the following attributes:
-        *   `id`: Generate a unique ID like "ET-uuid".
+        *   `id`: Generate a unique ID like "stage_id" + "_" + "work_id" + "_" + "task_number" (e.g., "S1_W1_ET1", "S1_W1_ET2", "S1_W1_ET3", etc.)
         *   `name`: A concise action verb phrase (e.g., "Fetch User Data", "Calculate Risk Score", "Rotate Arm 90 Degrees").
         *   `description`: A clear explanation of *this specific action*, its inputs, and its immediate effect.
         *   `work_id`: MUST be set to the ID of the TARGET WORK PACKAGE: "{work.id}".
@@ -116,7 +116,7 @@ async def generate_tasks_for_work(
 
     # Run the agent
     try:
-        logger.info(f"Running Agent Generate ExecutableTasks with instructions: {instructions}")
+        # logger.info(f"Running Agent Generate ExecutableTasks with instructions: {instructions}")
         result = await Runner.run(agent, f"Generate the sequence of ExecutableTask steps for Work Package '{work.name}' (ID: {work.id}).")
         logger.debug(f"Raw Agent Task Generation Result: {result}")
 

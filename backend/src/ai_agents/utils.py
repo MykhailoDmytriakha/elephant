@@ -33,7 +33,7 @@ def detect_language(text: str) -> str:
     # Check for language patterns
     for lang, pattern in patterns.items():
         if re.search(pattern, text, re.IGNORECASE):
-            logger.debug(f"Detected language: {lang}")
+            # logger.debug(f"Detected language: {lang}")
             return lang
     
     # Default to English

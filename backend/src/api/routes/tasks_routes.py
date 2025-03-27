@@ -17,6 +17,7 @@ from src.model.subtask import Subtask
 logger = logging.getLogger(__name__)
 
 import json
+import asyncio
 
 router = APIRouter()
 
@@ -383,11 +384,22 @@ async def generate_work_packages_for_all_stages(
         logger.error(f"Task {task_id} does not have a network plan.")
         raise HTTPException(status_code=400, detail="Task does not have a network plan.")
     
-    # Generate work packages for all stages
-    for stage in task.network_plan.stages:
-        generated_work = await analyzer.generate_stage_work(task, stage.id)
-        logger.info(f"Generated work for Stage {stage.id}: {generated_work}")
+    # Generate work packages for all stages concurrently
+    if task.network_plan.stages:
+        # Create a list of coroutines, one for each stage
+        stage_coroutines = [
+            analyzer.generate_stage_work(task, stage.id)
+            for stage in task.network_plan.stages
+        ]
         
+        # Execute all coroutines concurrently and wait for all to complete
+        generated_work_list = await asyncio.gather(*stage_coroutines)
+        
+        # Log results
+        for i, generated_work in enumerate(generated_work_list):
+            stage_id = task.network_plan.stages[i].id
+            logger.info(f"Generated work for Stage {stage_id}: {generated_work}")
+    
     return task.network_plan
 
 @router.post("/{task_id}/stages/{stage_id}/work/{work_id}/generate-tasks", response_model=List[ExecutableTask])
@@ -488,12 +500,22 @@ async def generate_tasks_for_all_works_endpoint(
         logger.error(f"Stage {stage_id} not found in Task {task_id}.")
         raise ValueError(f"Stage ID {stage_id} not found.")
     
-    # Generate tasks for all works in the stage
+    # Generate tasks for all works in the stage concurrently
     if target_stage.work_packages:
-        for work in target_stage.work_packages:
-            generated_tasks = await analyzer.generate_tasks_for_work(task, stage_id, work.id)
-            logger.info(f"Successfully generated {len(generated_tasks)} tasks for Work {work.id}.")
+        # Create a list of coroutines, one for each work package
+        work_coroutines = [
+            analyzer.generate_tasks_for_work(task, stage_id, work.id)
+            for work in target_stage.work_packages
+        ]
         
+        # Execute all coroutines concurrently and wait for all to complete
+        generated_tasks_list = await asyncio.gather(*work_coroutines)
+        
+        # Log results
+        for i, generated_tasks in enumerate(generated_tasks_list):
+            work_id = target_stage.work_packages[i].id
+            logger.info(f"Successfully generated {len(generated_tasks)} tasks for Work {work_id}.")
+    
     return target_stage.work_packages
 
 @router.post("/{task_id}/stages/{stage_id}/work/{work_id}/tasks/{executable_task_id}/generate-subtasks", response_model=List[Subtask])
@@ -602,10 +624,20 @@ async def generate_subtasks_for_all_tasks_endpoint(
         logger.error(f"Work {work_id} not found in Stage {stage_id} of Task {task_id}.")
         raise ValueError(f"Work ID {work_id} not found.")
     
-    # Generate subtasks for all tasks in the work
+    # Generate subtasks for all tasks in the work concurrently using asyncio.gather
     if target_work.tasks:
-        for executable_task in target_work.tasks:
-            generated_subtasks = await analyzer.generate_subtasks_for_executable_task(task, stage_id, work_id, executable_task.id)
-            logger.info(f"Successfully generated {len(generated_subtasks)} subtasks for ExecutableTask {executable_task.id}.")
+        # Create a list of coroutines, one for each executable task
+        subtask_coroutines = [
+            analyzer.generate_subtasks_for_executable_task(task, stage_id, work_id, executable_task.id)
+            for executable_task in target_work.tasks
+        ]
+        
+        # Execute all coroutines concurrently and wait for all to complete
+        generated_subtasks_list = await asyncio.gather(*subtask_coroutines)
+        
+        # Log results
+        for i, generated_subtasks in enumerate(generated_subtasks_list):
+            executable_task_id = target_work.tasks[i].id
+            logger.info(f"Successfully generated {len(generated_subtasks)} subtasks for ExecutableTask {executable_task_id}.")
     
     return target_work.tasks

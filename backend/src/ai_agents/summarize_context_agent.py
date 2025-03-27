@@ -100,8 +100,8 @@ async def summarize_context(
     The output must be formatted as a JSON object with 'task' and 'context' fields.
     """
     
-    logger.info(f"Summarizing context for the task")
-    logger.info(f"Summarization instructions: {instructions}")
+    logger.info(f"Summarizing context for the task {task.id}")
+    # logger.info(f"Summarization instructions: {instructions}")
     # Create the agent
     agent = Agent(
         name="ContextSummaryAgent",

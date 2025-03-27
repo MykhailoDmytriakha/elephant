@@ -90,7 +90,7 @@ async def generate_subtasks(
     1.  **Analyze Executable Task:** Understand its specific action, inputs, expected outputs, and validation based on the TARGET EXECUTABLE TASK details. Use the broader context (Work, Stage, Task) for constraints and overall goals.
     2.  **Identify Atomic Actions:** Break the executable task into the smallest possible individual steps. Each step should be a single command or operation.
     3.  **Define Subtasks:** For each atomic action, create a `Subtask` object with the following attributes:
-        *   `id`: Generate a unique ID like "ST-uuid".
+        *   `id`: Generate a unique ID like "stage_id" + "_" + "work_id" + "_" + "task_number" + "_" + "subtask_number" (e.g., "S1_W1_ET1_ST1", "S1_W1_ET1_ST2", "S1_W1_ET1_ST3", etc.)
         *   `name`: A very concise action phrase (e.g., "Set Joint Angle", "Format API Request", "Check Sensor Value", "Verify Output Schema").
         *   `description`: A precise instruction for *this single atomic action*.
         *   `parent_executable_task_id`: MUST be "{executable_task.id}".
@@ -126,7 +126,7 @@ async def generate_subtasks(
 
     # Run the agent
     try:
-        logger.debug(f"Running Agent Generate Subtasks with instructions:\n{instructions}")
+        # logger.debug(f"Running Agent Generate Subtasks with instructions:\n{instructions}")
         result = await Runner.run(agent, f"Generate the sequence of atomic Subtask steps for ExecutableTask '{executable_task.name}' (ID: {executable_task.id}).")
         logger.debug(f"Raw Agent Subtask Generation Result: {result}")
 

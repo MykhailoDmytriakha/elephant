@@ -16,7 +16,7 @@ class Stage(BaseModel):
     """
     Stages represent major project milestones and are visualized as nodes in network diagrams.
     """
-    id: str = Field(..., description="Number of the stage (e.g. 1, 2, 3, etc.)")
+    id: str = Field(..., description="Number of the stage (e.g. S1, S2, S3, etc.)")
     name: str = Field(..., description="Name of the stage")
     description: str = Field(..., description="Description of the stage")
     result: List[str] = Field(default_factory=list, description="Shaping the result of the stage")

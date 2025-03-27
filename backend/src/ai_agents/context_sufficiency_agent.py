@@ -79,8 +79,8 @@ async def analyze_context_sufficiency(
     deferred topics.
     """
     
-    logger.info(f"Analyzing context sufficiency for the task")
-    logger.info(f"Analysis instructions: {instructions}")
+    logger.info(f"Analyzing context sufficiency for the task {task.id}")
+    # logger.info(f"Analysis instructions: {instructions}")
     # Create the agent
     agent = Agent(
         name="ContextSufficiencyAgent",

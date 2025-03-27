@@ -77,7 +77,7 @@ async def generate_work_packages_for_stage(
     1.  **Analyze the Stage:** Understand the stage's purpose, description, expected results, deliverables, and checkpoints based on the TARGET STAGE details provided above.
     2.  **Identify Sub-Goals:** Determine the logical sub-goals or major capabilities that need to be achieved within this stage. Aim for 3-7 major Work packages per stage, depending on complexity.
     3.  **Define Work Packages:** For each sub-goal, create a `Work` package object with the following attributes:
-        *   `id`: Generate a new UUID (this will be handled by the model, just define the structure). like stage.id + "_" + work_package_number (S1_WP1, S1_WP2, etc.)
+        *   `id`: Generate a new UUID (this will be handled by the model, just define the structure). like stage.id + "_" + work_package_number (S1_W1, S1_W2, etc.)
         *   `name`: A concise, descriptive name (e.g., "Process Raw Sensor Data", "Generate Initial Design Mockups", "Assemble Component A"). Min 5 chars.
         *   `description`: A clear explanation of this work package's specific objective, inputs, outputs, and boundaries. Min 20 chars.
         *   `stage_id`: MUST be set to the ID of the TARGET STAGE: "{stage.id}".
@@ -95,7 +95,7 @@ async def generate_work_packages_for_stage(
     """
 
     logger.info(f"Generating Work packages for Stage ID: {stage.id}")
-    logger.info(f"Agent Instructions: {instructions}")
+    # logger.info(f"Agent Instructions: {instructions}")
 
     # Define the agent
     agent = Agent(

@@ -225,8 +225,8 @@ async def formulate_scope_questions(
     class ScopeQuestionsList(BaseModel):
         questions: List[ScopeQuestion]
     
-    logger.info(f"Formulating scope questions for {group} dimension")
-    logger.info(f"Formulation instructions: {instructions}")
+    logger.info(f"Formulating scope questions for {group} dimension, task {task.id}")
+    # logger.info(f"Formulation instructions: {instructions}")
     agent = Agent(
         name="ScopeFormulationAgent",
         instructions=instructions,
