@@ -1,7 +1,7 @@
 // src/pages/TaskDetailsPage.jsx
 import React from 'react';
-import { useParams } from 'react-router-dom';
-import { ArrowLeft, Trash2, RefreshCw } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Trash2, RefreshCw, List } from 'lucide-react';
 import { LoadingSpinner } from '../components/task/TaskComponents';
 import { getStateColor } from '../constants/taskStates';
 import TaskOverview from '../components/task/TaskOverview';
@@ -16,6 +16,7 @@ import { useTaskDetails } from '../hooks/useTaskDetails';
 
 export default function TaskDetailsPage() {
   const { taskId } = useParams();
+  const navigate = useNavigate();
   
   // Use our custom hook for all task state and operations
   const {
@@ -45,6 +46,10 @@ export default function TaskDetailsPage() {
     handleAnswerChange,
     submitAnswers: handleSubmitAnswers
   } = useTaskDetails(taskId);
+
+  const handleNavigateToAllStages = () => {
+    navigate(`/tasks/${taskId}/all-stages`);
+  };
 
   if (loading) return <LoadingSpinner />;
   
@@ -80,6 +85,12 @@ export default function TaskDetailsPage() {
     return <LoadingSpinner />;
   }
 
+  const hasNetworkPlan = task.network_plan && 
+    task.network_plan.stages && 
+    task.network_plan.stages.length > 0 && 
+    task.network_plan.connections && 
+    task.network_plan.connections.length > 0;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -97,6 +108,15 @@ export default function TaskDetailsPage() {
               <h1 className="text-2xl font-bold text-gray-900 mt-1">Task Details</h1>
             </div>
             <div className="flex items-center gap-4">
+              {hasNetworkPlan && (
+                <button
+                  onClick={handleNavigateToAllStages}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                >
+                  <List className="w-4 h-4" />
+                  Breakdown View
+                </button>
+              )}
               <span className="text-gray-600 mr-2">Task State:</span>
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStateColor(task.state)}`}>{task.state}</span>
               <button

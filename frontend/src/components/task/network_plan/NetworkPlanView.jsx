@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { RefreshCw, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle, List } from 'lucide-react';
 import { CollapsibleSection } from '../TaskComponents';
 import NetworkGraph from './NetworkGraph';
 import StageDetails from './StageDetails';
 import { TaskStates } from '../../../constants/taskStates';
 import { ReactFlowProvider } from '@xyflow/react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 export default function NetworkPlanView({
   networkPlan,
@@ -14,6 +15,8 @@ export default function NetworkPlanView({
   isCompleted = false
 }) {
   const [selectedStageId, setSelectedStageId] = useState(null);
+  const navigate = useNavigate();
+  const { taskId } = useParams();
   
   const hasNetworkPlan = networkPlan && 
     networkPlan.stages && 
@@ -30,6 +33,10 @@ export default function NetworkPlanView({
   const getSelectedStage = () => {
     if (!selectedStageId || !hasNetworkPlan) return null;
     return networkPlan.stages.find(stage => stage.id === selectedStageId);
+  };
+
+  const handleViewAllStages = () => {
+    navigate(`/tasks/${taskId}/all-stages`);
   };
 
   const renderNetworkPlanContent = () => {
@@ -108,7 +115,15 @@ export default function NetworkPlanView({
           </div>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex justify-between">
+          <button
+            onClick={handleViewAllStages}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+          >
+            <List className="w-4 h-4" />
+            Breakdown View
+          </button>
+
           <button
             onClick={() => onGenerateNetworkPlan(true)}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
