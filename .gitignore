@@ -44,3 +44,6 @@ data/tasks.db
 # Coverage
 coverage/
 .coverage
+
+# macOS system files
+**/.DS_Store

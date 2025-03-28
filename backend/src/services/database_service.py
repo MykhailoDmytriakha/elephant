@@ -33,14 +33,19 @@ class DatabaseService:
 
     @contextmanager
     def get_connection(self):
-        connection = sqlite3.connect(self.db_path)
+        """
+        Context manager for database connections.
+        """
+        connection = None
         try:
+            connection = sqlite3.connect(self.db_path)
             yield connection
         except sqlite3.Error as e:
             logger.error(f"Database connection error: {e}")
             raise
         finally:
-            connection.close()
+            if connection:
+                connection.close()
 
     def _initialize_db(self):
         logger.info("Initializing database tables")
@@ -124,25 +129,43 @@ class DatabaseService:
             raise
 
     def fetch_user_queries(self):
-        with self.get_connection() as conn:
-            conn.row_factory = sqlite3.Row  # Enable row_factory to return sqlite3.Row objects
-            cursor = conn.cursor()
-            cursor.execute('SELECT id, task_id, query, status, created_at, progress FROM user_queries')
-            rows = cursor.fetchall()
-            return [dict(zip([column[0] for column in cursor.description], row)) for row in rows]
+        """Fetch all user queries"""
+        try:
+            with self.get_connection() as conn:
+                conn.row_factory = sqlite3.Row  # Enable row_factory to return sqlite3.Row objects
+                cursor = conn.cursor()
+                cursor.execute('SELECT id, task_id, query, status, created_at, progress FROM user_queries')
+                rows = cursor.fetchall()
+                return [dict(zip([column[0] for column in cursor.description], row)) for row in rows]
+        except sqlite3.Error as e:
+            logger.error(f"Error fetching user queries: {e}")
+            raise
 
     def fetch_user_query_by_id(self, query_id: int):
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT id, task_id, query, status, created_at, progress FROM user_queries WHERE id = ?', (query_id,))
-            row = cursor.fetchone()
-            return dict(row) if row else None
+        """Fetch a user query by ID"""
+        try:
+            with self.get_connection() as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute('SELECT id, task_id, query, status, created_at, progress FROM user_queries WHERE id = ?', (query_id,))
+                row = cursor.fetchone()
+                return dict(row) if row else None
+        except sqlite3.Error as e:
+            logger.error(f"Error fetching user query by ID: {e}")
+            raise
 
     def fetch_user_queries_by_task_id(self, task_id: str):
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT id, task_id, query, status, created_at, progress FROM user_queries WHERE task_id = ?', (task_id,))
-            return [dict(row) for row in cursor.fetchall()]
+        """Fetch user queries by task ID"""
+        try:
+            with self.get_connection() as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute('SELECT id, task_id, query, status, created_at, progress FROM user_queries WHERE task_id = ?', (task_id,))
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
+        except sqlite3.Error as e:
+            logger.error(f"Error fetching user queries by task ID: {e}")
+            raise
 
     def fetch_tasks(self) -> List[Dict[str, Any]]:
         logger.info("Fetching all tasks")

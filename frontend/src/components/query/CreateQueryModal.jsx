@@ -4,6 +4,7 @@ import Modal from 'react-modal';
 import axios from 'axios';
 import { X, Loader2, Send, Maximize2, Minimize2 } from 'lucide-react';
 import { useToast } from '../common/ToastProvider';
+import { createQuery } from '../../utils/api';
 
 Modal.setAppElement('#root');
 
@@ -46,17 +47,15 @@ const CreateQueryModal = ({ isOpen, onRequestClose, onQueryCreated }) => {
         setLoading(true);
         setError('');
         try {
-            const response = await axios.post('http://localhost:8000/user-queries/', {
-                query
-            });
-            onQueryCreated(response.data);
+            const response = await createQuery(query);
+            onQueryCreated(response);
             toast.showSuccess('Task created successfully');
             setQuery('');
             onRequestClose();
         } catch (err) {
-            const errorMessage = err.response?.data?.detail || 'Failed to create task';
+            const errorMessage = err.message || 'Failed to create task';
             setError(errorMessage);
-            toast.showError(`Failed to create task: ${errorMessage}`);
+            toast.showError(errorMessage);
         } finally {
             setLoading(false);
         }
