@@ -1,7 +1,6 @@
 // frontend/src/components/query/CreateQueryModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import Modal from 'react-modal';
-import axios from 'axios';
 import { X, Loader2, Send, Maximize2, Minimize2 } from 'lucide-react';
 import { useToast } from '../common/ToastProvider';
 import { createQuery } from '../../utils/api';

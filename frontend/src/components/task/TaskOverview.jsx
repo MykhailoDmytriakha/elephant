@@ -1,7 +1,6 @@
 // src/components/task/TaskOverview.jsx
-import React, { useState } from 'react';
+import React from 'react';
 import { 
-  HelpCircle, 
   FileText, 
   AlignLeft, 
   Target, 
@@ -13,30 +12,6 @@ import {
   Check, 
   TrendingUp 
 } from 'lucide-react';
-
-// Help tooltip component
-const HelpTooltip = ({ text }) => {
-  const [showTooltip, setShowTooltip] = useState(false);
-  
-  return (
-    <div className="relative inline-block ml-1">
-      <button
-        type="button"
-        className="text-gray-400 hover:text-gray-600 focus:outline-none"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-        onClick={() => setShowTooltip(!showTooltip)}
-      >
-        <HelpCircle className="w-4 h-4" />
-      </button>
-      {showTooltip && (
-        <div className="absolute z-10 w-64 p-2 text-xs text-gray-600 bg-white border border-gray-200 rounded-md shadow-lg top-full mt-1 -left-32">
-          {text}
-        </div>
-      )}
-    </div>
-  );
-};
 
 const TaskOverview = ({ task }) => {
   return (

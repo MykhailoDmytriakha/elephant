@@ -63,7 +63,7 @@ const handleApiError = (error, contextMessage) => {
  * @returns {Promise<any>} - API response data
  */
 const apiRequest = async (method, endpoint, data = null, errorMessage, options = {}) => {
-  const { queryParams = '', logging = false, preventDuplicates = false } = options;
+  const { queryParams = '', logging = false } = options;
   const url = `${API_BASE_URL}${endpoint}${queryParams}`;
   
   if (logging) {

@@ -3,7 +3,6 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { ArrowLeft, Trash2, RefreshCw } from 'lucide-react';
 import { LoadingSpinner } from '../components/task/TaskComponents';
-import { TaskStates } from '../constants/taskStates';
 import { getStateColor } from '../constants/taskStates';
 import TaskOverview from '../components/task/TaskOverview';
 import Metadata from '../components/task/Metadata';

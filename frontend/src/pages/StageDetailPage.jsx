@@ -12,7 +12,7 @@ import { useStageNavigation } from '../hooks/useStageNavigation';
  * Wrapper component that provides a key to force remounting when stageId changes
  */
 export default function StageDetailPageWrapper() {
-    const { taskId, stageId } = useParams();
+    const { taskId } = useParams();
     const location = useLocation();
     
     // Using a combination of taskId and data source (whether we have location state) as part of key
@@ -53,8 +53,7 @@ function StageDetailPage() {
         handleGenerateSubtasksForTask,
         fetchStageData,
         setWorkGenerationError,
-        setAllTasksForStageError,
-        resetStageData
+        setAllTasksForStageError
     } = useStageDetails(
         taskId,
         stageId,
