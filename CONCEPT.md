@@ -13,7 +13,7 @@ The core philosophy remains centered on **deep understanding and precise definit
 Therefore, the system meticulously follows these steps:
 1.  It receives a request or problem description from a user.
 2.  It uses AI-driven **Context Gathering** to exhaustively clarify the user's intent, goals, constraints, and any missing details.
-3.  It then systematically decomposes the clarified task into a detailed, hierarchical structure: **Stage -> Work -> Task -> Subtask**. This breakdown creates a comprehensive **Network Plan**.
+3.  It then systematically decomposes the clarified task into a detailed, hierarchical structure: **Stage -> Work -> ExecutableTask -> Subtask**. This breakdown creates a comprehensive **Network Plan** with detailed execution steps.
 4.  This detailed plan isn't just for human review; it's the essential **blueprint intended to be consumed and executed by AI systems.**
 
 The purpose of this detailed, structured plan is to enable the **maximum possible delegation** of both intellectual components (analysis, design, decision-making within defined bounds) to AI agents, and physical components (assembly, movement, manipulation) to robotic systems.
@@ -28,8 +28,9 @@ The project follows a methodical pipeline, where the output of one stage general
 2.  **Task Scope Formulation:** Defining the boundaries (5W+H).
 3.  **Ideal Final Result (IFR) Generation:** Envisioning the perfect solution.
 4.  **Requirements Definition:** Specifying technical needs.
-5.  **Network Plan Generation:** Creating a high-level execution map.
-6.  **(Future) Task Decomposition & Execution:** Breaking down the plan into actionable steps (**Stage -> Work -> Task -> Subtask**) suitable for AI/robot execution.
+5.  **Network Plan Generation:** Creating a high-level execution map (Stages & Connections).
+6.  **Hierarchical Task Decomposition:** Breaking down the Network Plan into actionable steps (**Stage -> Work -> ExecutableTask -> Subtask**) suitable for AI/robot execution.
+7.  **(Future) Execution Management:** Orchestrating or tracking the completion of decomposed tasks and subtasks.
 
 Each concept below plays a crucial role in this pipeline.
 
@@ -82,23 +83,23 @@ Each concept below plays a crucial role in this pipeline.
 
 ## 5. Network Plan Generation
 
-*   **Definition:** The creation of a structured, high-level plan for executing the task, often visualized as a network diagram, outlining the major phases for automated execution.
+*   **Definition:** The creation of a structured, high-level plan for executing the task, often visualized as a network diagram, outlining the major phases (Stages) for automated execution.
 *   **Why it's used:** Provides a strategic roadmap for execution, clarifies dependencies between major automated phases, establishes milestones, and defines verification points for the overall automated process.
 *   **How it works:** The system generates a plan composed of:
     *   **Stages:** Major phases or milestones represented as nodes in the network. Each stage has a description, expected results, and specific, tangible deliverables (artifacts).
     *   **Connections:** Links between stages indicating dependencies or workflow sequence for the automated process.
     *   **Checkpoints:** Verifiable steps within each stage, including specific artifacts to be produced and automated validation criteria to ensure the checkpoint is met.
 
-## 6. Hierarchical Task Decomposition (Future)
+## 6. Hierarchical Task Decomposition
 
-*   **Definition:** A planned future capability to break down the high-level Network Plan into a more granular, hierarchical structure of executable steps specifically tailored for AI agents and robotic systems.
-*   **Why it's needed:** Complex stages in the Network Plan need further breakdown into precise instructions that AI/robots can directly act upon. This hierarchy allows for detailed assignment, execution tracking, and error handling within the automated workflow.
-*   **Proposed Structure:** The breakdown follows a specific hierarchy:
+*   **Definition:** The capability to break down the high-level Network Plan into a more granular, hierarchical structure of executable steps specifically tailored for AI agents and robotic systems. This generates the detailed instructions needed for automated execution.
+*   **Why it's needed:** Complex stages in the Network Plan need further breakdown into precise instructions that AI/robots can directly act upon. This hierarchy allows for detailed assignment, future execution tracking, and error handling within the automated workflow.
+*   **Implemented Structure:** The breakdown follows a specific hierarchy:
     *   **Stage:** (From Network Plan) A major phase.
-    *   **Work:** A logical grouping of related tasks within a Stage, often corresponding to a specific capability (e.g., data processing work, navigation work).
-    *   **Task:** A specific, actionable unit of work assignable to an AI agent or robot (e.g., "analyze dataset X using method Y", "move gripper to position Z").
-    *   **Subtask:** The smallest, indivisible command or operation (e.g., "call API endpoint /analyze", "set motor angle to 45 degrees").
-*   **Execution Management (Planned):** The system will eventually orchestrate or track the completion of these detailed tasks and subtasks, potentially managing handoffs between different AI agents or robotic components.
+    *   **Work:** A logical grouping of related tasks within a Stage, often corresponding to a specific capability (e.g., data processing work, navigation work). Each Work package has inputs, outputs, dependencies, and validation criteria.
+    *   **ExecutableTask:** A specific, actionable unit of work within a Work package, assignable to an AI agent or robot (e.g., "analyze dataset X using method Y", "move gripper to position Z"). Contains detailed inputs, expected artifacts, and validation criteria.
+    *   **Subtask:** The smallest, indivisible command or operation within an ExecutableTask, specifying the executor type (AI_AGENT, ROBOT, HUMAN) (e.g., "call API endpoint /analyze", "set motor angle to 45 degrees").
+*   **Execution Management (Planned):** The system will *eventually* orchestrate or track the completion of these detailed tasks and subtasks, potentially managing handoffs between different AI agents or robotic components. Currently, the focus is on generating this detailed plan.
 
 ---
 

@@ -4,7 +4,7 @@
 
 ## Project Purpose
 
-The Elephant Project aims to leverage advanced AI capabilities to understand user needs deeply, break down complex requests (intellectual or physical tasks) into manageable components, and guide the execution process. By combining intelligent context gathering, structured problem formulation, and automated planning, Elephant strives to be a powerful assistant for tackling intricate challenges.
+The Elephant Project aims to leverage advanced AI capabilities to understand user needs deeply, break down complex requests (intellectual or physical tasks) into manageable components, and generate detailed plans suitable for automated execution by AI agents and robotic systems. By combining intelligent context gathering, structured problem formulation, and automated hierarchical planning, Elephant strives to be a powerful assistant for architecting and managing the future of automated work.
 
 ## Overview
 
@@ -15,7 +15,8 @@ Elephant employs a methodical problem-solving pipeline:
 3.  **Ideal Final Result (IFR) Generation:** Creates a precise definition of the perfect solution, including success criteria, outcomes, and metrics.
 4.  **Requirements Definition:** Generates detailed technical requirements based on the IFR and scope.
 5.  **Network Plan Generation:** Creates a structured plan with stages and checkpoints for execution.
-6.  *(Future)* **Task Decomposition & Execution:** Breaks down the plan into executable steps using a hierarchical structure (**Stage -> Work -> Task -> Subtask**) and manages their completion.
+6.  **Hierarchical Task Decomposition:** Breaks down the Network Plan into executable steps using a detailed hierarchy (**Stage -> Work -> ExecutableTask -> Subtask**) tailored for AI/robot consumption.
+7.  *(Future)* **Execution Management:** Orchestrates or tracks the completion of decomposed tasks and subtasks.
 
 The system adapts its interactions and responses based on the detected language of the user's input.
 
@@ -25,8 +26,9 @@ The system adapts its interactions and responses based on the detected language 
 *   **Structured Scope Definition:** Employs the 5W+H framework for precise task boundaries.
 *   **Ideal Final Result (IFR):** Defines clear success criteria and measurable outcomes.
 *   **Automated Requirements Generation:** Creates detailed technical requirements from the scope and IFR.
-*   **Network Planning:** Generates a visual plan with stages and checkpoints.
-*   **Web-Based Interface:** User-friendly React frontend for interaction and visualization.
+*   **Network Planning:** Generates a visual plan with stages, connections, and checkpoints.
+*   **Hierarchical Decomposition:** Automatically breaks down stages into Work packages, ExecutableTasks, and atomic Subtasks with defined inputs, outputs, dependencies, and executor types (AI_AGENT, ROBOT, HUMAN).
+*   **Web-Based Interface:** User-friendly React frontend for interaction and visualization (including network graph and task hierarchy).
 *   **RESTful API:** FastAPI backend providing structured access to functionality.
 *   **Task Persistence:** Uses SQLite to store query and task progress.
 
@@ -80,12 +82,13 @@ Creates a high-level execution plan.
 *   **Connections:** Dependencies between stages.
 *   **Checkpoints:** Verifiable steps within each stage, including artifacts and validation criteria.
 
-### 6. *(Future)* Task Decomposition & Execution
+### 6. Hierarchical Task Decomposition
 
-This stage will break down the Network Plan into finer-grained, executable steps.
+This stage breaks down the Network Plan into finer-grained, executable steps suitable for automated systems.
 
-*   **Hierarchical Breakdown:** Decomposes the plan following a structure: **Stage -> Work -> Task -> Subtask**.
-*   **Execution Management:** (Planned) Orchestrates or tracks the completion of these detailed steps.
+*   **Hierarchical Breakdown:** Decomposes the plan following the structure: **Stage -> Work -> ExecutableTask -> Subtask**. AI generates the details for each level, including dependencies, inputs, outputs, and validation.
+*   **Executor Specification:** Subtasks specify the intended executor type (AI_AGENT, ROBOT, HUMAN).
+*   *(Planned)* **Execution Management:** Future work involves orchestrating or tracking the completion of these detailed steps.
 
 *(Further stages like Evaluation are planned)*
 
@@ -174,24 +177,40 @@ The backend exposes a RESTful API for managing queries and tasks. Key endpoints 
 *   `GET /user-queries/`: List all queries.
 *   `POST /user-queries/`: Create a new query.
 *   `GET /tasks/{task_id}`: Get task details.
-*   `POST /tasks/{task_id}/context-questions`: Gather/submit context.
-*   `GET /tasks/{task_id}/formulate/{group}`: Get scope questions.
-*   `POST /tasks/{task_id}/formulate/{group}`: Submit scope answers.
-*   `GET /tasks/{task_id}/draft-scope`: Generate draft scope.
-*   `POST /tasks/{task_id}/validate-scope`: Approve or request changes to scope.
+*   `DELETE /tasks/{task_id}`: Delete a specific task.
+*   `POST /tasks/{task_id}/context-questions`: Get context questions or submit answers (handles both GET-like and POST logic).
+*   `GET /tasks/{task_id}/formulate/{group}`: Get scope questions for a specific 5W+H group.
+*   `POST /tasks/{task_id}/formulate/{group}`: Submit scope answers for a group.
+*   `GET /tasks/{task_id}/draft-scope`: Generate draft scope after all groups are answered.
+*   `POST /tasks/{task_id}/validate-scope`: Approve or request changes to the draft scope.
 *   `POST /tasks/{task_id}/ifr`: Generate Ideal Final Result.
 *   `POST /tasks/{task_id}/requirements`: Generate Requirements.
-*   `POST /tasks/{task_id}/network-plan`: Generate Network Plan.
+*   `POST /tasks/{task_id}/network-plan`: Generate Network Plan (Stages and Connections).
+*   `POST /tasks/{task_id}/stages/{stage_id}/generate-work`: Generate Work packages for a specific Stage.
+*   `POST /tasks/{task_id}/stages/generate-work`: Generate Work packages for ALL Stages.
+*   `POST /tasks/{task_id}/stages/{stage_id}/works/generate-tasks`: Generate ExecutableTasks for ALL Work packages in a Stage.
+*   `POST /tasks/{task_id}/stages/{stage_id}/work/{work_id}/generate-tasks`: Generate ExecutableTasks for a specific Work package.
+*   `POST /tasks/{task_id}/stages/{stage_id}/work/{work_id}/tasks/generate-subtasks`: Generate Subtasks for ALL ExecutableTasks in a Work package.
+*   `POST /tasks/{task_id}/stages/{stage_id}/work/{work_id}/tasks/{executable_task_id}/generate-subtasks`: Generate Subtasks for a specific ExecutableTask.
+*   *(Utility Endpoints under `/utils` for cleanup)*
 
 ## Development Status & Roadmap
 
-The project is under active development. Current priorities include:
+The project is under active development. Current status and future goals:
 
+**Implemented:**
+*   Core pipeline stages 1-6 (Context Gathering to Hierarchical Decomposition).
+*   AI-driven generation for context questions, scope questions, draft scope, IFR, requirements, network plan, work packages, executable tasks, and subtasks.
+*   React frontend with visualization for network plan and task hierarchy.
+*   FastAPI backend with SQLite persistence.
+
+**Priorities & Future Work:**
+*   **Execution Management:** Implementing orchestration/tracking for decomposed tasks/subtasks.
 *   **Performance Optimization:** Addressing API call delays and database performance.
 *   **State Management:** Improving validation and robustness of task state transitions.
-*   **Context Gathering Enhancements:** Adding structured questions and multi-turn conversations.
-*   **UI/UX Improvements:** Enhancing loading states, filtering, and user feedback.
-*   **Decomposition Implementation:** Building out the **Stage -> Work -> Task -> Subtask** decomposition logic.
+*   **UI/UX Improvements:** Enhancing loading states, filtering, error handling, and user feedback for decomposition steps.
+*   **Error Handling & Recovery:** More robust error handling in the backend agents.
+*   **Testing:** Expanding test coverage, especially for decomposition logic.
 
 ## Contributing
 
