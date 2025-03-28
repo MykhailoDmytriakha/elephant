@@ -171,6 +171,9 @@ export default function TaskDetailsPage() {
                 isGeneratingNetworkPlan={isGeneratingNetworkPlan}
                 onGenerateNetworkPlan={handleGenerateNetworkPlan}
                 taskState={task.state}
+                isCompleted={task.network_plan?.stages?.some(stage => 
+                  stage.work_packages?.some(wp => wp.tasks && wp.tasks.length > 0)
+                )}
               />
             )}
           </div>

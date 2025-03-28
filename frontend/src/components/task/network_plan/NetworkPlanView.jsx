@@ -10,7 +10,8 @@ export default function NetworkPlanView({
   networkPlan,
   isGeneratingNetworkPlan,
   onGenerateNetworkPlan,
-  taskState
+  taskState,
+  isCompleted = false
 }) {
   const [selectedStageId, setSelectedStageId] = useState(null);
   
@@ -122,8 +123,18 @@ export default function NetworkPlanView({
 
   return (
     <CollapsibleSection 
-      title="Network Plan"
-      defaultOpen={true}
+      title={
+        <div className="flex items-center justify-between w-full">
+          <span>Network Plan</span>
+          {isCompleted && (
+            <span className="ml-2 text-xs bg-green-100 text-green-800 py-0.5 px-2 rounded-full">
+              Complete
+            </span>
+          )}
+        </div>
+      }
+      defaultOpen={!isCompleted}
+      isCompleted={isCompleted}
     >
       {renderNetworkPlanContent()}
     </CollapsibleSection>
