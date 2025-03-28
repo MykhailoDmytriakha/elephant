@@ -1,22 +1,60 @@
+// frontend/src/utils/api.js
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000';
 
-// Flags to prevent duplicate requests
+// Flags to prevent duplicate requests (Keep as is for now)
 let isValidateScopeInProgress = false;
 
-const handleApiError = (error, defaultMessage) => {
-  if (error.response) {
-    const message = error.response.data?.detail || 
-                   error.response.data?.message || 
-                   error.response.statusText;
-    throw new Error(`${defaultMessage}: ${message}`);
+/**
+ * Centralized API error handling. Throws an Error object.
+ * @param {Error} error - The error object caught (usually from Axios).
+ * @param {string} contextMessage - A message describing the context of the API call (e.g., "Failed to fetch queries").
+ * @returns {never} - This function never returns normally, it always throws.
+ */
+const handleApiError = (error, contextMessage) => {
+  let errorMessage = contextMessage || 'An API error occurred';
+  let statusCode = null;
+  let details = null;
+
+  if (axios.isAxiosError(error)) {
+    // Error from Axios (network or HTTP error)
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      statusCode = error.response.status;
+      const responseData = error.response.data;
+      // Try to extract a meaningful detail message from the response body
+      details = responseData?.detail || responseData?.message || JSON.stringify(responseData);
+      errorMessage = `${contextMessage}: Server responded with status ${statusCode}. ${details ? `Details: ${details}` : ''}`;
+      console.error(`API Error Response (${statusCode}):`, responseData);
+    } else if (error.request) {
+      // The request was made but no response was received
+      errorMessage = `${contextMessage}: No response received from server. Check network connection or server status.`;
+      console.error('API Error Request:', error.request);
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      errorMessage = `${contextMessage}: Error setting up request: ${error.message}`;
+      console.error('API Error Setup:', error.message);
+    }
+  } else {
+    // Non-Axios error (e.g., programming error in response handling)
+    errorMessage = `${contextMessage}: An unexpected error occurred: ${error.message}`;
+    console.error('Non-API Error:', error);
   }
-  if (error.request) {
-    throw new Error(`Network error: Unable to connect to server`);
-  }
-  throw new Error(defaultMessage + ': ' + error.message);
+
+  // Create a new Error object with structured information
+  const customError = new Error(errorMessage);
+  customError.statusCode = statusCode; // Attach status code if available
+  customError.details = details; // Attach details if available
+  customError.originalError = error; // Keep reference to original error
+
+  // Always throw the structured error
+  throw customError;
 };
+
+
+// --- API functions remain the same, but now use the improved handleApiError ---
 
 export const fetchQueries = async () => {
   try {
@@ -41,7 +79,8 @@ export const fetchTaskDetails = async (taskId) => {
     const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}`);
     return response.data;
   } catch (error) {
-    handleApiError(error, 'Failed to fetch task details');
+    // Add task ID to context message for better debugging
+    handleApiError(error, `Failed to fetch details for task ${taskId}`);
   }
 };
 
@@ -51,7 +90,7 @@ export const updateTaskContext = async (taskId, answers, queryParams = '') => {
     const response = await axios.post(url, answers);
     return response.data;
   } catch (error) {
-    handleApiError(error, 'Failed to process context questions');
+    handleApiError(error, `Failed to process context questions for task ${taskId}`);
   }
 };
 
@@ -59,11 +98,13 @@ export const getContextQuestions = async (taskId, force = false) => {
   try {
     const shouldForce = force === true;
     const queryParams = shouldForce ? '?force=true' : '';
-    
+    // Using updateTaskContext with null answers to trigger the GET-like behavior
     const data = await updateTaskContext(taskId, null, queryParams);
     return data;
   } catch (error) {
-    handleApiError(error, 'Failed to get context questions and evaluate');
+    // Error is already handled by updateTaskContext, just re-throw if needed
+    // Or adjust message specific to this function's context
+    handleApiError(error, `Failed to get context questions and evaluate for task ${taskId}`);
   }
 };
 
@@ -71,7 +112,7 @@ export const deleteTask = async (taskId) => {
   try {
     await axios.delete(`${API_BASE_URL}/tasks/${taskId}`);
   } catch (error) {
-    handleApiError(error, 'Failed to delete task');
+    handleApiError(error, `Failed to delete task ${taskId}`);
   }
 };
 
@@ -81,17 +122,17 @@ export const getFormulationQuestions = async (taskId, groupId) => {
     const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}/formulate/${groupId}`);
     return response.data;
   } catch (error) {
-    handleApiError(error, 'Failed to get formulation questions');
+    handleApiError(error, `Failed to get formulation questions for task ${taskId}, group ${groupId}`);
   }
 };
 
 export const submitFormulationAnswers = async (taskId, groupId, answers) => {
   try {
-    console.log('Submitting formulation answers for task:', taskId, 'and group:', groupId, 'with answers:', answers);
+    console.log('Submitting formulation answers for task:', taskId, 'and group:', groupId); // Removed answers from log for brevity/privacy
     const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/formulate/${groupId}`, answers);
     return response.data;
   } catch (error) {
-    handleApiError(error, 'Failed to submit formulation answers');
+    handleApiError(error, `Failed to submit formulation answers for task ${taskId}, group ${groupId}`);
   }
 };
 
@@ -100,31 +141,25 @@ export const getDraftScope = async (taskId) => {
     const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}/draft-scope`);
     return response.data;
   } catch (error) {
-    handleApiError(error, 'Failed to get draft scope');
+    handleApiError(error, `Failed to get draft scope for task ${taskId}`);
   }
 };
 
 export const validateScope = async (taskId, isApproved, feedback = null) => {
-  // If there's already a request in progress, ignore this one
   if (isValidateScopeInProgress) {
-    console.log('validateScope: Request already in progress, ignoring duplicate call');
-    return null;
+    console.warn('validateScope: Request already in progress, ignoring duplicate call'); // Changed to warn
+    return null; // Return null to indicate no action taken
   }
-  
-  // Set flag to prevent duplicate requests
   isValidateScopeInProgress = true;
-  
   try {
-    console.log('validateScope: Making API call', {taskId, isApproved, feedback});
+    console.log('validateScope: Making API call', {taskId, isApproved, feedback: feedback ? 'provided' : 'none'}); // Simplified log
     const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/validate-scope`, { isApproved, feedback });
     return response.data;
   } catch (error) {
-    handleApiError(error, 'Failed to validate scope');
+    handleApiError(error, `Failed to validate scope for task ${taskId}`);
+    return null; // Ensure it returns null on error after handling
   } finally {
-    // Reset flag after a short delay to catch very fast duplicate clicks
-    setTimeout(() => {
-      isValidateScopeInProgress = false;
-    }, 500);
+    setTimeout(() => { isValidateScopeInProgress = false; }, 500);
   }
 };
 
@@ -132,10 +167,10 @@ export const generateIFR = async (taskId) => {
   try {
     console.log('Generating IFR for task:', taskId);
     const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/ifr`);
-    console.log('IFR response:', response.data);
+    console.log('IFR response received for task:', taskId); // Simplified log
     return response.data;
   } catch (error) {
-    handleApiError(error, 'Failed to generate Ideal Final Result');
+    handleApiError(error, `Failed to generate IFR for task ${taskId}`);
   }
 };
 
@@ -143,50 +178,42 @@ export const generateRequirements = async (taskId) => {
   try {
     console.log('Generating requirements for task:', taskId);
     const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/requirements`);
-    console.log('Requirements response:', response.data);
+    console.log('Requirements response received for task:', taskId); // Simplified log
     return response.data;
   } catch (error) {
-    handleApiError(error, 'Failed to generate Requirements');
+    handleApiError(error, `Failed to generate Requirements for task ${taskId}`);
   }
 };
 
 export const generateNetworkPlan = async (taskId, forceRefresh = false) => {
   try {
-    console.log('Generating network plan for task:', taskId);
+    console.log(`Generating network plan for task: ${taskId} (force=${forceRefresh})`);
     const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/network-plan?force=${forceRefresh}`);
-    console.log('Network plan response:', response.data);
+    console.log('Network plan response received for task:', taskId); // Simplified log
     return response.data;
   } catch (error) {
-    handleApiError(error, 'Failed to generate Network Plan');
+    handleApiError(error, `Failed to generate Network Plan for task ${taskId}`);
   }
 };
 
-/**
- * Generates Work packages for a specific stage of a task.
- * @param {string} taskId - The ID of the task.
- * @param {string} stageId - The ID of the stage.
- * @returns {Promise<Array>} A promise that resolves to the list of generated Work packages.
- */
+// --- Decomposition API calls ---
+
 export const generateWorkForStage = async (taskId, stageId) => {
   try {
     console.log(`Generating work packages for task ${taskId}, stage ${stageId}`);
-    // POST request, no body needed based on the endpoint definition
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/generate-work`, {});
-    console.log(`Work packages response for stage ${stageId}:`, response.data);
-    // The backend returns the list of work packages directly
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/generate-work`); // Body removed as it was empty
+    console.log(`Work packages response received for stage ${stageId}`);
     return response.data;
   } catch (error) {
-    handleApiError(error, `Failed to generate Work Packages for stage ${stageId}`);
+    handleApiError(error, `Failed to generate Work Packages for stage ${stageId} in task ${taskId}`);
   }
 };
 
 export const generateTasksForWork = async (taskId, stageId, workId) => {
   try {
     console.log(`Generating executable tasks for task ${taskId}, stage ${stageId}, work ${workId}`);
-    // POST request, no body needed based on the endpoint definition
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/generate-tasks`, {});
-    console.log(`Executable tasks response for work ${workId}:`, response.data);
-    // The backend returns the list of executable tasks directly
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/generate-tasks`);
+    console.log(`Executable tasks response received for work ${workId}`);
     return response.data;
   } catch (error) {
     handleApiError(error, `Failed to generate Executable Tasks for work ${workId}`);
@@ -196,71 +223,42 @@ export const generateTasksForWork = async (taskId, stageId, workId) => {
 export const generateSubtasksForTask = async (taskId, stageId, workId, executableTaskId) => {
   try {
     console.log(`Generating subtasks for task ${taskId}, stage ${stageId}, work ${workId}, execTask ${executableTaskId}`);
-    // POST request, no body needed based on the endpoint definition
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/tasks/${executableTaskId}/generate-subtasks`, {});
-    console.log(`Subtasks response for executable task ${executableTaskId}:`, response.data);
-    // The backend returns the list of subtasks directly
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/tasks/${executableTaskId}/generate-subtasks`);
+    console.log(`Subtasks response received for executable task ${executableTaskId}`);
     return response.data;
   } catch (error) {
     handleApiError(error, `Failed to generate Subtasks for executable task ${executableTaskId}`);
   }
 };
 
-/**
- * Generates Executable Tasks for ALL tasks within a specific Work package.
- * @param {string} taskId - The ID of the task.
- * @param {string} stageId - The ID of the stage.
- * @param {string} workId - The ID of the work package.
- * @returns {Promise<Array>} A promise that resolves to the updated list of Executable Tasks for the Work package.
- */
 export const generateAllTasksForWork = async (taskId, stageId, workId) => {
   try {
     console.log(`Generating ALL executable tasks for task ${taskId}, stage ${stageId}, work ${workId}`);
-    // Note: This endpoint name in the backend seems slightly misleading based on its path.
-    // It generates tasks for *all* tasks within the specified work_id, not *all* works in the stage.
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/generate-tasks`, {}); // Reusing the existing endpoint as it generates all tasks for the specified work
-    console.log(`Executable tasks response for ALL tasks in work ${workId}:`, response.data);
-    // Backend returns the list of executable tasks for this work package
+    // Using the specific work endpoint seems correct here based on backend structure
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/generate-tasks`);
+    console.log(`ALL Executable tasks response received for work ${workId}`);
     return response.data;
   } catch (error) {
     handleApiError(error, `Failed to generate ALL Executable Tasks for work ${workId}`);
   }
 };
 
-
-/**
- * Generates Subtasks for ALL Executable Tasks within a specific Work package.
- * @param {string} taskId - The ID of the task.
- * @param {string} stageId - The ID of the stage.
- * @param {string} workId - The ID of the work package.
- * @returns {Promise<Array>} A promise that resolves to the updated list of Executable Tasks (containing subtasks) for the Work package.
- */
 export const generateAllSubtasksForWork = async (taskId, stageId, workId) => {
   try {
     console.log(`Generating ALL subtasks for task ${taskId}, stage ${stageId}, work ${workId}`);
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/tasks/generate-subtasks`, {});
-    console.log(`Subtasks response for ALL tasks in work ${workId}:`, response.data);
-    // Backend returns the updated list of Executable Tasks for the work package, now containing subtasks
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/work/${workId}/tasks/generate-subtasks`);
+    console.log(`ALL Subtasks response received for work ${workId}`);
     return response.data;
   } catch (error) {
     handleApiError(error, `Failed to generate ALL Subtasks for work ${workId}`);
   }
 };
 
-/**
- * Generates Executable Tasks for ALL Work packages within a specific Stage.
- * Calls the POST /tasks/{task_id}/stages/{stage_id}/works/generate-tasks endpoint.
- * @param {string} taskId - The ID of the task.
- * @param {string} stageId - The ID of the stage.
- * @returns {Promise<Array>} A promise that resolves to the updated list of Work packages for the stage.
- */
 export const generateAllTasksForStage = async (taskId, stageId) => {
   try {
     console.log(`Generating ALL executable tasks for task ${taskId}, stage ${stageId}`);
-    // POST request to the endpoint for generating tasks for all works in a stage
-    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/works/generate-tasks`, {});
-    console.log(`Executable tasks response for ALL works in stage ${stageId}:`, response.data);
-    // Backend returns the updated list of Work packages for the stage
+    const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/stages/${stageId}/works/generate-tasks`);
+    console.log(`ALL Executable tasks response received for stage ${stageId}`);
     return response.data;
   } catch (error) {
     handleApiError(error, `Failed to generate ALL Executable Tasks for stage ${stageId}`);

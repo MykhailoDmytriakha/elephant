@@ -44,18 +44,38 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
             setIsLoadingData(false);
             return;
         }
+        
+        console.log(`Fetching stage data for task ${taskId}, stage ${stageId}`);
         setIsLoadingData(true);
         setWorkGenerationError(null); // Clear errors on fetch
         setAllTasksForStageError(null);
+        
+        // Set a timeout to prevent infinite loading
+        const timeout = setTimeout(() => {
+            if (setIsLoadingData) {
+                console.warn(`Fetch timeout reached for stage ${stageId}, forcing loading state to false`);
+                setIsLoadingData(false);
+                toast.showError("Loading stage data timed out. Please try again.");
+            }
+        }, 10000); // 10 seconds timeout
+        
         try {
             const taskData = await fetchTaskDetails(taskId);
+            clearTimeout(timeout); // Clear the timeout on success
+            
             if (!taskData || !taskData.network_plan) {
                 throw new Error("Task data or network plan is missing");
             }
-            const foundStage = taskData.network_plan.stages.find(s => s.id === stageId);
+            
+            console.log(`Task data received, looking for stage ${stageId} among ${taskData.network_plan.stages.length} stages`);
+            console.log(`Available stage IDs: ${taskData.network_plan.stages.map(s => s.id).join(', ')}`);
+            
+            const foundStage = taskData.network_plan.stages.find(s => String(s.id) === String(stageId));
             if (!foundStage) {
                 throw new Error(`Stage ${stageId} not found in task data`);
             }
+            
+            console.log(`Found stage ${stageId}, updating state`);
             setCurrentStageData(foundStage);
             setTaskInfo(prev => ({
                 ...prev,
@@ -63,38 +83,80 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
                 id: taskData.id // Ensure task ID is updated if needed
             }));
         } catch (error) {
+            clearTimeout(timeout); // Clear the timeout on error
             console.error("Error fetching task/stage data:", error);
             toast.showError(`Error loading stage data: ${error.message}`);
             // Keep potential old data, but stop loading
         } finally {
+            clearTimeout(timeout); // Ensure timeout is cleared
             setIsLoadingData(false);
+            console.log(`Finished loading stage ${stageId}`);
         }
     }, [taskId, stageId, toast]); // Removed fetchStageData from its own dependencies
 
-    // Effect to fetch data if initial state is missing
+    // Effect to fetch data if initial state is missing or when stageId/taskId changes
     useEffect(() => {
-        // Only fetch if initialStageData was NOT provided AND we don't currently have data
-        if (!initialStageData && !currentStageData && taskId && stageId) {
-            fetchStageData();
-        } else if (initialStageData && !currentStageData) {
-            // If initial data was provided but somehow lost, restore it
-            setCurrentStageData(initialStageData);
-            setIsLoadingData(false);
-        } else {
-            // If we have data (either initial or fetched), ensure loading is false
-            setIsLoadingData(false);
-        }
-
-        // Reset generation states on mount/ID change
-        setIsGeneratingWork(false);
-        // setWorkGenerationError(null); // Don't clear errors here, let fetchStageData handle it
+        // Reset error states
+        setWorkGenerationError(null);
+        setAllTasksForStageError(null);
         setGeneratingAllTasksForWorkId(null);
         setAllTasksGenerationErrors({});
         setGeneratingAllSubtasksForWorkId(null);
         setAllSubtasksGenerationErrors({});
         setIsGeneratingAllTasksForStage(false);
-        // setAllTasksForStageError(null); // Don't clear errors here
-    }, [taskId, stageId, initialStageData, fetchStageData, currentStageData]); // Added currentStageData
+        
+        // Update stage data if we have initialStageData that matches the current stageId
+        if (initialStageData && String(initialStageData.id) === String(stageId)) {
+            console.log(`Using initial stage data for stage ${stageId}`);
+            setCurrentStageData(initialStageData);
+            setIsLoadingData(false);
+            return;
+        }
+        
+        // If we don't have data or the stageId/taskId changed, we need to fetch
+        if ((!currentStageData || String(currentStageData.id) !== String(stageId)) && taskId && stageId) {
+            console.log(`Fetching data for stage ${stageId}, current stage data: ${currentStageData?.id || 'none'}`);
+            
+            // Important: Keep old data visible during loading to reduce flickering
+            if (currentStageData) {
+                // Don't set loading to true immediately to prevent flashing
+                // Instead fetch in background first
+                (async () => {
+                    try {
+                        const taskData = await fetchTaskDetails(taskId);
+                        if (!taskData || !taskData.network_plan) {
+                            throw new Error("Task data or network plan is missing");
+                        }
+                        
+                        const foundStage = taskData.network_plan.stages.find(s => String(s.id) === String(stageId));
+                        if (!foundStage) {
+                            throw new Error(`Stage ${stageId} not found in task data`);
+                        }
+                        
+                        setCurrentStageData(foundStage);
+                        setTaskInfo(prev => ({
+                            ...prev,
+                            shortDescription: taskData.short_description || taskData.task,
+                            id: taskData.id
+                        }));
+                        setIsLoadingData(false);
+                    } catch (error) {
+                        console.error("Error background-fetching stage data:", error);
+                        // Now show loading state since we couldn't fetch in background
+                        setIsLoadingData(true);
+                        fetchStageData();
+                    }
+                })();
+            } else {
+                // No current data, show loading state immediately
+                setIsLoadingData(true);
+                fetchStageData();
+            }
+        } else {
+            // If we have data (either initial or fetched), ensure loading is false
+            setIsLoadingData(false);
+        }
+    }, [taskId, stageId, initialStageData, fetchStageData, currentStageData]);
 
     // --- Handler Functions ---
     const handleGenerateWork = useCallback(async () => {
@@ -244,6 +306,19 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
     }, [taskId, stageId, taskInfo.id, currentStageData, toast]);
     // --- End Handler Functions ---
 
+    // Function to reset stage data for reloading
+    const resetStageData = useCallback(() => {
+        setCurrentStageData(null);
+        setIsLoadingData(true);
+        setWorkGenerationError(null);
+        setAllTasksForStageError(null);
+        setGeneratingAllTasksForWorkId(null);
+        setAllTasksGenerationErrors({});
+        setGeneratingAllSubtasksForWorkId(null);
+        setAllSubtasksGenerationErrors({});
+        setIsGeneratingAllTasksForStage(false);
+    }, []);
+
     return {
         currentStageData,
         taskInfo,
@@ -264,6 +339,7 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
         fetchStageData, // Expose fetch function for manual retry
         // Expose error setters for direct use in the component if needed (though internal handling is preferred)
         setWorkGenerationError,
-        setAllTasksForStageError
+        setAllTasksForStageError,
+        resetStageData // Add the reset function
     };
 }

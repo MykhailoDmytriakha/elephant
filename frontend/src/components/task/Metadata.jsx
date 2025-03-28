@@ -64,8 +64,13 @@ export default function Metadata({ task }) {
                                         <Link
                                             key={stage.id}
                                             to={`/tasks/${task.id}/stages/${stage.id}`}
-                                            // Pass stage and task info needed for the detail page
-                                            state={{ stage: stage, taskShortDescription: task.short_description, taskId: task.id }}
+                                            // Pass stage, task info, and the full task object for navigation
+                                            state={{ 
+                                                stage: stage, 
+                                                taskShortDescription: task.short_description, 
+                                                taskId: task.id,
+                                                task: task // Pass the full task object
+                                            }}
                                             className="block p-2 rounded-md hover:bg-gray-100 cursor-pointer transition-colors border border-transparent hover:border-gray-200"
                                         >
                                             <span className="text-sm font-medium text-blue-700 hover:text-blue-900">

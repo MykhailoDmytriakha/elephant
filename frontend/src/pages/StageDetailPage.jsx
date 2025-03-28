@@ -1,23 +1,44 @@
 // src/pages/StageDetailPage.jsx
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 // Import useLocation
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
-    ArrowLeft, CheckCircle2, Layers, Cpu, RefreshCw, Workflow, ChevronRight // Added ChevronRight back
-} from 'lucide-react'; // Removed AlertCircle
+    ArrowLeft, CheckCircle2, Layers, Cpu, RefreshCw, Workflow, ChevronRight, ChevronLeft, Loader2
+} from 'lucide-react'; // Added Loader2 for loading spinner
 import { InfoCard, CollapsibleSection, LoadingSpinner, ErrorDisplay, ArtifactDisplay } from '../components/task/TaskComponents';
 import StageOverviewPanel from '../components/task/StageOverviewPanel';
 import WorkPackageCard from '../components/task/WorkPackageCard';
 import { useStageDetails } from '../hooks/useStageDetails';
+import { fetchTaskDetails } from '../utils/api';
+import { useToast } from '../components/common/ToastProvider';
+
+/**
+ * Wrapper component that provides a key to force remounting when stageId changes
+ */
+export default function StageDetailPageWrapper() {
+    const { taskId, stageId } = useParams();
+    const location = useLocation();
+    
+    // Using a combination of taskId and data source (whether we have location state) as part of key
+    // This prevents unnecessary remounting when navigating between stages
+    const hasLocationState = Boolean(location.state?.stage);
+    const dataSource = hasLocationState ? 'fromState' : 'fromFetch';
+    
+    // Create a stable key that doesn't change just because you click next/prev
+    return <StageDetailPage key={`task-${taskId}-${dataSource}`} />;
+}
 
 /**
  * Page component to display detailed information about a specific stage within a task.
  * Handles fetching stage data, displaying details, and managing work package generation.
  */
-export default function StageDetailPage() {
+function StageDetailPage() {
     const { taskId, stageId } = useParams();
     const navigate = useNavigate();
     const location = useLocation(); // Use useLocation hook
+    const toast = useToast();
+    const [allStages, setAllStages] = useState([]);
+    const [isLoadingStages, setIsLoadingStages] = useState(true);
 
     // Use the custom hook to manage state and logic
     // Pass initial state from location.state
@@ -40,7 +61,8 @@ export default function StageDetailPage() {
         handleGenerateSubtasksForTask,
         fetchStageData,
         setWorkGenerationError, // Get the setter from the hook
-        setAllTasksForStageError // Get the setter from the hook
+        setAllTasksForStageError, // Get the setter from the hook
+        resetStageData // Get the reset function from the hook
     } = useStageDetails(
         taskId,
         stageId,
@@ -52,16 +74,50 @@ export default function StageDetailPage() {
                       : null
     );
 
+    // Fetch all stages for the task
+    useEffect(() => {
+        async function fetchStages() {
+            try {
+                // Check if we already have stages from location.state
+                if (location.state?.task?.network_plan?.stages) {
+                    setAllStages(location.state.task.network_plan.stages);
+                    setIsLoadingStages(false);
+                    return;
+                }
+
+                // Otherwise fetch the task data to get all stages
+                const taskData = await fetchTaskDetails(taskId);
+                if (taskData && taskData.network_plan && taskData.network_plan.stages) {
+                    setAllStages(taskData.network_plan.stages);
+                }
+            } catch (error) {
+                console.error("Error fetching stages:", error);
+                toast.showError("Could not load all stages for navigation.");
+            } finally {
+                setIsLoadingStages(false);
+            }
+        }
+
+        if (taskId) {
+            fetchStages();
+        }
+    }, [taskId, location.state, toast, stageId]);
+
+    // Debug logging to track state
+    useEffect(() => {
+        console.log(`StageDetailPage: stageId=${stageId}, isLoadingData=${isLoadingData}, stage=${stage?.id}`);
+    }, [stageId, isLoadingData, stage]);
+
     // Loading state
     if (isLoadingData) {
-        return <LoadingSpinner message="Loading Stage Data..." />;
+        return <LoadingSpinner message={`Loading Stage ${stageId} Data...`} />;
     }
 
     // Error state if stage data couldn't be loaded
     if (!stage) {
         return (
             <ErrorDisplay
-                message="Stage details could not be loaded. Please ensure you navigated from the task page or try again."
+                message={`Stage ${stageId} details could not be loaded. Please ensure you navigated from the task page or try again.`}
                 onRetry={fetchStageData}
             />
         );
@@ -74,6 +130,34 @@ export default function StageDetailPage() {
         return stage?.work_packages?.some(wp => wp.tasks && wp.tasks.length > 0);
     };
     const anyTaskExists = checkIfAnyTaskExists();
+
+    // Find the current stage index
+    const currentStageIndex = allStages.findIndex(s => s.id === stage.id);
+    // Determine if there are previous and next stages
+    const hasPrevStage = currentStageIndex > 0;
+    const hasNextStage = currentStageIndex < allStages.length - 1 && currentStageIndex !== -1;
+    // Get the previous and next stage IDs if they exist
+    const prevStageId = hasPrevStage ? allStages[currentStageIndex - 1].id : null;
+    const nextStageId = hasNextStage ? allStages[currentStageIndex + 1].id : null;
+
+    // Navigate to a different stage
+    const navigateToStage = (targetStageId) => {
+        if (targetStageId) {
+            // Find the target stage data in allStages
+            const targetStage = allStages.find(s => s.id === targetStageId);
+            
+            // Pass the current state to avoid unnecessary loading
+            navigate(`/tasks/${backTaskId}/stages/${targetStageId}`, {
+                state: {
+                    stage: targetStage, 
+                    taskShortDescription: taskInfo.shortDescription,
+                    taskId: backTaskId,
+                    // Include the entire stages list to avoid refetching
+                    task: { network_plan: { stages: allStages } }
+                }
+            });
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12 w-full">
@@ -95,10 +179,52 @@ export default function StageDetailPage() {
                             <nav className="flex items-center space-x-1 text-sm text-gray-500 truncate w-full" aria-label="Breadcrumb">
                                 <Link to={`/tasks/${backTaskId}`} className="hover:text-gray-700 flex-shrink-0" title={taskInfo?.shortDescription}>Task:</Link>
                                 <span className="truncate flex-1 mx-1" title={taskInfo?.shortDescription}>{taskInfo?.shortDescription || backTaskId}</span>
-                                <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" aria-hidden="true" /> {/* Added ChevronRight back */}
-                                <span className="font-medium text-gray-700 flex-shrink-0" aria-current="page">Stage {stage.id}</span>
                             </nav>
                              <h1 className="text-xl font-bold text-gray-900 truncate" title={stage.name}>Stage {stage.id}: {stage.name}</h1>
+                        </div>
+                        
+                        {/* Stage Switcher */}
+                        <div className="flex items-center ml-4 bg-gray-100 rounded-md p-1 shadow-sm">
+                            {isLoadingStages ? (
+                                <div className="px-3 py-1 flex items-center">
+                                    <Loader2 className="w-3 h-3 text-blue-500 animate-spin mr-1" />
+                                    <span className="text-xs text-gray-500">Loading</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={() => navigateToStage(prevStageId)}
+                                        disabled={!hasPrevStage || isLoadingStages}
+                                        className={`p-1.5 rounded-md transition-colors ${
+                                            hasPrevStage && !isLoadingStages
+                                            ? 'text-gray-700 hover:bg-white hover:text-blue-600 hover:shadow-sm' 
+                                            : 'text-gray-300 cursor-not-allowed'
+                                        }`}
+                                        title={hasPrevStage ? `Previous: Stage ${prevStageId}` : "No previous stage"}
+                                        aria-label={hasPrevStage ? "Go to previous stage" : "No previous stage"}
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                    </button>
+                                    
+                                    <span className="text-xs font-medium text-gray-500 mx-2 select-none">
+                                        {currentStageIndex !== -1 ? `${currentStageIndex + 1}/${allStages.length}` : ''}
+                                    </span>
+                                    
+                                    <button
+                                        onClick={() => navigateToStage(nextStageId)}
+                                        disabled={!hasNextStage || isLoadingStages}
+                                        className={`p-1.5 rounded-md transition-colors ${
+                                            hasNextStage && !isLoadingStages
+                                            ? 'text-gray-700 hover:bg-white hover:text-blue-600 hover:shadow-sm' 
+                                            : 'text-gray-300 cursor-not-allowed'
+                                        }`}
+                                        title={hasNextStage ? `Next: Stage ${nextStageId}` : "No next stage"}
+                                        aria-label={hasNextStage ? "Go to next stage" : "No next stage"}
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -212,7 +338,7 @@ export default function StageDetailPage() {
                                     </div>
                                 ) : (
                                     // State when work packages exist
-                                     <div className="space-y-4 w-full pt-4 border-t border-gray-200 mt-4">
+                                     <div className="space-y-4 w-full pt-4">
                                          {/* Action Buttons for existing work packages */}
                                          <div className="flex justify-end items-center gap-2 mb-2 w-full">
                                              <button
