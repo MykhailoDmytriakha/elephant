@@ -30,6 +30,8 @@ backend/.tox/
 backend/.idea/
 backend/.vscode/
 backend/myenv/
+backend/.mypy_cache/
+backend/htmlcov/
 
 # Common
 .DS_Store
@@ -44,6 +46,7 @@ data/tasks.db
 # Coverage
 coverage/
 .coverage
+htmlcov/
 
 # macOS system files
 **/.DS_Store

@@ -185,15 +185,6 @@ export default function NetworkGraph({
     };
   }, []);
   
-  // Debug connections data
-  useEffect(() => {
-    if (connections && connections.length > 0) {
-      console.log('Raw connections data:', JSON.stringify(connections));
-    } else {
-      console.warn('No connections provided to NetworkGraph');
-    }
-  }, [connections]);
-
   // Create nodes from stages
   const initialNodes = useMemo(() => {
     if (!stages || stages.length === 0) {

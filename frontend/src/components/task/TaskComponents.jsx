@@ -1,6 +1,6 @@
 // src/components/TaskComponents.jsx
 import React, { useState, useEffect } from 'react';
-import { Clock, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, RefreshCw, FileText } from 'lucide-react'; // Added FileText
+import { Clock, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, RefreshCw, FileText } from 'lucide-react';
 import { getStateColor, getReadableState } from '../../constants/taskStates';
 
 export const StatusBadge = ({ state }) => {

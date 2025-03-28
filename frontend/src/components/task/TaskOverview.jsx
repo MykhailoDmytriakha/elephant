@@ -1,6 +1,18 @@
 // src/components/task/TaskOverview.jsx
 import React, { useState } from 'react';
-import { HelpCircle, FileText, Target, Compass, Clock, AlignLeft, Microscope, Lightbulb, CheckCircle, Check, TrendingUp } from 'lucide-react';
+import { 
+  HelpCircle, 
+  FileText, 
+  AlignLeft, 
+  Target, 
+  Compass, 
+  Clock, 
+  Microscope, 
+  Lightbulb, 
+  CheckCircle, 
+  Check, 
+  TrendingUp 
+} from 'lucide-react';
 
 // Help tooltip component
 const HelpTooltip = ({ text }) => {

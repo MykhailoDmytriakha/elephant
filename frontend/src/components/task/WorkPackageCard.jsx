@@ -1,10 +1,10 @@
 // src/components/task/WorkPackageCard.jsx
 import React, { useState } from 'react';
 import {
-    ChevronRight, Download, Upload, ShieldCheck, TerminalSquare, ChevronsRight, RefreshCw, AlertCircle, ListPlus // Removed Layers, Workflow
+    ChevronRight, Download, Upload, ShieldCheck, TerminalSquare, ChevronsRight, RefreshCw, AlertCircle, ListPlus
 } from 'lucide-react';
 import { ExecutableTaskDisplay } from './ExecutableTaskDisplay';
-import { ArtifactDisplay } from './TaskComponents'; // Import from shared components
+import { ArtifactDisplay } from './TaskComponents';
 
 /**
  * Card component to display details of a Work Package and its Executable Tasks.
