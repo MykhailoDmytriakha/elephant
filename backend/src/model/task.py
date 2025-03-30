@@ -51,6 +51,21 @@ class Task(BaseModel):
     network_plan: Optional[NetworkPlan] = None
 
     def __init__(self, **data):
+        # If state is a string, convert it to the appropriate TaskState enum
+        if 'state' in data and isinstance(data['state'], str):
+            # Try to find the enum by its value
+            for state_enum in TaskState:
+                if state_enum.value == data['state']:
+                    data['state'] = state_enum
+                    break
+            # If no match found, try to use the string directly as an enum name
+            if isinstance(data['state'], str):
+                try:
+                    data['state'] = TaskState[data['state']]
+                except KeyError:
+                    # If conversion fails, set to default NEW state
+                    data['state'] = TaskState.NEW
+        
         super().__init__(**data)
         # Ensure defaults are set if not provided, handled by Field default_factory mostly
         if not self.updated_at:
@@ -117,7 +132,11 @@ class Task(BaseModel):
     def to_dict(self) -> dict:
         # Ensure enums are represented by their values in the dictionary
         dump = self.model_dump(mode='json')
-        dump['state'] = self.state.value # Explicitly set state value
+        # Check if state is already a string or an enum with a value attribute
+        if hasattr(self.state, 'value'):
+            dump['state'] = self.state.value  # Explicitly set state value for enum
+        else:
+            dump['state'] = self.state  # State is already a string
         return dump
 
 # Ensure the model is rebuilt if other models were updated

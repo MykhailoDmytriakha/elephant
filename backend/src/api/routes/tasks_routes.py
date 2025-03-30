@@ -3,6 +3,7 @@ from typing import List, Optional, cast
 import logging
 import json
 import asyncio
+from pydantic import BaseModel
 
 # Model imports
 from src.model.task import Task, TaskState
@@ -20,7 +21,7 @@ from src.services.database_service import DatabaseService
 
 # API utils imports
 from src.api.deps import get_problem_analyzer, get_db_service
-from src.api.utils import api_error_handler, deserialize_task, validate_task_state, validate_task_network_plan, find_stage_by_id, find_work_package_by_id, find_executable_task_by_id
+from src.api.utils import api_error_handler, deserialize_task, validate_task_state, validate_task_network_plan, find_stage_by_id, find_work_package_by_id, find_executable_task_by_id, is_task_in_states
 
 # Exception imports
 from src.exceptions import (
@@ -62,6 +63,10 @@ from src.constants import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Define the request body model for editing context
+class EditContextRequest(BaseModel):
+    feedback: str
 
 # @router.post("/", response_model=Task)
 # # task creaeted manually by user
@@ -118,7 +123,7 @@ async def update_task_context(
     task = deserialize_task(task_data, task_id)
     
     # Only check state if force is False
-    if not force and task.state == TaskState.CONTEXT_GATHERED:
+    if not force and is_task_in_states(task, [TaskState.CONTEXT_GATHERED]):
         error_message = f"Task is already in the context gathered state. Current state: {task.state}"
         logger.error(error_message)
         raise InvalidStateException(error_message)
@@ -149,7 +154,7 @@ async def formulate_task(
     task_data = db.fetch_task_by_id(task_id)
     task = deserialize_task(task_data, task_id)
     
-    if task.state != TaskState.CONTEXT_GATHERED and task.state != TaskState.TASK_FORMATION:
+    if not is_task_in_states(task, [TaskState.CONTEXT_GATHERED, TaskState.TASK_FORMATION]):
         error_message = f"Task must be in CONTEXT_GATHERED or TASK_FORMATION state. Current state: {task.state}"
         logger.error(error_message)
         raise InvalidStateException(error_message)
@@ -179,7 +184,7 @@ async def submit_formulation_answers(
     task_data = db.fetch_task_by_id(task_id)
     task = deserialize_task(task_data, task_id)
     
-    if task.state != TaskState.CONTEXT_GATHERED and task.state != TaskState.TASK_FORMATION:
+    if not is_task_in_states(task, [TaskState.CONTEXT_GATHERED, TaskState.TASK_FORMATION]):
         error_message = f"Task must be in CONTEXT_GATHERED or TASK_FORMATION state. Current state: {task.state}"
         logger.error(error_message)
         raise InvalidStateException(error_message)
@@ -210,7 +215,7 @@ async def get_draft_scope(
     task_data = db.fetch_task_by_id(task_id)
     task = deserialize_task(task_data, task_id)
     
-    if task.state != TaskState.TASK_FORMATION:
+    if not is_task_in_states(task, [TaskState.TASK_FORMATION]):
         error_message = f"Task must be in TASK_FORMATION state. Current state: {task.state}"
         logger.error(error_message)
         raise InvalidStateException(error_message)
@@ -241,7 +246,7 @@ async def validate_scope(
     task_data = db.fetch_task_by_id(task_id)
     task = deserialize_task(task_data, task_id)
     
-    if task.state != TaskState.TASK_FORMATION:
+    if not is_task_in_states(task, [TaskState.TASK_FORMATION]):
         error_message = f"Task must be in TASK_FORMATION state. Current state: {task.state}"
         logger.error(error_message)
         raise InvalidStateException(error_message)
@@ -281,8 +286,8 @@ async def generate_ifr(
     task_data = db.fetch_task_by_id(task_id)
     task = deserialize_task(task_data, task_id)
     
-    if task.state != TaskState.TASK_FORMATION:
-        error_message = f"Task must be in TASK_FORMATION state. Current state: {task.state}"
+    if not is_task_in_states(task, [TaskState.TASK_FORMATION, TaskState.IFR_GENERATED]):
+        error_message = f"Task must be in TASK_FORMATION or IFR_GENERATED state. Current state: {task.state}"
         logger.error(error_message)
         raise InvalidStateException(error_message)
     
@@ -303,7 +308,7 @@ async def define_requirements(
     task_data = db.fetch_task_by_id(task_id)
     task = deserialize_task(task_data, task_id)
     
-    if task.state != TaskState.IFR_GENERATED:
+    if not is_task_in_states(task, [TaskState.IFR_GENERATED]):
         error_message = f"Task must be in IFR_GENERATED state. Current state: {task.state}"
         logger.error(error_message)
         raise InvalidStateException(error_message)
@@ -326,7 +331,7 @@ async def generate_network_plan(
     task_data = db.fetch_task_by_id(task_id)
     task = deserialize_task(task_data, task_id)
     
-    if task.state != TaskState.REQUIREMENTS_GENERATED and not force:
+    if not is_task_in_states(task, [TaskState.REQUIREMENTS_GENERATED]) and not force:
         error_message = f"Task must be in REQUIREMENTS_GENERATED state. Current state: {task.state}"
         logger.error(error_message)
         raise InvalidStateException(error_message)
@@ -629,3 +634,32 @@ async def generate_tasks_for_all_works_endpoint(
         error_message = ERROR_CONCURRENT_OPERATION.format(operation="task generation")
         logger.error(f"{error_message}: {str(e)}")
         raise ValidationException(error_message)
+
+@router.post("/{task_id}/edit-context", response_model=Task)
+@api_error_handler(OP_UPDATE_TASK)
+async def edit_context_summary_endpoint(
+    task_id: str,
+    request: EditContextRequest,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
+    """Endpoint to edit the context summary based on user feedback."""
+    task_data = db.fetch_task_by_id(task_id)
+    task = deserialize_task(task_data, task_id)
+    
+    # Check if the task is in a state where context editing is allowed
+    # Typically after context is gathered or potentially after subsequent steps like scope definition
+    # Adjust these states as needed for your specific workflow
+    if not is_task_in_states(task, [TaskState.CONTEXT_GATHERED, TaskState.TASK_FORMATION]):
+        error_message = f"Context editing is not allowed in the current task state: {task.state}"
+        logger.error(error_message)
+        raise InvalidStateException(error_message)
+        
+    logger.info(f"Editing context for task {task_id} with feedback: {request.feedback[:100]}...")
+    
+    # Call the new method in ProblemAnalyzer
+    updated_task = await analyzer.edit_context_summary(task, request.feedback)
+    
+    # The updated_task should already be saved in the DB by the analyzer service
+    # but we return it to the frontend
+    return updated_task

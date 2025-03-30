@@ -1,18 +1,20 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
+import { getEdgeColor } from './NetworkGraphLayout'; // Import the shared function
 
 // Helper function to get edge color based on stage ID (for visual variety)
-const getEdgeColor = (id) => {
-  const colors = [
-    '#3b82f6', // blue-500
-    '#8b5cf6', // purple-500
-    '#22c55e', // green-500
-    '#f59e0b', // amber-500
-    '#f43f5e'  // rose-500
-  ];
-  const numericId = parseInt(id, 10);
-  return colors[(numericId - 1) % colors.length];
-};
+// Remove the duplicate function definition
+// const getEdgeColor = (id) => {
+//   const colors = [
+//     '#3b82f6', // blue-500
+//     '#8b5cf6', // purple-500
+//     '#22c55e', // green-500
+//     '#f59e0b', // amber-500
+//     '#f43f5e'  // rose-500
+//   ];
+//   const numericId = parseInt(id, 10);
+//   return colors[(numericId - 1) % colors.length];
+// };
 
 export default function StageNode({ data, selected, id }) {
   const { stage } = data;

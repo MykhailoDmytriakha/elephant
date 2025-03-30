@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getContextQuestions, updateTaskContext } from '../utils/api';
+import { getContextQuestions, updateTaskContext, editContextSummary } from '../utils/api';
 import { useToast } from '../components/common/ToastProvider';
 
 /**
@@ -16,6 +16,8 @@ export function useContextGathering(taskId, onTaskUpdated) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [isForceRefresh, setIsForceRefresh] = useState(false);
+  const [isEditingContext, setIsEditingContext] = useState(false);
+  const [contextFeedback, setContextFeedback] = useState('');
 
   // Track when a context gathering operation has been started
   useEffect(() => {
@@ -47,15 +49,6 @@ export function useContextGathering(taskId, onTaskUpdated) {
         })
       };
     });
-  };
-
-  /**
-   * Reset the context gathering state
-   */
-  const resetState = () => {
-    setContextQuestions([]);
-    setContextAnswers({});
-    setError(null);
   };
 
   /**
@@ -223,6 +216,54 @@ export function useContextGathering(taskId, onTaskUpdated) {
     }
   };
 
+  /**
+   * Handle changes to context feedback
+   * @param {string} feedback - The feedback text
+   */
+  const handleContextFeedbackChange = (feedback) => {
+    setContextFeedback(feedback);
+  };
+
+  /**
+   * Submit context edit feedback
+   * @returns {Promise<object>} The submission result
+   */
+  const submitContextFeedback = async () => {
+    if (!contextFeedback || contextFeedback.trim() === '') {
+      toast.showError('Please provide feedback to improve the context');
+      return;
+    }
+
+    setIsEditingContext(true);
+    setError(null);
+
+    try {
+      console.log('Submitting context feedback:', contextFeedback);
+      
+      const result = await editContextSummary(taskId, contextFeedback);
+      
+      toast.showSuccess('Context updated successfully with your feedback');
+      
+      // Reload the task data to get updated task and context
+      console.log("Context was updated with feedback, reloading task data");
+      if (onTaskUpdated) {
+        await onTaskUpdated();
+      }
+      
+      // Clear feedback after submission
+      setContextFeedback('');
+      
+      return result;
+    } catch (error) {
+      console.error('Error submitting context feedback:', error);
+      toast.showError(`Failed to update context: ${error.message}`);
+      setError(`Failed to update context: ${error.message}`);
+      return null;
+    } finally {
+      setIsEditingContext(false);
+    }
+  };
+
   return {
     contextQuestions,
     contextAnswers,
@@ -232,6 +273,11 @@ export function useContextGathering(taskId, onTaskUpdated) {
     isForceRefresh,
     startContextGathering,
     handleAnswerChange,
-    submitAnswers
+    submitAnswers,
+    // Context editing
+    isEditingContext,
+    contextFeedback,
+    handleContextFeedbackChange,
+    submitContextFeedback
   };
 } 

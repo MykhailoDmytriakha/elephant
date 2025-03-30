@@ -1,7 +1,7 @@
 # backend/src/services/problem_analyzer.py
 from .database_service import DatabaseService
 from src.services.openai_service import OpenAIService
-from src.model.context import ContextSufficiencyResult
+from src.model.context import ContextSufficiencyResult, ClarifiedTask
 from src.model.task import Task, TaskState
 from src.model.scope import ScopeFormulationGroup, ScopeQuestion, DraftScope, ValidationScopeResult
 from src.model.ifr import IFR, Requirements
@@ -179,3 +179,34 @@ class ProblemAnalyzer:
         self.db_service.updated_task(task)
         logger.info(f"Task {task.id}: Updated with subtasks for ExecutableTask {executable_task_id}")
         return generated_subtasks
+
+    async def edit_context_summary(self, task: Task, feedback: str) -> Task:
+        """Edits the context summary and task description based on user feedback."""
+        logger.info(f"Task {task.id}: Editing context summary with feedback.")
+        
+        # Call the OpenAI service to get the refined summary based on feedback
+        # We assume the openai_service will have a method like summarize_context_with_feedback
+        # or we adapt the existing summarize_context method
+        try:
+            # Use existing summarize_context and pass feedback
+            # The AI agent needs to be adapted to handle this feedback parameter
+            refined_clarified_task: ClarifiedTask = await self.openai_service.summarize_context(task, feedback=feedback)
+            
+            # Update the task object with the refined context and task description
+            task.context = refined_clarified_task.context
+            task.task = refined_clarified_task.task
+            
+            logger.info(f"Task {task.id}: Context summary refined successfully based on feedback.")
+            
+            # Save the updated task to the database
+            self.db_service.updated_task(task)
+            logger.info(f"Task {task.id}: Updated task saved to DB after context edit.")
+            
+            return task
+            
+        except Exception as e:
+            logger.error(f"Task {task.id}: Failed to edit context summary: {e}", exc_info=True)
+            # Re-raise or handle the error appropriately. 
+            # For now, let's re-raise to signal failure to the API layer.
+            # Consider adding a specific exception type if needed.
+            raise Exception(f"Failed to process context feedback: {e}")

@@ -202,12 +202,24 @@ export const generateNetworkPlan = async (taskId, forceRefresh = false) => {
 
 // --- Decomposition API calls ---
 
+// Generates work for a SINGLE stage
 export const generateWorkForStage = async (taskId, stageId) => {
   return apiRequest(
     'post',
     `/tasks/${taskId}/stages/${stageId}/generate-work`,
     null,
     `Failed to generate Work Packages for stage ${stageId} in task ${taskId}`,
+    { logging: true }
+  );
+};
+
+// NEW FUNCTION: Generates work for ALL stages
+export const generateAllWorkPackages = async (taskId) => {
+  return apiRequest(
+    'post',
+    `/tasks/${taskId}/stages/generate-work`, // Note: no stageId here
+    null,
+    `Failed to generate Work Packages for all stages in task ${taskId}`,
     { logging: true }
   );
 };
@@ -259,6 +271,16 @@ export const generateAllTasksForStage = async (taskId, stageId) => {
     `/tasks/${taskId}/stages/${stageId}/works/generate-tasks`,
     null,
     `Failed to generate ALL Executable Tasks for stage ${stageId}`,
+    { logging: true }
+  );
+};
+
+export const editContextSummary = async (taskId, feedback) => {
+  return apiRequest(
+    'post',
+    `/tasks/${taskId}/edit-context`,
+    { feedback },
+    `Failed to update context with feedback for task ${taskId}`,
     { logging: true }
   );
 };

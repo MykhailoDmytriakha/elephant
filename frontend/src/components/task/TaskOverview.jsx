@@ -47,7 +47,7 @@ const TaskOverview = ({ task }) => {
               <AlignLeft className="w-4 h-4 mr-1.5 text-gray-500" />
               Initial User Query
             </h3>
-            <p className="mt-1 text-gray-900 whitespace-pre-line bg-gray-50 p-3 rounded-md">{task.short_description}</p>
+            <p className="mt-1 text-gray-900 whitespace-pre-line bg-gray-50 p-3 rounded-md">{task.short_description || ''}</p>
           </div>
 
           {/* Task data */}
@@ -85,25 +85,31 @@ const TaskOverview = ({ task }) => {
             </div>
           </div>
 
-          {/* Task Scope */}
-          <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-600 flex items-center">
-                <Microscope className="w-4 h-4 mr-1.5 text-gray-500" />
-                Scope
-              </h3>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                task.scope.status === 'approved'
-                  ? 'bg-green-100 text-green-800 border border-green-200' 
-                  : 'bg-amber-100 text-amber-800 border border-amber-200'
-              }`}>
-                {task.scope.status === 'approved' ? 'Approved' : 'Pending'}
-              </span>
+          {/* Task Scope - Check if scope exists otherwise don't render */}
+          {task.scope && (
+            <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-gray-600 flex items-center">
+                  <Microscope className="w-4 h-4 mr-1.5 text-gray-500" />
+                  Scope
+                </h3>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                  task.scope.status === 'approved'
+                    ? 'bg-green-100 text-green-800 border border-green-200' 
+                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                }`}>
+                  {task.scope.status === 'approved' ? 'Approved' : 'Pending'}
+                </span>
+              </div>
+              <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-100">
+                {task.scope.scope ? (
+                  <p className="text-gray-900 whitespace-pre-line">{task.scope.scope}</p>
+                ) : (
+                  <p className="text-gray-500 italic">No scope defined yet.</p>
+                )}
+              </div>
             </div>
-            <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-100">
-              <p className="text-gray-900 whitespace-pre-line">{task.scope.scope}</p>
-            </div>
-          </div>
+          )}
 
           {/* Task IFR */}
           <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
@@ -112,41 +118,49 @@ const TaskOverview = ({ task }) => {
               IFR
             </h3>
             <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-100">
-              <p className="text-gray-900 whitespace-pre-line">{task.ifr.ideal_final_result}</p>
+              {task.ifr ? (
+                <p className="text-gray-900 whitespace-pre-line">{task.ifr.ideal_final_result}</p>
+              ) : (
+                <p className="text-gray-500 italic">No IFR defined yet.</p>
+              )}
             </div>
           </div>
 
           {/* Task Expected Outcomes */}
-          <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-600 flex items-center mb-2">
-              <TrendingUp className="w-4 h-4 mr-1.5 text-gray-500" />
-              Expected Outcomes
-            </h3>
-            <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-100 space-y-2">
-              {task.ifr.expected_outcomes.map((outcome, index) => (
-                <div key={index} className="flex items-start">
-                  <Check className="w-4 h-4 mt-1 mr-2 text-gray-400 flex-shrink-0" />
-                  <p className="text-gray-900 whitespace-pre-line">{outcome}</p>
-                </div>
-              ))}
+          {task.ifr && task.ifr.expected_outcomes && (
+            <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
+              <h3 className="text-sm font-medium text-gray-600 flex items-center mb-2">
+                <TrendingUp className="w-4 h-4 mr-1.5 text-gray-500" />
+                Expected Outcomes
+              </h3>
+              <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-100 space-y-2">
+                {task.ifr.expected_outcomes.map((outcome, index) => (
+                  <div key={index} className="flex items-start">
+                    <Check className="w-4 h-4 mt-1 mr-2 text-gray-400 flex-shrink-0" />
+                    <p className="text-gray-900 whitespace-pre-line">{outcome}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Task Success Criteria */}
-          <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-600 flex items-center mb-2">
-              <CheckCircle className="w-4 h-4 mr-1.5 text-gray-500" />
-              Success Criteria
-            </h3>
-            <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-100 space-y-2">
-              {task.ifr.success_criteria.map((criteria, index) => (
-                <div key={index} className="flex items-start">
-                  <Check className="w-4 h-4 mt-1 mr-2 text-gray-400 flex-shrink-0" />
-                  <p className="text-gray-900 whitespace-pre-line">{criteria}</p>
-                </div>
-              ))}
+          {task.ifr && task.ifr.success_criteria && (
+            <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
+              <h3 className="text-sm font-medium text-gray-600 flex items-center mb-2">
+                <CheckCircle className="w-4 h-4 mr-1.5 text-gray-500" />
+                Success Criteria
+              </h3>
+              <div className="mt-1 bg-gray-50 p-3 rounded-md border border-gray-100 space-y-2">
+                {task.ifr.success_criteria.map((criteria, index) => (
+                  <div key={index} className="flex items-start">
+                    <Check className="w-4 h-4 mt-1 mr-2 text-gray-400 flex-shrink-0" />
+                    <p className="text-gray-900 whitespace-pre-line">{criteria}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           
           
           {/* Task metadata */}

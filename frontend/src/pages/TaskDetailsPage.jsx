@@ -44,7 +44,13 @@ export default function TaskDetailsPage() {
     isSubmitting: isSubmittingAnswers,
     startContextGathering: handleStartContextGathering,
     handleAnswerChange,
-    submitAnswers: handleSubmitAnswers
+    submitAnswers: handleSubmitAnswers,
+    
+    // Context editing
+    isEditingContext,
+    contextFeedback,
+    handleContextFeedbackChange,
+    submitContextFeedback
   } = useTaskDetails(taskId);
 
   const handleNavigateToAllStages = () => {
@@ -151,6 +157,11 @@ export default function TaskDetailsPage() {
               isSubmittingAnswers={isSubmittingAnswers}
               error={error}
               isForceRefreshMode={isForceRefreshMode}
+              // Context editing props
+              contextFeedback={contextFeedback}
+              onContextFeedbackChange={handleContextFeedbackChange}
+              onSubmitContextFeedback={submitContextFeedback}
+              isEditingContext={isEditingContext}
             />
 
             {task.sub_level === 0 && task.is_context_sufficient &&(
@@ -168,8 +179,8 @@ export default function TaskDetailsPage() {
                 isGeneratingIFR={isGeneratingIFR}
                 onGenerateIFR={handleGenerateIFR}
                 taskState={task.state}
-                defaultOpen={!(task.requirements && Object.keys(task.requirements).length > 0)}
-                isCompleted={task.requirements && Object.keys(task.requirements).length > 0}
+                defaultOpen={!(task.requirements && Object.keys(task.requirements || {}).length > 0)}
+                isCompleted={task.requirements && Object.keys(task.requirements || {}).length > 0}
               />
             )}
 
@@ -179,8 +190,8 @@ export default function TaskDetailsPage() {
                 isGeneratingRequirements={isGeneratingRequirements}
                 onGenerateRequirements={handleGenerateRequirements}
                 taskState={task.state}
-                defaultOpen={!(task.network_plan && Object.keys(task.network_plan).length > 0)}
-                isCompleted={task.network_plan && Object.keys(task.network_plan).length > 0}
+                defaultOpen={!(task.network_plan && Object.keys(task.network_plan || {}).length > 0)}
+                isCompleted={task.network_plan && Object.keys(task.network_plan || {}).length > 0}
               />
             )}
 
@@ -190,9 +201,9 @@ export default function TaskDetailsPage() {
                 isGeneratingNetworkPlan={isGeneratingNetworkPlan}
                 onGenerateNetworkPlan={handleGenerateNetworkPlan}
                 taskState={task.state}
-                isCompleted={task.network_plan?.stages?.some(stage => 
-                  stage.work_packages?.some(wp => wp.tasks && wp.tasks.length > 0)
-                )}
+                isCompleted={task.network_plan && task.network_plan.stages && 
+                  task.network_plan.stages.some(stage => stage.work_packages && stage.work_packages.length > 0)
+                }
               />
             )}
           </div>

@@ -19,6 +19,8 @@ from src.constants import (
     ERROR_DATABASE_OPERATION,
     ERROR_BATCH_OPERATION,
     ERROR_EMPTY_LIST,
+    ERROR_TASK_NO_SCOPE,
+    ERROR_TASK_NO_SCOPE_GROUP,
     HTTP_NOT_FOUND,
     HTTP_BAD_REQUEST,
     HTTP_SERVER_ERROR,
@@ -157,11 +159,15 @@ def validate_task_state(task: 'Task', required_state: 'TaskState', task_id: Opti
     """
     id_str = f" {task_id}" if task_id else ""
     
-    if task.state != required_state:
+    if not is_task_in_states(task, [required_state]):
+        # For error message, ensure we get the string value safely
+        current_state = task.state.value if hasattr(task.state, 'value') else str(task.state)
+        required_state_value = required_state.value if hasattr(required_state, 'value') else str(required_state)
+        
         error_message = ERROR_TASK_STATE_INVALID.format(
             id_str=id_str,
-            required_state=required_state.value,
-            current_state=task.state.value
+            required_state=required_state_value,
+            current_state=current_state
         )
         logger.error(f"Task state validation failed: {error_message}")
         raise InvalidStateException(error_message)
@@ -302,52 +308,81 @@ def find_executable_task_by_id(work: 'Work', task_id: str) -> 'ExecutableTask':
     Find an executable task in a work package by its ID.
     
     Args:
-        work: The work package object
+        work: The work package
         task_id: The executable task ID to find
     
     Returns:
-        The executable task object if found
+        The executable task if found
     
     Raises:
-        MissingComponentException: If the work does not have tasks
-        ExecutableTaskNotFoundException: If the executable task is not found
+        ExecutableTaskNotFoundException: If the task is not found
     """
     if not has_tasks(work):
         raise MissingComponentException(ERROR_WORK_NO_TASKS.format(work_id=work.id))
     
-    # At this point we know tasks is not None and not empty
+    # Since we've verified tasks is not None and not empty, we can safely cast it
     tasks = cast(List['ExecutableTask'], work.tasks)
     task = next((t for t in tasks if t.id == task_id), None)
     if not task:
-        raise ExecutableTaskNotFoundException(ERROR_EXECUTABLE_TASK_NOT_FOUND.format(task_id=task_id))
+        raise ExecutableTaskNotFoundException(ERROR_TASK_NOT_FOUND.format(task_id=task_id))
     
     return task
 
-def validate_task_scope_group(task: 'Task', group: str, task_id: Optional[str] = None) -> bool:
+def is_task_in_states(task: 'Task', states: List['TaskState']) -> bool:
     """
-    Validate that a task scope has the specified group.
+    Checks if a task's state matches any of the provided states, handling both enum and string comparisons.
+    
+    This function handles the case where task.state might be a string or an enum, 
+    by comparing both the enum instance and its string value.
     
     Args:
-        task: The task to validate
-        group: The group name to check for
-        task_id: Optional task ID for better error messages
+        task: The task to check
+        states: List of valid states to check against
+        
+    Returns:
+        True if task state matches any of the provided states, False otherwise
+    """
+    from src.model.task import TaskState
+    
+    # Check if task.state is directly one of the provided enum states
+    if any(task.state == state for state in states):
+        return True
+        
+    # If task.state is a string, compare with string values of the enum states
+    if isinstance(task.state, str):
+        return any(task.state == state.value for state in states)
+        
+    # If task.state is an enum, compare with string values
+    if hasattr(task.state, 'value'):
+        return any(task.state.value == state.value for state in states)
+    
+    return False
+
+def validate_task_scope_group(task: 'Task', group: str, task_id: Optional[str] = None) -> bool:
+    """
+    Validate that a task scope has the given group.
+    
+    Args:
+        task: The task object to validate
+        group: The group to check for
+        task_id: Optional ID for better error messages
     
     Returns:
-        True if the group exists and has data
+        True if the task scope has the given group
     
     Raises:
-        MissingComponentException: If the task does not have a scope
-        GroupNotFoundException: If the group does not exist in the task scope
+        MissingComponentException: If the task does not have the group
     """
     id_str = f" {task_id}" if task_id else ""
     
     if not task.scope:
-        error_message = f"Task{id_str} does not have a scope defined"
+        error_message = ERROR_TASK_NO_SCOPE.format(id_str=id_str)
         logger.error(error_message)
         raise MissingComponentException(error_message)
     
-    if not hasattr(task.scope, group):
-        error_message = ERROR_TASK_GROUP_NOT_FOUND.format(group=group, task_id=id_str)
+    scope_dict = task.scope.model_dump()
+    if group not in scope_dict:
+        error_message = ERROR_TASK_NO_SCOPE_GROUP.format(id_str=id_str, group=group)
         logger.error(error_message)
         raise GroupNotFoundException(error_message)
     

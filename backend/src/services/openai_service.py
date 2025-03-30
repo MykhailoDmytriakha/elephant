@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional
 from src.model.context import ContextSufficiencyResult
 from src.model.scope import ScopeQuestion
 from openai import OpenAI
@@ -26,25 +26,31 @@ class OpenAIService:
             raise ValueError("OpenAI API key is not set!")
         self.client = OpenAI(api_key=self.api_key)
     
-    async def summarize_context(self, task: Task) -> ClarifiedTask:
+    async def summarize_context(self, task: Task, feedback: Optional[str] = None) -> ClarifiedTask:
         """
-        Summarizes the context of the task base on user answers about the context.
+        Summarizes the context of the task based on user answers about the context,
+        optionally incorporating feedback to refine the summary.
         
         Args:
-            task: The task containing the context information
+            task: The task containing the context information.
+            feedback: Optional user feedback to guide the summarization/refinement.
             
         Returns:
-            str: Summary of the context
+            ClarifiedTask: Containing the summarized/refined task description and context.
         """
-        logger.info("Called summarize_context method")
+        if feedback:
+            logger.info(f"Called summarize_context method with feedback for task {task.id}")
+        else:
+            logger.info(f"Called summarize_context method for task {task.id}")
+            
         try:
-            # Use the extracted agent logic from the dedicated module
-            return await summarize_context_agent.summarize_context(task)
+            # Pass the task and optional feedback to the agent
+            return await summarize_context_agent.summarize_context(task, feedback=feedback)
         except ImportError as e:
             logger.warning(f"OpenAI Agents SDK not installed: {str(e)}")
             raise e
         except Exception as e:
-            logger.error(f"Error in summarize_context: {str(e)}")
+            logger.error(f"Error in summarize_context (feedback: {bool(feedback)}): {str(e)}")
             raise e
 
     

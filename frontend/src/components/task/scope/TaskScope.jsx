@@ -1,13 +1,13 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { CollapsibleSection } from '../TaskComponents';
-import { RefreshCcw, FileText, Check, ArrowRight, AlertCircle } from 'lucide-react';
-import { getFormulationQuestions, submitFormulationAnswers, getDraftScope, validateScope } from '../../../utils/api';
+import { RefreshCcw, AlertCircle } from 'lucide-react';
+import { getFormulationQuestions, submitFormulationAnswers, getDraftScope } from '../../../utils/api';
 import ScopeValidation from './ScopeValidation';
 import FinalScopeScreen from './FinalScopeScreen';
 import ScopeQuestionsSection from './ScopeQuestionsSection';
 import ScopeProgress from './ScopeProgress';
 import useTaskScopeState from '../../../hooks/useTaskScopeState';
-import { formatGroupName, findNextUnansweredGroup as findNext } from '../../../utils/scopeUtils';
+import { findNextUnansweredGroup as findNext } from '../../../utils/scopeUtils';
 
 export default function TaskScope({
     task,
@@ -92,7 +92,7 @@ export default function TaskScope({
             GROUPS.forEach(group => {
                 if (task.scope[group] && 
                     ((Array.isArray(task.scope[group]) && task.scope[group].length > 0) || 
-                     (typeof task.scope[group]) === 'object' && Object.keys(task.scope[group]).length > 0)) {
+                     ((typeof task.scope[group] === 'object') && Object.keys(task.scope[group]).length > 0))) {
                     completed.push(group);
                 }
             });
@@ -141,7 +141,7 @@ export default function TaskScope({
         
         // Reset changes array when task changes
         setChanges([]);
-    }, [task, hasValidScope, determineCompletedGroups]);
+    }, [task, hasValidScope, determineCompletedGroups, setChanges, setCompletedGroups, setFlowState]);
 
     // Effects to ensure consistency between flowState and scope validity
     useEffect(() => {
@@ -149,7 +149,7 @@ export default function TaskScope({
         if (flowState === 'final' && !hasValidScope()) {
             setFlowState('initial');
         }
-    }, [flowState, task, hasValidScope]);
+    }, [flowState, task, hasValidScope, setFlowState]);
 
     // Update draftScope whenever task scope changes and we're in final state
     useEffect(() => {
@@ -164,18 +164,10 @@ export default function TaskScope({
                 });
             }
         }
-    }, [task?.scope, flowState]);
-
-    // Automatically generate draft when all groups are completed
-    useEffect(() => {
-        // If all groups are completed and we're in initial state, automatically generate the draft
-        if (completedGroups.length === GROUPS.length && flowState === 'initial' && !isLoading) {
-            handleGenerateDraft();
-        }
-    }, [completedGroups, GROUPS, flowState, isLoading]);
+    }, [task?.scope, flowState, setDraftScope]);
 
     // Handler for generating draft scope
-    const handleGenerateDraft = async () => {
+    const handleGenerateDraft = useCallback(async () => {
         setFlowState('draftLoading');
         setIsLoading(true);
         setChanges([]); // Clear any existing changes
@@ -190,7 +182,15 @@ export default function TaskScope({
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [task?.id, setFlowState, setIsLoading, setChanges, setDraftScope, setErrorMessage]);
+
+    // Automatically generate draft when all groups are completed
+    useEffect(() => {
+        // If all groups are completed and we're in initial state, automatically generate the draft
+        if (completedGroups.length === GROUPS.length && flowState === 'initial' && !isLoading) {
+            handleGenerateDraft();
+        }
+    }, [completedGroups, GROUPS, flowState, isLoading, handleGenerateDraft]);
 
     if (!isContextGathered) {
         return null;

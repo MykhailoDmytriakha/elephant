@@ -37,6 +37,8 @@ ERROR_BATCH_WORK_GENERATION = "Failed to generate work for stage {stage_id}: {er
 ERROR_BATCH_SUBTASK_GENERATION = "Failed to generate subtasks for task {task_id}: {error}"
 ERROR_CONCURRENT_OPERATION = "Concurrent operation failed: {operation}"
 ERROR_PARTIAL_SUCCESS = "Operation partially succeeded: {success_count}/{total_count} items processed"
+ERROR_TASK_NO_SCOPE = "Task{id_str} does not have a scope defined"
+ERROR_TASK_NO_SCOPE_GROUP = "Group {group} not found in task scope{id_str}"
 
 # Success messages
 SUCCESS_TASK_DELETED = "Task with ID {task_id} successfully deleted"

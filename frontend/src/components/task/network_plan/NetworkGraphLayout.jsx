@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { MarkerType } from '@xyflow/react';
 
 // Helper function to get edge color based on stage ID (for visual variety)
-const getEdgeColor = (id) => {
+export const getEdgeColor = (id) => {
   const colors = [
     '#3b82f6', // blue-500
     '#8b5cf6', // purple-500
@@ -10,8 +10,24 @@ const getEdgeColor = (id) => {
     '#f59e0b', // amber-500
     '#f43f5e'  // rose-500
   ];
-  const numericId = parseInt(id, 10);
-  return colors[(numericId - 1) % colors.length];
+  
+  // Convert ID to string to handle potential number inputs
+  const idStr = String(id);
+  
+  // Calculate a hash from the string ID
+  let hash = 0;
+  for (let i = 0; i < idStr.length; i++) {
+    hash = (hash << 5) - hash + idStr.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+  
+  // Ensure the hash is positive for modulo operation
+  const positiveHash = Math.abs(hash);
+  
+  // Use the hash to select a color
+  // Add 1 to avoid index -1 if hash is 0, though Math.abs handles it.
+  // Using positiveHash ensures we don't get negative index.
+  return colors[positiveHash % colors.length];
 };
 
 export function useNetworkGraphLayout(stages, connections, selectedStageId) {
@@ -127,7 +143,7 @@ export function useNetworkGraphLayout(stages, connections, selectedStageId) {
     
     return validConnections.map((connection, index) => {
       // Get the source stage to determine color
-      const sourceId = parseInt(connection.stage1);
+      const sourceId = String(connection.stage1);
       const stageColor = getEdgeColor(sourceId); // Get color based on source stage ID
 
       console.log('Connection:', connection);
