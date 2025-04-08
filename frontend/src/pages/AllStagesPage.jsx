@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, ChevronDown, ChevronRight, Layers } from 'lucide-react';
+import { ArrowLeft, RefreshCw, ChevronDown, ChevronRight, Layers, Workflow } from 'lucide-react';
 import { LoadingSpinner, ErrorDisplay } from '../components/task/TaskComponents';
 import { useTaskDetails } from '../hooks/useTaskDetails';
 import { generateAllWorkPackages } from '../utils/api';
 import { useToast } from '../components/common/ToastProvider';
+import { generateTasksForAllStages } from '../utils/api';
 
 /**
  * A dedicated page that displays all stages with their sublevels (work packages, tasks, subtasks)
@@ -20,6 +21,7 @@ export default function AllStagesPage() {
   const [expandedWorks, setExpandedWorks] = useState({});
   const [expandedTasks, setExpandedTasks] = useState({});
   const [isGeneratingAllWork, setIsGeneratingAllWork] = useState(false);
+  const [isGeneratingAllTasks, setIsGeneratingAllTasks] = useState(false);
 
   // Use the task details hook for fetching data
   const {
@@ -96,12 +98,35 @@ export default function AllStagesPage() {
     }
   };
 
+  // Handler for generating tasks for all stages
+  const handleGenerateTasksForAllStages = async () => {
+    if (!taskId || !anyWorkPackagesExist) return;
+    setIsGeneratingAllTasks(true);
+    try {
+      await generateTasksForAllStages(taskId);
+      toast.showSuccess('Successfully generated tasks for all stages.');
+      await loadTask();
+    } catch (error) {
+      console.error("Error generating tasks for all stages:", error);
+      toast.showError(`Failed to generate tasks: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsGeneratingAllTasks(false);
+    }
+  };
+
   // Check if any stage already has work packages
   const anyWorkPackagesExist = task?.network_plan?.stages?.some(
     stage => stage.work_packages && stage.work_packages.length > 0
   ) ?? false;
 
-  if (loading && !isGeneratingAllWork) return <LoadingSpinner message="Loading task data..." />;
+  // Check if any work package already has tasks
+  const anyTasksExist = task?.network_plan?.stages?.some(
+    stage => stage.work_packages?.some(
+      work => work.tasks && work.tasks.length > 0
+    )
+  ) ?? false;
+
+  if (loading && !isGeneratingAllWork && !isGeneratingAllTasks) return <LoadingSpinner message="Loading task data..." />;
 
   if (error) {
     return (
@@ -140,12 +165,12 @@ export default function AllStagesPage() {
               {/* Generate All Work Packages Button */}
               <button
                 onClick={handleGenerateAllWorkPackages}
-                disabled={loading || isGeneratingAllWork}
+                disabled={loading || isGeneratingAllWork || isGeneratingAllTasks}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
                   isGeneratingAllWork
                     ? 'bg-blue-400 text-white cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
                 title={anyWorkPackagesExist ? "Regenerate Work Packages for all stages in this task" : "Generate Work Packages for all stages in this task"}
               >
                 {isGeneratingAllWork ? (
@@ -157,13 +182,46 @@ export default function AllStagesPage() {
                 )}
                 {isGeneratingAllWork 
                   ? 'Generating...' 
-                  : (anyWorkPackagesExist ? 'Regenerate All Work Packages' : 'Generate All Work Packages')
+                  : (anyWorkPackagesExist ? 'Regen All Work Pkgs' : 'Gen All Work Pkgs')
+                }
+              </button>
+              {/* NEW: Generate Tasks for All Stages Button */}
+              <button
+                onClick={handleGenerateTasksForAllStages}
+                disabled={loading || isGeneratingAllWork || isGeneratingAllTasks || !anyWorkPackagesExist}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
+                   isGeneratingAllTasks
+                    ? 'bg-purple-400 text-white cursor-not-allowed'
+                    : !anyWorkPackagesExist
+                      ? 'bg-purple-300 text-white cursor-not-allowed'
+                      : 'bg-purple-600 text-white hover:bg-purple-700'
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
+                title={
+                    !anyWorkPackagesExist 
+                        ? "Generate Work Packages first" 
+                        : anyTasksExist
+                            ? "Regenerate Executable Tasks for all work packages in all stages"
+                            : "Generate Executable Tasks for all work packages in all stages"
+                }
+              >
+                {isGeneratingAllTasks ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : anyTasksExist ? (
+                    <RefreshCw className="w-4 h-4" />
+                ) : (
+                    <Workflow className="w-4 h-4" />
+                )}
+                {isGeneratingAllTasks
+                    ? 'Generating...' 
+                    : anyTasksExist 
+                        ? 'Regen All Tasks'
+                        : 'Gen All Tasks'
                 }
               </button>
               {/* Refresh Button */}
               <button
                 onClick={loadTask}
-                disabled={loading || isGeneratingAllWork}
+                disabled={loading || isGeneratingAllWork || isGeneratingAllTasks}
                 className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RefreshCw className="w-4 h-4" />

@@ -284,3 +284,14 @@ export const editContextSummary = async (taskId, feedback) => {
     { logging: true }
   );
 };
+
+// NEW FUNCTION: Generates tasks for ALL stages
+export const generateTasksForAllStages = async (taskId) => {
+  return apiRequest(
+    'post',
+    `/tasks/${taskId}/stages/generate-all-tasks`, // The new endpoint
+    null,
+    `Failed to generate Tasks for all stages in task ${taskId}`,
+    { logging: true }
+  );
+};

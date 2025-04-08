@@ -118,7 +118,7 @@ async def generate_tasks_for_work(
     try:
         # logger.info(f"Running Agent Generate ExecutableTasks with instructions: {instructions}")
         result = await Runner.run(agent, f"Generate the sequence of ExecutableTask steps for Work Package '{work.name}' (ID: {work.id}).")
-        logger.debug(f"Raw Agent Task Generation Result: {result}")
+        # logger.debug(f"Raw Agent Task Generation Result: {result}")
 
         # Process and return the response
         task_list_result = result.final_output

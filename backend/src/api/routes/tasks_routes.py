@@ -535,33 +535,37 @@ async def generate_subtasks_for_all_tasks_endpoint(
         # Execute all coroutines concurrently and wait for all to complete
         results = await asyncio.gather(*subtask_coroutines, return_exceptions=True)
         
-        # Check for any exceptions in the results
-        failed_tasks = []
-        successful_results = []
-        
+        # Process results and check for errors
+        failed_tasks_info = []
+        successful_tasks_count = 0
         for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                failed_tasks.append((target_work.tasks[i].id, str(result)))
-            else:
-                successful_results.append(result)
-        
-        if failed_tasks:
-            error_message = ERROR_PARTIAL_SUCCESS.format(
-                success_count=len(successful_results),
-                total_count=len(results)
-            )
-            logger.error(f"{error_message}. Failed tasks: {failed_tasks}")
-            raise ValidationException(error_message)
-        
-        # Log successful results
-        for i, generated_subtasks in enumerate(successful_results):
             executable_task_id = target_work.tasks[i].id
-            logger.info(f"Successfully generated {len(generated_subtasks)} subtasks for ExecutableTask {executable_task_id}.")
-        
-        return target_work.tasks
+            if isinstance(result, Exception):
+                failed_tasks_info.append((executable_task_id, str(result)))
+                logger.error(f"Subtask generation failed for Task {executable_task_id}: {str(result)}")
+            else:
+                # LINTER FIX: Use cast to assert the type before calling len()
+                # We know it's List[Subtask] here because it's not an Exception
+                logger.info(f"Successfully generated {len(cast(List[Subtask], result))} subtasks for ExecutableTask {executable_task_id}.")
+                successful_tasks_count += 1
+
+        if failed_tasks_info:
+             error_message = ERROR_PARTIAL_SUCCESS.format(
+                 success_count=successful_tasks_count,
+                 total_count=len(results)
+             )
+             logger.error(f"{error_message}. Failed tasks: {failed_tasks_info}")
+             raise ValidationException(f"{error_message}. Failed task IDs: {[item[0] for item in failed_tasks_info]}")
+
+        # On success (even partial if not raising), the underlying task object is updated.
+        # Return the tasks list from the work package which should reflect the updates.
+        return target_work.tasks 
         
     except Exception as e:
-        error_message = ERROR_CONCURRENT_OPERATION.format(operation="subtask generation")
+        # Catch potential errors from asyncio.gather itself or ValidationException
+        if isinstance(e, ValidationException):
+             raise e # Re-raise validation exceptions from partial failure check
+        error_message = ERROR_CONCURRENT_OPERATION.format(operation="batch subtask generation")
         logger.error(f"{error_message}: {str(e)}")
         raise ValidationException(error_message)
 
@@ -605,35 +609,133 @@ async def generate_tasks_for_all_works_endpoint(
         # Execute all coroutines concurrently and wait for all to complete
         results = await asyncio.gather(*work_coroutines, return_exceptions=True)
         
-        # Check for any exceptions in the results
-        failed_works = []
-        successful_results = []
-        
+        # Process results and check for errors
+        failed_works_info = []
+        successful_works_count = 0
         for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                failed_works.append((target_stage.work_packages[i].id, str(result)))
-            else:
-                successful_results.append(result)
-        
-        if failed_works:
-            error_message = ERROR_PARTIAL_SUCCESS.format(
-                success_count=len(successful_results),
-                total_count=len(results)
-            )
-            logger.error(f"{error_message}. Failed works: {failed_works}")
-            raise ValidationException(error_message)
-        
-        # Log successful results
-        for i, generated_tasks in enumerate(successful_results):
-            work_id = target_stage.work_packages[i].id
-            logger.info(f"Successfully generated {len(generated_tasks)} tasks for Work {work_id}.")
-        
+             work_id = target_stage.work_packages[i].id
+             if isinstance(result, Exception):
+                 failed_works_info.append((work_id, str(result)))
+                 logger.error(f"Task generation failed for Work {work_id}: {str(result)}")
+             else:
+                 # LINTER FIX: Use cast to assert the type before calling len()
+                 # We know it's List[ExecutableTask] here
+                 logger.info(f"Successfully generated {len(cast(List[ExecutableTask], result))} tasks for Work {work_id}.")
+                 successful_works_count += 1
+
+        if failed_works_info:
+             error_message = ERROR_PARTIAL_SUCCESS.format(
+                 success_count=successful_works_count,
+                 total_count=len(results)
+             )
+             logger.error(f"{error_message}. Failed works: {failed_works_info}")
+             raise ValidationException(f"{error_message}. Failed work IDs: {[item[0] for item in failed_works_info]}")
+
+        # On success, the underlying stage object in task is updated.
+        # Return the work packages list from the stage.
         return target_stage.work_packages
         
     except Exception as e:
-        error_message = ERROR_CONCURRENT_OPERATION.format(operation="task generation")
+         # Catch potential errors from asyncio.gather itself or ValidationException
+        if isinstance(e, ValidationException):
+            raise e # Re-raise validation exceptions from partial failure check
+        error_message = ERROR_CONCURRENT_OPERATION.format(operation="batch task generation for stage")
         logger.error(f"{error_message}: {str(e)}")
         raise ValidationException(error_message)
+
+@router.post("/{task_id}/stages/generate-all-tasks", response_model=NetworkPlan)
+@api_error_handler(OP_BATCH_TASK_GENERATION)
+async def generate_tasks_for_all_stages_endpoint(
+    task_id: str,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Generates ExecutableTask units for ALL Work packages across ALL Stages within a Task.
+    Processes stages sequentially, but work packages within each stage concurrently.
+    The Task must have Work packages generated for all relevant Stages.
+    """
+    logger.info(f"API endpoint called: Generate ExecutableTasks for ALL Works in ALL Stages of Task {task_id}")
+
+    task_data = db.fetch_task_by_id(task_id)
+    task = deserialize_task(task_data, task_id)
+    
+    # Validate task state and requirements
+    validate_task_state(task, TaskState.NETWORK_PLAN_GENERATED, task_id)
+    validate_task_network_plan(task, task_id)
+    network_plan = cast('NetworkPlan', task.network_plan) # Safe cast after validation
+
+    if not network_plan.stages:
+        logger.warning(f"Task {task_id}: No stages found. Nothing to generate.")
+        return network_plan
+
+    overall_failures = [] # Collect failures across all stages: list of (stage_id, work_id, error_str)
+
+    # Iterate through stages sequentially
+    for stage in network_plan.stages:
+        stage_id = stage.id
+        logger.info(f"Task {task_id}, Stage {stage_id}: Starting task generation for its work packages.")
+
+        if not stage.work_packages:
+            logger.warning(f"Task {task_id}, Stage {stage_id}: No work packages found, skipping task generation.")
+            continue # Move to the next stage
+
+        # Prepare coroutines for work packages within the current stage
+        stage_work_coroutines = []
+        stage_work_package_refs = [] # Keep track of work_id for error reporting within this stage
+        for work in stage.work_packages:
+            # Ensure work package has an ID
+            if not work.id:
+                 logger.error(f"Task {task_id}, Stage {stage_id}: Found work package without ID, skipping.")
+                 overall_failures.append((stage_id, "<missing_id>", "Work package missing ID"))
+                 continue
+            stage_work_coroutines.append(analyzer.generate_tasks_for_work(task, stage_id, work.id))
+            stage_work_package_refs.append(work.id)
+        
+        if not stage_work_coroutines:
+            # This might happen if all work packages in a stage lacked IDs
+            logger.warning(f"Task {task_id}, Stage {stage_id}: No valid work package coroutines generated.")
+            continue
+
+        try:
+            # Execute task generation concurrently for work packages *within this stage*
+            results = await asyncio.gather(*stage_work_coroutines, return_exceptions=True)
+            
+            # Process results for the current stage
+            stage_successful_count = 0
+            for i, result in enumerate(results):
+                # Use the ref list which only contains valid work IDs
+                work_id = stage_work_package_refs[i] 
+                if isinstance(result, Exception):
+                    error_str = str(result)
+                    overall_failures.append((stage_id, work_id, error_str))
+                    logger.error(f"Task {task_id}, Stage {stage_id}, Work {work_id}: Failed task generation - {error_str}")
+                else:
+                    # LINTER FIX: Use cast to assert the type before calling len()
+                    # We know it's List[ExecutableTask] here
+                    stage_successful_count += 1
+                    logger.info(f"Task {task_id}, Stage {stage_id}, Work {work_id}: Successfully generated {len(cast(List[ExecutableTask], result))} tasks.")
+            
+            logger.info(f"Task {task_id}, Stage {stage_id}: Finished processing. {stage_successful_count}/{len(stage_work_coroutines)} work packages succeeded.")
+
+        except Exception as e:
+            # Catch errors from asyncio.gather itself or other unexpected issues during stage processing
+            error_str = f"Unexpected error during task generation for stage {stage_id}: {str(e)}"
+            logger.error(f"Task {task_id}: {error_str}")
+            # Add a general failure marker for the stage if gather fails unexpectedly
+            overall_failures.append((stage_id, "<stage-error>", error_str))
+            # Continue to the next stage despite the error in this one
+
+    # After processing all stages, check if any failures occurred
+    if overall_failures:
+        error_message = f"Task {task_id}: Task generation completed with errors. {len(overall_failures)} work packages/stages failed."
+        logger.error(f"{error_message} Details: {overall_failures}")
+        # Raise an exception summarizing the failures
+        raise ValidationException(f"{error_message} See logs for details on failed stage/work packages.")
+
+    logger.info(f"Task {task_id}: Successfully generated tasks for all applicable work packages across all stages.")
+    # The task object has been updated by the analyzer calls during the loops
+    return task.network_plan
 
 @router.post("/{task_id}/edit-context", response_model=Task)
 @api_error_handler(OP_UPDATE_TASK)
