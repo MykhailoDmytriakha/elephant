@@ -75,7 +75,13 @@ const apiRequest = async (method, endpoint, data = null, errorMessage, options =
     const response = await axios[method](url, data, config);
     
     if (logging) {
-      console.log(`Response received from ${endpoint}`);
+      console.log(`Response received from ${endpoint}`, {
+        status: response.status,
+        dataType: typeof response.data,
+        isArray: Array.isArray(response.data),
+        dataLength: Array.isArray(response.data) ? response.data.length : null,
+        preview: Array.isArray(response.data) ? `Array[${response.data.length}]` : (typeof response.data === 'object' ? 'Object' : response.data)
+      });
     }
     
     return response.data;

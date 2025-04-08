@@ -53,8 +53,10 @@ async def summarize_context(
             for answer in task.context_answers
         ])
     
-    # Base instructions
-    base_instructions = f"""
+    # --- Dynamic Input Data Block ---
+    # This block contains the actual data the agent needs to process.
+    # It will be passed as part of the message content.
+    dynamic_input_data = f"""
     You are a Context Analysis Agent designed to process task information and create structured summaries.
 
     INPUT:
@@ -69,71 +71,76 @@ async def summarize_context(
     {language_instruction}
     """
 
+    # --- Static Instructions Block ---
+    # These define HOW the agent should perform its task (generation or revision).
+    
+    # Static instructions for initial generation (no feedback)
+    generation_instruction = f"""
+    GENERATION TASK:
+    Analyze all the provided input (initial request, answers) in the message and produce two distinct outputs:
+    1. A clarified task statement ('task')
+    2. A comprehensive context summary ('context')
+
+    OUTPUT REQUIREMENTS:
+    1. Task clarification (What needs to be built):
+       - Begin with a single concise sentence stating the core objective
+       - Include only essential requirements in order of priority
+       - Define clear, measurable outcomes or deliverables
+       - Use active voice and direct language
+       - Limit to 3-5 lines maximum
+       - Avoid parenthetical expressions and nested clauses
+
+    2. Context summary (How it should be implemented):
+       - Organize information into clear sections (e.g., Core Functionality, User Experience, Technical Requirements, Open Questions)
+       - Use concise bullet points (1 line each)
+       - Prioritize requirements within sections
+       - Highlight dependencies between requirements
+       - Reference source information from Q&A where relevant
+       - Focus on synthesizing insights, not listing answers
+       - Ensure no contradictions with the task statement
+
+    3. Quality criteria:
+       - Task: Specific, Measurable, Actionable, Relevant, Time-bound
+       - Context: Comprehensive, Structured, Prioritized, Unambiguous
+       - Alignment: Context details must support and reference task objectives
+       - Clarity: Both outputs must be understandable without additional explanation
+
+    The output must be formatted as a JSON object with 'task' and 'context' fields.
+    """
+    
+    # Static instructions for revision (with feedback)
+    feedback_instruction = f"""
+    REVISION TASK:
+    Revise the 'PREVIOUS TASK CLARIFICATION' and 'PREVIOUS CONTEXT SUMMARY' (provided in the message) based *strictly* on the 'USER FEEDBACK FOR REVISION' (also in the message).
+    - Incorporate the feedback accurately and concisely.
+    - Maintain the overall structure and intent unless the feedback explicitly requests changes.
+    - If the feedback contradicts previous information, prioritize the feedback but make a note of the change if significant.
+    - Ensure the revised task and context are consistent with each other.
+    - Produce the revised output in the specified JSON format with 'task' and 'context' fields.
+    """
+    
     # Add feedback-specific instructions if feedback is provided
     if feedback:
-        feedback_instruction = f"""
-        USER FEEDBACK FOR REVISION:
-        {feedback}
-        ---
-        REVISION TASK:
-        Revise the 'PREVIOUS TASK CLARIFICATION' and 'PREVIOUS CONTEXT SUMMARY' based *strictly* on the provided 'USER FEEDBACK FOR REVISION'.
-        - Incorporate the feedback accurately and concisely.
-        - Maintain the overall structure and intent unless the feedback explicitly requests changes.
-        - If the feedback contradicts previous information, prioritize the feedback but make a note of the change if significant.
-        - Ensure the revised task and context are consistent with each other.
-        - Produce the revised output in the specified JSON format.
-        """
-        instructions = f"{base_instructions}\n{feedback_instruction}"
-        agent_action_prompt = "Revise the task clarification and context summary based on the provided feedback."
+        static_instructions = feedback_instruction
+        message_content = f"{dynamic_input_data}\nUSER FEEDBACK FOR REVISION:\n{feedback}\n---\nRevise the task clarification and context summary based on the provided feedback and input data."
         logger.info(f"Summarizing context for task {task.id} WITH feedback.")
     else:
-        generation_instruction = f"""
-        GENERATION TASK:
-        Analyze all the provided input (initial request, answers) and produce two distinct outputs:
-        1. A clarified task statement ('task')
-        2. A comprehensive context summary ('context')
-
-        OUTPUT REQUIREMENTS:
-        1. Task clarification (What needs to be built):
-           - Begin with a single concise sentence stating the core objective
-           - Include only essential requirements in order of priority
-           - Define clear, measurable outcomes or deliverables
-           - Use active voice and direct language
-           - Limit to 3-5 lines maximum
-           - Avoid parenthetical expressions and nested clauses
-
-        2. Context summary (How it should be implemented):
-           - Organize information into clear sections (e.g., Core Functionality, User Experience, Technical Requirements, Open Questions)
-           - Use concise bullet points (1 line each)
-           - Prioritize requirements within sections
-           - Highlight dependencies between requirements
-           - Reference source information from Q&A where relevant
-           - Focus on synthesizing insights, not listing answers
-           - Ensure no contradictions with the task statement
-
-        3. Quality criteria:
-           - Task: Specific, Measurable, Actionable, Relevant, Time-bound
-           - Context: Comprehensive, Structured, Prioritized, Unambiguous
-           - Alignment: Context details must support and reference task objectives
-           - Clarity: Both outputs must be understandable without additional explanation
-
-        The output must be formatted as a JSON object with 'task' and 'context' fields.
-        """
-        instructions = f"{base_instructions}\n{generation_instruction}"
-        agent_action_prompt = "Summarize the context of the task and clarify the task description."
+        static_instructions = generation_instruction
+        message_content = f"{dynamic_input_data}\nSummarize the context of the task and clarify the task description based on the input data."
         logger.info(f"Summarizing context for task {task.id} WITHOUT feedback (initial generation)." )
     
     # logger.info(f"Summarization instructions: {instructions}") # Can be verbose
     
     agent = Agent(
         name="ContextSummaryAgent",
-        instructions=instructions,
+        instructions=static_instructions,
         output_type=ClarifiedTask,
         model=model
     )
     
+    logger.info(f"---> REQUEST OPENAI **ContextSummaryAgent** ({user_language}) with message: {message_content}")
     # Run the agent
-    result = await Runner.run(agent, agent_action_prompt)
+    result = await Runner.run(agent, message_content)
     
     # Process the response
     clarified_task = result.final_output

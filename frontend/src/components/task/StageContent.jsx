@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     CheckCircle2, Layers, Cpu, RefreshCw, Workflow
 } from 'lucide-react';
@@ -26,6 +26,11 @@ export default function StageContent({
     generatingAllSubtasksForWorkId,
     allSubtasksGenerationErrors
 }) {
+    // Log stage update for debugging
+    useEffect(() => {
+        console.log("StageContent received stage update:", stage?.id, "work_packages:", stage?.work_packages?.length || 0);
+    }, [stage]);
+
     return (
         <div className="lg:col-span-3 space-y-6 w-full">
             {/* Stage Overview Card */}

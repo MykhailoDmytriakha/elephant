@@ -71,23 +71,20 @@ async def generate_tasks_for_work(
     ---
     """
 
-    # Instructions for the agent
+    # --- Static Instructions Block ---
+    # Defines HOW the agent should decompose the work package.
     instructions = f"""
-    You are an Execution Planning Agent. Your goal is to decompose the TARGET WORK PACKAGE detailed below into a sequence of 3-10 small, concrete, atomic `ExecutableTask` steps suitable for automation by specific executors (AI_AGENT or ROBOT).
-
-    {context_summary}
-
-    {language_instruction}
+    You are an Execution Planning Agent. Your goal is to decompose the TARGET WORK PACKAGE (provided in the message context) into a sequence of 3-10 small, concrete, atomic `ExecutableTask` steps suitable for automation by specific executors (AI_AGENT or ROBOT).
 
     EXECUTABLE TASK DECOMPOSITION INSTRUCTIONS:
-    1.  **Analyze the Work Package:** Understand its specific objective, inputs, expected outcome, and validation criteria based on the TARGET WORK PACKAGE details. Use the OVERALL TASK CONTEXT for constraints, tools, and alignment.
+    1.  **Analyze the Work Package:** Understand its specific objective, inputs, expected outcome, and validation criteria based on the TARGET WORK PACKAGE details provided in the message. Use the OVERALL TASK CONTEXT (also in the message) for constraints, tools, and alignment.
     2.  **Define Executable Tasks:** Break down the work into a logical sequence of atomic actions. For each action, create an `ExecutableTask` object with the following attributes:
         *   `id`: Generate a unique ID like "stage_id" + "_" + "work_id" + "_" + "task_number" (e.g., "S1_W1_ET1", "S1_W1_ET2", "S1_W1_ET3", etc.)
         *   `name`: A concise action verb phrase (e.g., "Fetch User Data", "Calculate Risk Score", "Rotate Arm 90 Degrees").
         *   `description`: A clear explanation of *this specific action*, its inputs, and its immediate effect.
-        *   `work_id`: MUST be set to the ID of the TARGET WORK PACKAGE: "{work.id}".
-        *   `stage_id`: MUST be set to the ID of the PARENT STAGE: "{stage.id}".
-        *   `task_id`: MUST be set to the ID of the TOP-LEVEL TASK: "{task.id}".
+        *   `work_id`: MUST be set to the ID of the TARGET WORK PACKAGE (provided in the message context).
+        *   `stage_id`: MUST be set to the ID of the PARENT STAGE (provided in the message context).
+        *   `task_id`: MUST be set to the ID of the TOP-LEVEL TASK (provided in the message context).
         *   `sequence_order`: Assign a 0-based index indicating the execution order within *this Work package*.
         *   `dependencies`: List the `id`s of *other ExecutableTasks within this same Work package* that must be completed first. If it's the first task, leave empty.
         *   `required_inputs`: List specific `Artifact` objects needed for *this action*. Reference artifacts from the parent Work's `required_inputs` or `generated_artifacts` of preceding ExecutableTasks.
@@ -104,6 +101,23 @@ async def generate_tasks_for_work(
     - Executor config should be relevant to the executor type and action.
     """
 
+    # --- Message Content Block ---
+    # Contains the dynamic data and the specific request for this run.
+    message_content = f"""
+    CONTEXT AND TASK DETAILS:
+    {context_summary}
+    ---
+    `work_id`: {work.id}
+    `stage_id`: {stage.id}
+    `task_id`: {task.id}
+    ---
+    LANGUAGE INSTRUCTION:
+    {language_instruction}
+    ---
+    REQUEST:
+    Generate the sequence of ExecutableTask steps for Work Package '{work.name}' (ID: {work.id}). Ensure the generated tasks adhere to the static instructions provided to the agent.
+    """
+
     logger.info(f"Generating ExecutableTasks for Work ID: {work.id}, Stage ID: {stage.id}")
 
     # Define the agent
@@ -115,9 +129,10 @@ async def generate_tasks_for_work(
     )
 
     # Run the agent
+    logger.info(f"---> REQUEST OPENAI **TaskGenerationAgent** ({user_language}) with message: {message_content}")
     try:
         # logger.info(f"Running Agent Generate ExecutableTasks with instructions: {instructions}")
-        result = await Runner.run(agent, f"Generate the sequence of ExecutableTask steps for Work Package '{work.name}' (ID: {work.id}).")
+        result = await Runner.run(agent, message_content)
         # logger.debug(f"Raw Agent Task Generation Result: {result}")
 
         # Process and return the response

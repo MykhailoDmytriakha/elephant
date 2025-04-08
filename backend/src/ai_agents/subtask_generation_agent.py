@@ -78,25 +78,22 @@ async def generate_subtasks(
     ---
     """
 
-    # Instructions for the agent
+    # --- Static Instructions Block ---
+    # Defines HOW the agent should decompose the ExecutableTask into Subtasks.
     instructions = f"""
-    You are a Subtask Decomposition Agent. Your goal is to break down the TARGET EXECUTABLE TASK into a sequence of 3-7 extremely small, atomic `Subtask` steps, each designed for a *specific* type of automated executor (AI_AGENT, ROBOT, or HUMAN_REVIEW).
-
-    {context_summary}
-
-    {language_instruction}
+    You are a Subtask Decomposition Agent. Your goal is to break down the TARGET EXECUTABLE TASK (details provided in the message context) into a sequence of 3-7 extremely small, atomic `Subtask` steps, each designed for a *specific* type of automated executor (AI_AGENT, ROBOT, or HUMAN).
 
     SUBTASK DECOMPOSITION INSTRUCTIONS:
-    1.  **Analyze Executable Task:** Understand its specific action, inputs, expected outputs, and validation based on the TARGET EXECUTABLE TASK details. Use the broader context (Work, Stage, Task) for constraints and overall goals.
+    1.  **Analyze Executable Task:** Understand its specific action, inputs, expected outputs, and validation based on the TARGET EXECUTABLE TASK details provided in the message context. Use the broader context (Work, Stage, Task, also in the message) for constraints and overall goals.
     2.  **Identify Atomic Actions:** Break the executable task into the smallest possible individual steps. Each step should be a single command or operation.
     3.  **Define Subtasks:** For each atomic action, create a `Subtask` object with the following attributes:
         *   `id`: Generate a unique ID like "stage_id" + "_" + "work_id" + "_" + "task_number" + "_" + "subtask_number" (e.g., "S1_W1_ET1_ST1", "S1_W1_ET1_ST2", "S1_W1_ET1_ST3", etc.)
         *   `name`: A very concise action phrase (e.g., "Set Joint Angle", "Format API Request", "Check Sensor Value", "Verify Output Schema").
         *   `description`: A precise instruction for *this single atomic action*.
-        *   `parent_executable_task_id`: MUST be "{executable_task.id}".
-        *   `parent_work_id`: MUST be "{work.id}".
-        *   `parent_stage_id`: MUST be "{stage.id}".
-        *   `parent_task_id`: MUST be "{task.id}".
+        *   `parent_executable_task_id`: MUST be the ID of the TARGET EXECUTABLE TASK (provided in the message context).
+        *   `parent_work_id`: MUST be the ID of the PARENT WORK PACKAGE (provided in the message context).
+        *   `parent_stage_id`: MUST be the ID of the PARENT STAGE (provided in the message context).
+        *   `parent_task_id`: MUST be the ID of the OVERALL TASK (provided in the message context).
         *   `sequence_order`: Assign a 0-based index indicating the execution order *within this ExecutableTask*.
         *   `executor_type`: Choose ONE:
             *   `AI_AGENT`: For tasks involving data processing, API calls, analysis, text generation, complex logic.
@@ -114,6 +111,24 @@ async def generate_subtasks(
     - Generate 3-15 subtasks per executable task.
     """
 
+    # --- Message Content Block ---
+    # Contains the dynamic data and the specific request for this run.
+    message_content = f"""
+    CONTEXT AND TASK DETAILS:
+    {context_summary}
+    ---
+    `parent_executable_task_id`: {executable_task.id}
+    `parent_work_id`: {work.id}
+    `parent_stage_id`: {stage.id}
+    `parent_task_id`: {task.id}
+    ---
+    LANGUAGE INSTRUCTION:
+    {language_instruction}
+    ---
+    REQUEST:
+    Generate the sequence of atomic Subtask steps for ExecutableTask '{executable_task.name}' (ID: {executable_task.id}). Ensure the generated subtasks adhere to the static instructions provided to the agent.
+    """
+
     logger.info(f"Generating Subtasks for ExecutableTask ID: {executable_task.id}")
 
     # Define the agent
@@ -124,10 +139,11 @@ async def generate_subtasks(
         model=model
     )
 
+    logger.info(f"---> REQUEST OPENAI **SubtaskGenerationAgent** ({user_language}) with message: {message_content}")
     # Run the agent
     try:
         # logger.debug(f"Running Agent Generate Subtasks with instructions:\n{instructions}")
-        result = await Runner.run(agent, f"Generate the sequence of atomic Subtask steps for ExecutableTask '{executable_task.name}' (ID: {executable_task.id}).")
+        result = await Runner.run(agent, message_content)
         logger.debug(f"Raw Agent Subtask Generation Result: {result}")
 
         # Process and return the response

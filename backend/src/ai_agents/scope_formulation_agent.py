@@ -65,7 +65,7 @@ async def formulate_scope_questions(
     # Get language-specific instruction
     language_instruction = get_language_instruction(user_language)
     
-    # Create the instruction for the agent
+    # Prepare static agent instructions
     instructions = f"""
     You are a Scope Formulation Agent designed to create SPECIFIC, CONCRETE questions that precisely define the scope boundaries of a task by clarifying existing details and uncovering ambiguities. Your goal is to act like a helpful partner, asking natural-sounding questions to refine the understanding based on the provided context.
     
@@ -88,35 +88,17 @@ async def formulate_scope_questions(
     
     QUESTION STYLE - AIM FOR NATURAL CLARIFICATION:
     - Frame questions conversationally, as if clarifying points in a discussion.
-    - Ensure questions sound natural and idiomatic in the user's detected language ({user_language}). Avoid overly robotic or formulaic phrasing.
+    - Ensure questions sound natural and idiomatic in the user's detected language. Avoid overly robotic or formulaic phrasing.
     - Use the context provided not just as input, but as a starting point for deeper clarification. "Based on X, should we clarify Y?"
     - Match question style to request complexity:
         - Simple requests: Everyday language, minimal technical terms, straightforward options.
         - Moderate requests: Balance technical terms with clear explanations, moderate detail in options.
         - Advanced requests: Specialized terminology, detailed technical specifications, precise parameters.
     
-    Your questions must establish EXACT LIMITS and CLEAR CRITERIA for the "{group}" dimension of the task scope.
-    
-    Analyze the following information to generate highly specific, clarifying questions for the "{group}" dimension:
-    
-    ---
-    SCOPE DIMENSION: `{group}`
-    ---
-    INITITAL USER INPUT: {task_description}
-    ---
-    TASK: {clarified_task}
-    ---
-    CONTEXT: {task_context}
-    ---
-    CONTEXT ANSWERS: {context_answers_text}
-    ---
-    SCOPE ANSWERS FROM PREVIOUS DIMENSIONS: {previous_scope_answers}
-    ---
-    
-    {language_instruction}
+    Your questions must establish EXACT LIMITS and CLEAR CRITERIA for the current scope dimension of the task scope.
     
     For each question you generate:
-    1. Create a clear, specific question about the "{group}" dimension that CLARIFIES an ambiguous point or ESTABLISHES CONCRETE BOUNDARIES with MEASURABLE CRITERIA based on the existing context.
+    1. Create a clear, specific question about the current scope dimension that CLARIFIES an ambiguous point or ESTABLISHES CONCRETE BOUNDARIES with MEASURABLE CRITERIA based on the existing context provided in the message.
     2. Extract options directly suggested by the context (if any), presenting them as potential clarifications.
     3. Generate additional options representing SPECIFIC CHOICES with technical parameters, not just general categories.
     4. Assign a priority level (Critical, High, Medium, Low) indicating importance for scope definition.
@@ -136,7 +118,7 @@ async def formulate_scope_questions(
     - The goal is to define a METHODOLOGY applicable across contexts.
     
     CROSS-DIMENSIONAL BOUNDARIES & CONTEXT AWARENESS:
-    - Ensure questions refine the specific dimension ({group}) without straying into others (e.g., 'What' questions focus on features, not 'When' timelines).
+    - Ensure questions refine the specific dimension specified in the message without straying into others (e.g., 'What' questions focus on features, not 'When' timelines).
     - Analyze if the request is for a METHODOLOGY vs. a SPECIFIC IMPLEMENTATION and tailor questions accordingly.
     - For methodologies, focus on generic roles, principles, and conceptual boundaries.
     
@@ -157,7 +139,7 @@ async def formulate_scope_questions(
     3. Build upon established boundaries.
     4. Address gaps.
     
-    CRITICALLY IMPORTANT: The entire question, including structure and format, MUST be in the user's detected language ({user_language}). Ensure it sounds natural and conversational in that language.
+    CRITICALLY IMPORTANT: The entire question, including structure and format, MUST be in the user's detected language. Ensure it sounds natural and conversational in that language.
     
     QUESTION FORMATTING (in user's language):
     - Use a mix of formats naturally fitting the clarification needed. Examples:
@@ -168,13 +150,13 @@ async def formulate_scope_questions(
     
     EXCLUSION QUESTIONS (ALWAYS INCLUDE 1-2):
     - Ask explicitly what should be EXCLUDED from the scope for this dimension to prevent scope creep.
-    - Format like: "To keep the project focused, which of these should be explicitly EXCLUDED from the '{group}' scope for now?" (Adapt to user's language).
+    - Format like: "To keep the project focused, which of these should be explicitly EXCLUDED from the current dimension's scope for now?"
     - Options should be specific features/capabilities with brief technical/business rationales for exclusion.
-    - Provide 3-5 concrete, reasonable exclusion options directly related to the task.
-    - Mark these with "Приоритет: Critical" (adapt to user's language).
+    - Provide 3-5 concrete, reasonable exclusion options directly related to the task provided in the message.
+    - Mark these with "Priority: Critical" (or the equivalent in the user's language).
     
     IMPORTANT RULES FOR AVOIDING REDUNDANCY:
-    1. DO NOT ask about aspects ALREADY CLEARLY DEFINED in context/answers. Focus on gaps and ambiguities.
+    1. DO NOT ask about aspects ALREADY CLEARLY DEFINED in context/answers provided in the message. Focus on gaps and ambiguities.
     2. If context states "registration via email and phone", don't ask IF email/phone should be included. Ask about *limits* (e.g., "Should phone registration support international numbers?").
     3. Each question MUST add NEW clarification or define a boundary not already present.
     4. NEVER ask redundant questions covering the same point. Check for overlap before finalizing.
@@ -182,12 +164,33 @@ async def formulate_scope_questions(
     6. MOST IMPORTANTLY: Tailor question complexity and *detail level* to the user's request complexity and the existing context's clarity.
     """
     
+    # Construct the message with dynamic data
+    message_content = f"""
+    Formulate specific, boundary-defining '{group}' scope questions for the following task:
+    
+    SCOPE DIMENSION: `{group}`
+    --- 
+    INITITAL USER INPUT: {task_description}
+    ---
+    TASK: {clarified_task}
+    ---
+    CONTEXT: {task_context}
+    ---
+    CONTEXT ANSWERS: {context_answers_text}
+    ---
+    SCOPE ANSWERS FROM PREVIOUS DIMENSIONS: {previous_scope_answers}
+    ---
+    {language_instruction}
+    ---
+    
+    Analyze the information above and the static instructions provided to generate the required scope questions.
+    """
+    
     # Create the agent
     class ScopeQuestionsList(BaseModel):
         questions: List[ScopeQuestion]
     
     logger.info(f"Formulating scope questions for {group} dimension, task {task.id}")
-    # logger.info(f"Formulation instructions: {instructions}")
     agent = Agent(
         name="ScopeFormulationAgent",
         instructions=instructions,
@@ -195,8 +198,9 @@ async def formulate_scope_questions(
         model=model
     )
     
+    logger.info(f"---> REQUEST OPENAI **ScopeFormulationAgent** ({user_language}) with message: {message_content}")
     # Run the agent
-    result = await Runner.run(agent, f"Formulate specific, boundary-defining '{group}' scope questions for the task")
+    result = await Runner.run(agent, message_content)
     
     # Process the response
     scope_questions = result.final_output
@@ -244,10 +248,24 @@ async def generate_draft_scope(task: Task) -> DraftScope:
                     scope_answers.append(f"Q: {answer.question}\nA: {answer.answer}")
         previous_scope_answers = "\n".join(scope_answers)
       
+    # Prepare static agent instructions
     instructions = f"""
     You are a Scope Formulation Agent designed to create a draft scope for a given task.
     
-    Your task is to analyze the following information and generate a draft scope for the task:
+    Your task is to analyze the provided information and generate a draft scope for the task, following the validation criteria below.
+    
+    Validation criteria (adapt to user's language): 
+    1. Are the objectives (what) clear?
+    2. Does it align with the purpose (why)?
+    3. Are stakeholders (who) accounted for?
+    4. Is the location (where) finalized?
+    5. Are timelines (when) reasonable?
+    6. Are the processes/tools (how) defined?
+    """
+    
+    # Construct the message with dynamic data
+    message_content = f"""
+    Generate a draft scope based on the following information:
     
     INITITAL USER INPUT: {task_description}
     ---
@@ -260,18 +278,10 @@ async def generate_draft_scope(task: Task) -> DraftScope:
     SCOPE ANSWERS FROM PREVIOUS DIMENSIONS: {previous_scope_answers}
     ---
     {language_instruction}
-    
-    You must generate a draft scope for the task based on the following validation criteria (according to language instruction):
-    1. Are the objectives (what) clear?
-    2. Does it align with the purpose (why)?
-    3. Are stakeholders (who) accounted for?
-    4. Is the location (where) finalized?
-    5. Are timelines (when) reasonable?
-    6. Are the processes/tools (how) defined?
+    ---
     """
     
     logger.info("Generating draft scope")
-    logger.info(f"Draft scope instructions: {instructions}")
     agent = Agent(
         name="DraftScopeGenerator",
         instructions=instructions,
@@ -279,8 +289,9 @@ async def generate_draft_scope(task: Task) -> DraftScope:
         model=model
     )
     
+    logger.info(f"---> REQUEST OPENAI **DraftScopeGenerator** ({user_language}) with message: {message_content}")
     # Run the agent
-    result = await Runner.run(agent, f"Generate a draft scope for the task")
+    result = await Runner.run(agent, message_content)
     
     # Process the response
     draft_scope = result.final_output
@@ -330,10 +341,17 @@ async def validate_scope(task: Task, feedback: str) -> ValidationScopeResult:
                     scope_answers.append(f"Q: {answer.question}\nA: {answer.answer}")
         previous_scope_answers = "\n".join(scope_answers)
     
+    # Prepare static agent instructions
     instructions = f"""
     You are a Scope Validation Agent designed to validate a draft scope for a given task and feedback.
     
-    Your task is to analyze the user feedback and rewrite the draft scope for the task:
+    Your task is to analyze the user feedback and the provided task details, then rewrite the draft scope accordingly.
+    Your response must include the rewritten scope and a list of the changes you made.
+    """
+    
+    # Construct the message with dynamic data
+    message_content = f"""
+    Rewrite the draft scope based on the following information and user feedback:
     
     INITITAL USER INPUT: {task_description}
     ---
@@ -347,16 +365,13 @@ async def validate_scope(task: Task, feedback: str) -> ValidationScopeResult:
     ---
     USER FEEDBACK: {feedback}
     ---
-    SCOPE DRAFT: {draft_scope}
+    CURRENT SCOPE DRAFT: {draft_scope}
     ---
     {language_instruction}
-    
-    You must rewrite the draft scope for the task based on the user feedback.
-    You response will include the rewritten scope and the list of changes you made to the scope.
+    ---
     """
     
     logger.info("Validating scope")
-    logger.info(f"Validation instructions: {instructions}")
     agent = Agent(
         name="ScopeValidationAgent",
         instructions=instructions,
@@ -364,8 +379,9 @@ async def validate_scope(task: Task, feedback: str) -> ValidationScopeResult:
         model=model
     )
     
+    logger.info(f"---> REQUEST OPENAI **ScopeValidationAgent** ({user_language}) with message: {message_content}")
     # Run the agent
-    result = await Runner.run(agent, f"Validate the draft scope for the task")
+    result = await Runner.run(agent, message_content)
     
     # Process the response
     validation_result = result.final_output

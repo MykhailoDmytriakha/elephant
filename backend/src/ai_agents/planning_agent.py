@@ -219,6 +219,7 @@ def create_plan(wrapper: RunContextWrapper[PlanningContext]) -> NetworkPlan:
         Please generate an improved network plan taking into account the TASK DETAILS, PREVIOUS PLAN, and CRITIC FEEDBACK.
         """
     
+    logger.info(f"---> REQUEST OPENAI **CreatorAgent** ({user_language}) with message: {prompt}")
     result = Runner.run_sync(creator_agent, prompt)
     result = result.final_output
     context.add_to_history("CreatorAgent", result)
@@ -270,6 +271,7 @@ def critic_plan(wrapper: RunContextWrapper[PlanningContext]) -> str:
     methodologies, or features that aren't explicitly part of the NetworkPlan object.
     Think about number of stages and connections, names of stages, descriptions of stages, and connections between stages, checkpoints, artifacts, locations and validations.
     """
+    logger.info(f"---> REQUEST OPENAI **CriticAgent** ({user_language}) with message: {prompt}")
     result = Runner.run_sync(critic_agent, prompt)
     result = result.final_output
     context.add_to_history("CriticAgent", result.feedback)
@@ -370,7 +372,7 @@ async def generate_network_plan(
     
     result = result.final_output
     # logger.info(f"History: {context.get_history_summary()}")
-    logger.info(f"Final network plan: {context.last_updated_plan}")
+    logger.info(f"Final network plan: {context.last_updated_plan.model_dump_json(indent=2) if context.last_updated_plan else '---No plan generated---'}")
     logger.info(f"It takes {context.iteration} iterations to generate the plan")
     logger.info(f"final_output: {result}")
     if context.last_updated_plan:

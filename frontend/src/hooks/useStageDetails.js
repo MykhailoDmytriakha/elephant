@@ -24,8 +24,8 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
     // --- State Management ---
     const [currentStageData, setCurrentStageData] = useState(initialStageData);
     const [taskInfo, setTaskInfo] = useState(initialTaskInfo || { id: taskId, shortDescription: '' });
-    // Initialize isLoadingData based on whether initialStageData was provided
     const [isLoadingData, setIsLoadingData] = useState(!initialStageData);
+    const [isDataInitialized, setIsDataInitialized] = useState(!!initialStageData); // Initialize based on initial data presence
     const [isGeneratingWork, setIsGeneratingWork] = useState(false);
     const [workGenerationError, setWorkGenerationError] = useState(null); // Keep setter internal if only used here
     const [generatingAllTasksForWorkId, setGeneratingAllTasksForWorkId] = useState(null);
@@ -82,6 +82,7 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
                 shortDescription: taskData.short_description || taskData.task,
                 id: taskData.id // Ensure task ID is updated if needed
             }));
+            setIsDataInitialized(true); // Mark as initialized on successful fetch
         } catch (error) {
             clearTimeout(timeout); // Clear the timeout on error
             console.error("Error fetching task/stage data:", error);
@@ -96,7 +97,7 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
 
     // Effect to fetch data if initial state is missing or when stageId/taskId changes
     useEffect(() => {
-        // Reset error states
+        // Reset errors
         setWorkGenerationError(null);
         setAllTasksForStageError(null);
         setGeneratingAllTasksForWorkId(null);
@@ -104,17 +105,25 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
         setGeneratingAllSubtasksForWorkId(null);
         setAllSubtasksGenerationErrors({});
         setIsGeneratingAllTasksForStage(false);
+        setIsGeneratingWork(false);
+        // Reset initialization flag ONLY if taskId or stageId changes
+        //setIsDataInitialized(false); // Let's manage this more carefully below
         
         // Update stage data if we have initialStageData that matches the current stageId
-        if (initialStageData && String(initialStageData.id) === String(stageId)) {
+        if (!isDataInitialized && initialStageData && String(initialStageData.id) === String(stageId)) {
             console.log(`Using initial stage data for stage ${stageId}`);
             setCurrentStageData(initialStageData);
             setIsLoadingData(false);
+            setIsDataInitialized(true); // Mark as initialized
             return;
         }
         
         // If we don't have data or the stageId/taskId changed, we need to fetch
-        if ((!currentStageData || String(currentStageData.id) !== String(stageId)) && taskId && stageId) {
+        const needsFetch = !isDataInitialized || 
+                           (currentStageData && String(currentStageData.id) !== String(stageId)) ||
+                           (taskInfo && taskId && String(taskInfo.id) !== String(taskId));
+
+        if (needsFetch && taskId && stageId) {
             console.log(`Fetching data for stage ${stageId}, current stage data: ${currentStageData?.id || 'none'}`);
             
             // Important: Keep old data visible during loading to reduce flickering
@@ -140,6 +149,7 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
                             id: taskData.id
                         }));
                         setIsLoadingData(false);
+                        setIsDataInitialized(true); // Mark as initialized
                     } catch (error) {
                         console.error("Error background-fetching stage data:", error);
                         // Now show loading state since we couldn't fetch in background
@@ -154,9 +164,13 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
             }
         } else {
             // If we have data (either initial or fetched), ensure loading is false
-            setIsLoadingData(false);
+            if (currentStageData && String(currentStageData.id) === String(stageId)) {
+                setIsLoadingData(false);
+                // Ensure initialized flag is set if we landed here with valid data
+                if (!isDataInitialized) setIsDataInitialized(true);
+            }
         }
-    }, [taskId, stageId, initialStageData, fetchStageData, currentStageData]);
+    }, [taskId, stageId, initialStageData, fetchStageData, isDataInitialized]); // Removed currentStageData, added isDataInitialized
 
     // --- Handler Functions ---
     const handleGenerateWork = useCallback(async () => {
@@ -173,7 +187,14 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
                 await fetchStageData(); // Fetch full data if API response is weird
                 toast.showSuccess("Work packages generated. Refreshed stage data.");
             } else {
-                setCurrentStageData(prev => ({ ...prev, work_packages: generatedWorkPackages }));
+                // Simplified state update without JSON stringify/parse
+                setCurrentStageData(prev => {
+                    console.log("Updating state with NEW work packages:", generatedWorkPackages);
+                    return {
+                        ...prev,
+                        work_packages: generatedWorkPackages
+                    };
+                });
                 toast.showSuccess(`Successfully generated ${generatedWorkPackages.length} work packages.`);
             }
         } catch (error) {
@@ -340,6 +361,7 @@ export function useStageDetails(taskId, stageId, initialStageData, initialTaskIn
         // Expose error setters for direct use in the component if needed (though internal handling is preferred)
         setWorkGenerationError,
         setAllTasksForStageError,
-        resetStageData // Add the reset function
+        resetStageData, // Add the reset function
+        isDataInitialized // Add isDataInitialized to the return object
     };
 }

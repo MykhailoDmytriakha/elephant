@@ -1,7 +1,7 @@
 import logging
 from src.core.config import settings
 from src.model.task import Task
-from src.model.ifr import IFR, Metric, ValidationItem, Requirements
+from src.model.ifr import IFR, Requirements
 from src.ai_agents.utils import detect_language, get_language_instruction
 
 logger = logging.getLogger(__name__)
@@ -63,22 +63,6 @@ async def generate_IFR(
     instructions = f"""
     Generate an Ideal Final Result (IFR) for the following task based on the provided context.
     
-    ---
-    INITITAL USER INPUT: {task_description}
-    ---
-    TASK: {clarified_task}
-    ---
-    CONTEXT ANSWERS: {context_answers_text}
-    ---
-    CONTEXT: {task_context}
-    ---
-    SCOPE ANSWERS: {previous_scope_answers}
-    ---
-    SCOPE: {task.scope.scope if task.scope else ""}
-    ---
-    
-    {language_instruction}
-    
     An Ideal Final Result (IFR) is a concise description of the optimal outcome of a task or project.
     It should represent the perfect solution that meets all requirements without any compromises.
     
@@ -131,8 +115,28 @@ async def generate_IFR(
     The IFR should be ambitious yet achievable, focusing on what/why/who/where/when/how will be delivered and achieved.
     """
     
+    # Construct the message with dynamic data
+    message_content = f"""
+    Generate an Ideal Final Result (IFR) based on the following information:
+    ---
+    INITITAL USER INPUT: {task_description}
+    ---
+    TASK: {clarified_task}
+    ---
+    CONTEXT ANSWERS: {context_answers_text}
+    ---
+    CONTEXT: {task_context}
+    ---
+    SCOPE ANSWERS: {previous_scope_answers}
+    ---
+    SCOPE: {task.scope.scope if task.scope else ""}
+    ---
+    {language_instruction}
+    ---
+    """
+    
     logger.info(f"Generating IFR for task: {task.id}")
-    # logger.info(f"Generation instructions: {instructions}")
+    logger.info(f"---> REQUEST OPENAI **IFRGenerationAgent** ({user_language}) with message: {message_content}")
     
     # Create the agent
     agent = Agent(
@@ -143,7 +147,7 @@ async def generate_IFR(
     )
     
     # Run the agent
-    result = await Runner.run(agent, "Generate Ideal Final Result for the task")
+    result = await Runner.run(agent, message_content)
     
     # Process the response
     ifr_result = result.final_output
@@ -188,32 +192,15 @@ async def define_requirements(
     
     # Get language-specific instruction
     language_instruction = get_language_instruction(user_language)
+    
+    # Prepare static instructions
     instructions = f"""
-    Define requirements, constraints, limitations, resources, tools for the following task:
-    
-    ---
-    INITITAL USER INPUT: {task_description}
-    ---
-    TASK: {clarified_task}
-    ---
-    CONTEXT: {task_context}
-    ---
-    SCOPE: {task_scope}
-    SCOPE CLARIFICATION: {scope_clarification}
-    ---
-    IFR(Ideal Final Result): {ifr}
-    SUCCESS CRITERIA: {success_criteria}
-    EXPECTED OUTCOMES: {expected_outcomes}
-    QUALITY METRICS: {quality_metrics}
-    VALIDATION CHECKLIST: {validation_checklist}
-    ---
-    
-    {language_instruction}
-    
+    Define requirements, constraints, limitations, resources, tools for the provided task based on the context.
+
     Think how complex the task is and how many requirements, constraints, limitations, resources, tools are needed.
     If the task is complex, you can add more items to the list.
     If the task is simple, you can reduce the number of items in the list.
-    
+
     OUTPUT REQUIREMENTS:
     1. Requirements:
        - List 5-12 concrete, measurable functional requirements of the system (not metrics)
@@ -244,8 +231,31 @@ async def define_requirements(
        - Format: "[Term]: [specific definition related to the system]"
     """
     
+    # Construct the message with dynamic data
+    message_content = f"""
+    Define requirements, constraints, limitations, resources, tools based on the following information:
+    ---
+    INITITAL USER INPUT: {task_description}
+    ---
+    TASK: {clarified_task}
+    ---
+    CONTEXT: {task_context}
+    ---
+    SCOPE: {task_scope}
+    SCOPE CLARIFICATION: {scope_clarification}
+    ---
+    IFR(Ideal Final Result): {ifr}
+    SUCCESS CRITERIA: {success_criteria}
+    EXPECTED OUTCOMES: {expected_outcomes}
+    QUALITY METRICS: {quality_metrics}
+    VALIDATION CHECKLIST: {validation_checklist}
+    ---
+    {language_instruction}
+    ---
+    """
+    
     logger.info(f"Generating requirements for task: {task.id}")
-    logger.info(f"Generation instructions: {instructions}")
+    logger.info(f"---> REQUEST OPENAI **RequirementsDefinitionAgent** ({user_language}) with message: {message_content}")
     # Create the agent
     agent = Agent(
         name="RequirementsDefinitionAgent",
@@ -255,7 +265,7 @@ async def define_requirements(
     )
     
     # Run the agent
-    result = await Runner.run(agent, "Define requirements, constraints, limitations, resources, tools for the task")
+    result = await Runner.run(agent, message_content)
     
     # Process the response
     requirements_result = result.final_output

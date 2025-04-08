@@ -65,22 +65,19 @@ async def generate_work_packages_for_stage(
     ---
     """
 
-    # Instructions for the agent
+    # --- Static Instructions Block ---
+    # Defines HOW the agent should decompose the stage into work packages.
     instructions = f"""
-    You are a Work Decomposition Agent. Your goal is to break down the provided STAGE (within the context of the overall TASK) into logical, manageable 'Work' packages suitable for automated execution by AI agents or robots.
-
-    {context_summary}
-
-    {language_instruction}
+    You are a Work Decomposition Agent. Your goal is to break down the provided STAGE (details in the message context) into logical, manageable 'Work' packages suitable for automated execution by AI agents or robots.
 
     STAGE DECOMPOSITION INSTRUCTIONS:
-    1.  **Analyze the Stage:** Understand the stage's purpose, description, expected results, deliverables, and checkpoints based on the TARGET STAGE details provided above.
+    1.  **Analyze the Stage:** Understand the stage's purpose, description, expected results, deliverables, and checkpoints based on the TARGET STAGE details provided in the message context.
     2.  **Identify Sub-Goals:** Determine the logical sub-goals or major capabilities that need to be achieved within this stage. Aim for 3-7 major Work packages per stage, depending on complexity.
     3.  **Define Work Packages:** For each sub-goal, create a `Work` package object with the following attributes:
         *   `id`: Generate a new UUID (this will be handled by the model, just define the structure). like stage.id + "_" + work_package_number (S1_W1, S1_W2, etc.)
         *   `name`: A concise, descriptive name (e.g., "Process Raw Sensor Data", "Generate Initial Design Mockups", "Assemble Component A"). Min 5 chars.
         *   `description`: A clear explanation of this work package's specific objective, inputs, outputs, and boundaries. Min 20 chars.
-        *   `stage_id`: MUST be set to the ID of the TARGET STAGE: "{stage.id}".
+        *   `stage_id`: MUST be set to the ID of the TARGET STAGE (provided in the message context).
         *   `sequence_order`: Assign a 0-based index indicating the logical execution order within this stage.
         *   `dependencies`: List the `id`s of *other Work packages within this same stage* that must be completed first. Keep dependencies simple for now (mostly sequential). If it's the first work package, leave this empty.
         *   `required_inputs`: List necessary `Artifact` objects (name, type, description, location) needed to start this work. These might come from previous stages' deliverables or previous work packages' generated artifacts within this stage. Use standardized locations.
@@ -94,6 +91,21 @@ async def generate_work_packages_for_stage(
     CRITICAL: Ensure all fields in the `Work` model are correctly populated according to the defined structure and constraints (like min_length, enums). Pay close attention to generating valid `Artifact` structures for inputs and outputs, including standardized `location` names where applicable. Define clear, automatable `validation_criteria`.
     """
 
+    # --- Message Content Block ---
+    # Contains the dynamic data and the specific request for this run.
+    message_content = f"""
+    CONTEXT AND TASK DETAILS:
+    {context_summary}
+    ---
+    `stage_id`: {stage.id}
+    ---
+    LANGUAGE INSTRUCTION:
+    {language_instruction}
+    ---
+    REQUEST:
+    Generate the list of Work packages for Stage '{stage.name}' (ID: {stage.id}). Ensure the generated packages adhere to the static instructions provided to the agent.
+    """
+
     logger.info(f"Generating Work packages for Stage ID: {stage.id}")
     # logger.info(f"Agent Instructions: {instructions}")
 
@@ -105,8 +117,9 @@ async def generate_work_packages_for_stage(
         model=model
     )
 
+    logger.info(f"---> REQUEST OPENAI **WorkGenerationAgent** ({user_language}) with message: {message_content}")
     # Run the agent
-    result = await Runner.run(agent, f"Generate the list of Work packages for Stage '{stage.name}' (ID: {stage.id}).")
+    result = await Runner.run(agent, message_content)
     
     logger.info(f"Agent Work Generation Result: {result}")
 

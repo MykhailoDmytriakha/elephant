@@ -1,8 +1,6 @@
 import logging
-from typing import List, Dict, Optional, Any
-from pydantic import BaseModel
 from src.core.config import settings
-from src.model.context import ContextSufficiencyResult, ContextQuestion
+from src.model.context import ContextSufficiencyResult 
 from src.model.task import Task
 from src.ai_agents.utils import detect_language, get_language_instruction
 
@@ -34,7 +32,6 @@ async def analyze_context_sufficiency(
     # Detect language from task description
     task_description = task.short_description or ""
     user_language = detect_language(task_description)
-    logger.info(f"Detected language: {user_language}")
     
     # Get language-specific instruction
     language_instruction = get_language_instruction(user_language)
@@ -53,13 +50,7 @@ async def analyze_context_sufficiency(
      - a problem that should be converted into a task or 
      - idea/task that should be clarified, like more "crystallized".
     The main goal is to understand the user intent, and missing information that should be clarified.
-    Analyze the following task and context information to determine if there's sufficient context to proceed.
-    
-    INITITAL USER INPUT (TASK): {task.short_description}
-    ---
-    CONTEXT ANSWERS: {context_answers_text}
-    ---
-    {language_instruction}
+    Analyze the provided task and context information to determine if there's sufficient context to proceed.
     
     If the context is insufficient, provide questions to gather more information.
     Each question should be specific and focused on resolving ambiguities or filling gaps.
@@ -78,9 +69,22 @@ async def analyze_context_sufficiency(
     cover all dimensions of the task context to leave no significant gaps in understanding, except for intentionally 
     deferred topics.
     """
+
+    # Construct the message with dynamic data
+    message_content = f"""
+    Analyze the following task and context information:
+
+    INITITAL USER INPUT (TASK): {task.short_description}
+    ---
+    CONTEXT ANSWERS: {context_answers_text}
+    ---
+    {language_instruction}
+    ---
+    """
     
     logger.info(f"Analyzing context sufficiency for the task {task.id}")
     # logger.info(f"Analysis instructions: {instructions}")
+    logger.info(f"---> REQUEST OPENAI **ContextSufficiencyAgent** ({user_language}) with message: {message_content}")
     # Create the agent
     agent = Agent(
         name="ContextSufficiencyAgent",
@@ -90,7 +94,7 @@ async def analyze_context_sufficiency(
     )
     
     # Run the agent
-    result = await Runner.run(agent, "Analyze context sufficiency for the task")
+    result = await Runner.run(agent, message_content)
     
     # Process the response
     result = result.final_output
