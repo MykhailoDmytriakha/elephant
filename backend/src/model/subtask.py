@@ -2,6 +2,8 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any, Literal, Union
 import uuid
+from datetime import datetime
+from src.model.status import StatusEnum
 
 class Subtask(BaseModel):
     id: str = Field(default_factory=lambda: f"ST-{uuid.uuid4()}", description="Unique identifier for the subtask")
@@ -15,6 +17,13 @@ class Subtask(BaseModel):
     # Execution details
     sequence_order: int = Field(..., description="Execution order within the parent ExecutableTask (0-based index)")
     executor_type: Literal["AI_AGENT", "ROBOT", "HUMAN"] = Field(..., description="Specifies the type of executor needed for this subtask")
+    # Status tracking fields
+    status: Optional[StatusEnum] = Field(default=StatusEnum.PENDING, description="Status of the subtask execution")
+    result: Optional[Any] = Field(default=None, description="Result of the subtask execution")
+    error_message: Optional[str] = Field(default=None, description="Error message if execution failed")
+    started_at: Optional[datetime] = Field(default=None, description="Timestamp when execution started")
+    completed_at: Optional[datetime] = Field(default=None, description="Timestamp when execution completed")
+    
 
 class SubtaskList(BaseModel):
     subtasks: List[Subtask]

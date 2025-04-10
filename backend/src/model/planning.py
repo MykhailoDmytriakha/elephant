@@ -1,7 +1,9 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Any
+from datetime import datetime
 from src.model.work import Work
 from src.model.artifact import Artifact
+from src.model.status import StatusEnum
 
 class Checkpoint(BaseModel):
     """
@@ -22,7 +24,13 @@ class Stage(BaseModel):
     result: List[str] = Field(default_factory=list, description="Shaping the result of the stage")
     what_should_be_delivered: List[str] | None = Field(default=None, description="What should be delivered after the stage is completed")
     checkpoints: List[Checkpoint] = Field(default_factory=list)
-    work_packages: Optional[List[Work]] = Field(default_factory=list, description="List of work packages decomposing this stage")
+    work_packages: Optional[List[Work]] = Field(default_factory=lambda: [], description="List of work packages decomposing this stage")
+    # Status tracking fields
+    status: Optional[StatusEnum] = Field(default=StatusEnum.PENDING, description="Status of the stage execution")
+    result_data: Optional[Any] = Field(default=None, description="Result of the stage execution")
+    error_message: Optional[str] = Field(default=None, description="Error message if execution failed")
+    started_at: Optional[datetime] = Field(default=None, description="Timestamp when execution started")
+    completed_at: Optional[datetime] = Field(default=None, description="Timestamp when execution completed")
 
 class Connection(BaseModel):
     """

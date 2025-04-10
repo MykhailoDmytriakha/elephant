@@ -14,3 +14,6 @@ from src.ai_agents.utils import detect_language, get_language_instruction
 
 # Export planning agent functionality
 from src.ai_agents.planning_agent import generate_network_plan 
+
+# Export chat agent functionality
+from src.ai_agents.chat_agent import stream_chat_response 

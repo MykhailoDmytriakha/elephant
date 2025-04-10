@@ -50,3 +50,5 @@ htmlcov/
 
 # macOS system files
 **/.DS_Store
+
+.data/

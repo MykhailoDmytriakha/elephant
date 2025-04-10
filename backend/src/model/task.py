@@ -18,12 +18,9 @@ class TaskState(Enum):
     CONTEXT_GATHERING = "2. Context Gathering"
     CONTEXT_GATHERED = "3. Context Gathered"
     TASK_FORMATION = "3.5. Task Formation" # Keep this intermediate state if used
-    # Consider renaming TASK_FORMATION related states if scope approval is the trigger
-    # For now, just adding missing states based on typical flow.
     IFR_GENERATED = "4. IFR Generated"
     REQUIREMENTS_GENERATED = "5. Requirements Defined"
     NETWORK_PLAN_GENERATED = "6. Network (Stages) Plan Generated"
-    # Added COMPLETED state
     HIERARCHICAL_DECOMPOSITION_COMPLETE = "7. Hierarchical Decomposition Complete" # Added decomposition state
     COMPLETED = "8. Completed" # Added completed state
 
@@ -111,23 +108,7 @@ class Task(BaseModel):
             logger.info(f"Task {self.id}: State changing from {self.state} to {new_state}")
             self.state = new_state
             self.updated_at = datetime.now().isoformat()
-        # else:
-            # logger.warning(f"Task {self.id}: Attempted invalid state transition from {self.state} to {new_state}")
-            # raise ValueError(f"Invalid state transition from {self.state} to {new_state}")
 
-    # def _is_valid_state_transition(self, new_state: TaskState) -> bool:
-    #     # This logic can be complex. Keeping it simple for now.
-    #     # Allow transition to the same state
-    #     if self.state == new_state:
-    #         return True
-    #     # Basic forward progression check (based on enum order implicitly)
-    #     try:
-    #         current_order = list(TaskState).index(self.state)
-    #         new_order = list(TaskState).index(new_state)
-    #         # Allow only forward transitions or staying in the same state
-    #         return new_order >= current_order
-    #     except ValueError:
-    #         return False # Should not happen if states are valid TaskState members
 
     def to_dict(self) -> dict:
         # Ensure enums are represented by their values in the dictionary

@@ -301,3 +301,109 @@ export const generateTasksForAllStages = async (taskId) => {
     { logging: true }
   );
 };
+
+// Function to stream assistant responses using Server-Sent Events
+export const chatWithTaskAssistant = async (taskId, message, callbacks = {}, messageHistory = []) => {
+  const { onChunk, onComplete, onError } = callbacks;
+  const endpoint = `${API_BASE_URL}/tasks/${taskId}/chat/stream`;
+  
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        message,
+        message_history: messageHistory
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage;
+      try {
+        // Try to parse error as JSON
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.detail || errorJson.message || `HTTP error! status: ${response.status}`;
+      } catch (e) {
+        // If parsing fails, use the raw text
+        errorMessage = errorText || `HTTP error! status: ${response.status}`;
+      }
+      throw new Error(errorMessage);
+    }
+    
+    // Process the stream using the EventSource API
+    const reader = response.body.getReader();
+    let fullResponse = '';
+    const decoder = new TextDecoder();
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      // Decode the chunk
+      const text = decoder.decode(value, { stream: true });
+      
+      // Process SSE format (data: {...})
+      const lines = text.split('\n\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.substring(6));
+            
+            if (data.chunk) {
+              fullResponse += data.chunk;
+              if (onChunk) onChunk(data.chunk);
+            }
+            
+            if (data.done) {
+              if (onComplete) onComplete(fullResponse);
+              break;
+            }
+            
+            if (data.error) {
+              // Handle error data from the stream
+              const errorMessage = data.error;
+              console.error('Stream error:', errorMessage);
+              if (onError) {
+                onError(new Error(errorMessage));
+              } else {
+                // If no error callback, send it to the chunk stream with error formatting
+                const errorChunk = `\n\n⚠️ Error: ${errorMessage}`;
+                if (onChunk) onChunk(errorChunk);
+                fullResponse += errorChunk;
+              }
+            }
+          } catch (e) {
+            console.warn('Error parsing SSE data:', e);
+            // Send parse error to stream if no error handler
+            if (!onError && onChunk) {
+              const errorChunk = `\n\n⚠️ Error parsing stream data`;
+              onChunk(errorChunk);
+              fullResponse += errorChunk;
+            }
+          }
+        }
+      }
+    }
+    
+    return fullResponse;
+  } catch (error) {
+    console.error('Error in chatWithTaskAssistant:', error);
+    
+    // Format a user-friendly error message
+    const errorMessage = error.message || 'Failed to connect to assistant';
+    
+    // If there's an error callback, use it
+    if (onError) {
+      onError(error);
+    } else if (onChunk) {
+      // Otherwise display the error in the chat stream
+      onChunk(`\n\n⚠️ Error: ${errorMessage}`);
+    }
+    
+    // Rethrow after handling to allow the component to handle it
+    throw error;
+  }
+};

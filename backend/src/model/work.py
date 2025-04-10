@@ -1,9 +1,11 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Any
 from enum import Enum
 import uuid
+from datetime import datetime
 from src.model.executable_task import ExecutableTask
 from src.model.artifact import Artifact
+from src.model.status import StatusEnum
 
 class Work(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Unique identifier for the work package.")
@@ -16,7 +18,13 @@ class Work(BaseModel):
     expected_outcome: str = Field(..., description="Description of the state or capability achieved upon completion (min 10 chars)")
     generated_artifacts: List[Artifact] = Field(default_factory=list, description="Tangible artifacts produced by this work")
     validation_criteria: List[str] = Field(default_factory=list, description="At least one automatable criterion to verify successful completion")
-    tasks: Optional[List[ExecutableTask]] = Field(default_factory=list, description="List of executable tasks decomposing this work package")
+    tasks: Optional[List[ExecutableTask]] = Field(default_factory=lambda: [], description="List of executable tasks decomposing this work package")
+    # Status tracking fields
+    status: Optional[StatusEnum] = Field(default=StatusEnum.PENDING, description="Status of the work execution")
+    result: Optional[Any] = Field(default=None, description="Result of the work execution")
+    error_message: Optional[str] = Field(default=None, description="Error message if execution failed")
+    started_at: Optional[datetime] = Field(default=None, description="Timestamp when execution started")
+    completed_at: Optional[datetime] = Field(default=None, description="Timestamp when execution completed")
 
 class WorkList(BaseModel):
     work_packages: List[Work]

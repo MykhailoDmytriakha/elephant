@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Optional, cast
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
+from typing import List, Optional, cast, AsyncGenerator
 import logging
 import json
 import asyncio
@@ -14,6 +15,7 @@ from src.model.planning import NetworkPlan, Stage
 from src.model.work import Work
 from src.model.executable_task import ExecutableTask
 from src.model.subtask import Subtask
+from src.schemas.chat import ChatRequest, ChatResponse
 
 # Service imports
 from src.services.problem_analyzer import ProblemAnalyzer
@@ -57,8 +59,12 @@ from src.constants import (
     SUCCESS_ALL_TASKS_DELETED,
     ERROR_EMPTY_LIST,
     ERROR_PARTIAL_SUCCESS,
-    ERROR_CONCURRENT_OPERATION
+    ERROR_CONCURRENT_OPERATION,
+    OP_CHAT,
 )
+
+# Import the chat agent
+from src.ai_agents import stream_chat_response
 
 logger = logging.getLogger(__name__)
 
@@ -765,3 +771,73 @@ async def edit_context_summary_endpoint(
     # The updated_task should already be saved in the DB by the analyzer service
     # but we return it to the frontend
     return updated_task
+
+# =============== Chat Endpoints ===============
+
+@router.post("/{task_id}/chat", response_model=ChatResponse)
+@api_error_handler(OP_CHAT)
+async def chat_with_task_assistant(
+    task_id: str,
+    chat_request: ChatRequest,
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Chat with an AI assistant about the task (non-streaming version)
+    """
+    # Get the task data
+    task_data = db.fetch_task_by_id(task_id)
+    task = deserialize_task(task_data, task_id)
+    
+    # Collect the full response
+    full_response = ""
+    async for chunk in stream_chat_response(task, chat_request.message, chat_request.message_history):
+        full_response += chunk
+    
+    return ChatResponse(response=full_response, task_id=task_id)
+
+@router.post("/{task_id}/chat/stream")
+@api_error_handler(OP_CHAT)
+async def stream_chat_with_task_assistant(
+    task_id: str,
+    chat_request: ChatRequest,
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Chat with an AI assistant about the task (streaming version)
+    """
+    async def event_generator():
+        """Generate events for server-sent events (SSE)"""
+        try:
+            # Get the task data
+            task_data = db.fetch_task_by_id(task_id)
+            task = deserialize_task(task_data, task_id)
+            
+            async for chunk in stream_chat_response(task, chat_request.message, chat_request.message_history):
+                if chunk:
+                    # Ensure chunk is a string before JSON serialization
+                    chunk_str = str(chunk)
+                    # Format as SSE
+                    yield f"data: {json.dumps({'chunk': chunk_str})}\n\n"
+            
+            # Send completion event
+            yield f"data: {json.dumps({'done': True})}\n\n"
+        
+        except TaskNotFoundException as e:
+            logger.error(f"Task not found: {str(e)}")
+            yield f"data: {json.dumps({'error': f'Task not found: {task_id}'})}\n\n"
+        except DeserializationException as e:
+            logger.error(f"Error deserializing task: {str(e)}")
+            yield f"data: {json.dumps({'error': f'Error loading task data: {str(e)}'})}\n\n"
+        except Exception as e:
+            logger.error(f"Error in streaming chat: {str(e)}")
+            yield f"data: {json.dumps({'error': f'Error: {str(e)}'})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable buffering for nginx
+        }
+    )
