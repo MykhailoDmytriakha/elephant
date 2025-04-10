@@ -5,7 +5,7 @@ import json # Ensure json is imported
 from src.model.task import Task
 from src.ai_agents.utils import detect_language, get_language_instruction
 # Import the filesystem tools
-from src.ai_agents.filesystem_tools import filesystem_tools_list # Import the list
+from src.ai_agents.tools.filesystem_tools import filesystem_tools_list # Import the list
 
 logger = logging.getLogger(__name__)
 
