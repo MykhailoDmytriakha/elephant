@@ -9,7 +9,7 @@ from src.model.work import Work
 from src.model.executable_task import ExecutableTask
 from src.model.subtask import Subtask, SubtaskList # Import Subtask models
 from src.ai_agents.utils import detect_language, get_language_instruction
-
+from src.model.status import StatusEnum
 logger = logging.getLogger(__name__)
 
 try:
@@ -157,6 +157,7 @@ async def generate_subtasks(
                 sub_task.parent_work_id = work.id
                 sub_task.parent_stage_id = stage.id
                 sub_task.parent_task_id = task.id
+                sub_task.status = StatusEnum.PENDING
             return generated_subtasks
         else:
             logger.warning(f"Agent returned unexpected result or empty list for ExecutableTask ID: {executable_task.id}. Result: {subtask_list_result}")

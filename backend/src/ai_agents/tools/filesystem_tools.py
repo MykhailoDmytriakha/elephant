@@ -106,16 +106,14 @@ if AGENTS_SDK_AVAILABLE:
             path: The relative path to the file from the allowed base directory.
 
         Returns:
-            The content of the file as a string (truncated for preview), or an error message starting with 'Error:'.
+            The content of the file as a string, or an error message starting with 'Error:'.
         """
         logger.info(f"Tool executed: read_file (Path: {path})")
         try:
             valid_path = _validate_path(path, check_existence=True, check_is_dir=False)
             content = valid_path.read_text(encoding='utf-8')
             logger.info(f"Successfully read file: {valid_path}")
-            preview_limit = 1000
-            preview = content[:preview_limit] + ('... (truncated)' if len(content) > preview_limit else '')
-            return f"Content of '{path}':\n```\n{preview}\n```"
+            return f"Content of '{path}':\n```\n{content}\n```"
         except (ValidationException, FileNotFoundError, IsADirectoryError, PermissionError, UnicodeDecodeError) as e:
             logger.error(f"Error reading file '{path}': {e}")
             return _format_error("read_file", path, str(e))
@@ -132,7 +130,7 @@ if AGENTS_SDK_AVAILABLE:
             paths: A list of relative paths to the files from the allowed base directory.
 
         Returns:
-            A string containing the contents of successfully read files (truncated previews),
+            A string containing the contents of successfully read files,
             separated by '---', including error messages for files that could not be read.
         """
         logger.info(f"Tool executed: read_multiple_files (Paths: {paths})")
@@ -145,9 +143,7 @@ if AGENTS_SDK_AVAILABLE:
                 valid_path = _validate_path(p, check_existence=True, check_is_dir=False)
                 content = valid_path.read_text(encoding='utf-8')
                 logger.info(f"Successfully read file: {valid_path}")
-                preview_limit = 500
-                preview = content[:preview_limit] + ('... (truncated)' if len(content) > preview_limit else '')
-                results.append(f"--- Content of '{p}': ---\n```\n{preview}\n```")
+                results.append(f"--- Content of '{p}': ---\n```\n{content}\n```")
             except (ValidationException, FileNotFoundError, IsADirectoryError, PermissionError, UnicodeDecodeError) as e:
                 logger.error(f"Error reading file '{p}': {e}")
                 results.append(f"--- Error reading file '{p}': {e} ---")
@@ -414,57 +410,56 @@ if AGENTS_SDK_AVAILABLE:
     @function_tool
     def directory_tree(path: str) -> str:
         """
-        Generates a JSON representation of the directory structure starting from the specified path.
+        Generates a string representation of the directory structure starting from the specified path.
         Only includes accessible files and directories within the allowed scope.
 
         Args:
             path: The relative path to the root directory for the tree view. Use '.' for the base directory.
 
         Returns:
-            A JSON string representing the directory tree, or a JSON object with an error message.
+            A string representing the directory tree, or an error message.
         """
         logger.info(f"Tool executed: directory_tree (Path: {path})")
         try:
             valid_root_path = _validate_path(path, check_existence=True, check_is_dir=True)
 
-            def build_tree(current_path: Path) -> List[Dict[str, Any]]:
-                tree: List[Dict[str, Any]] = []
+            def build_tree(current_path: Path, prefix: str = "") -> List[str]:
+                tree: List[str] = []
                 try:
                     for entry in sorted(current_path.iterdir(), key=lambda p: p.name):
                         if settings.ALLOWED_BASE_DIR_RESOLVED:
                             entry_relative_path_str = str(entry.relative_to(settings.ALLOWED_BASE_DIR_RESOLVED))
                             try:
                                 entry_valid_path = _validate_path(entry_relative_path_str, check_existence=True)
-                                entry_data: Dict[str, Any] = {
-                                    "name": entry.name,
-                                    "type": "directory" if entry_valid_path.is_dir() else "file"
-                                }
+                                entry_name = entry.name
+                                tree.append(f"{prefix}- {entry_name}{'/' if entry_valid_path.is_dir() else ''}")
                                 if entry_valid_path.is_dir():
-                                    children = build_tree(entry_valid_path)
-                                    entry_data["children"] = children
-                                tree.append(entry_data)
+                                    children = build_tree(entry_valid_path, prefix + "  |")
+                                    tree.extend(children)
                             except (ValidationException, FileNotFoundError, PermissionError) as ve:
                                 logger.warning(f"Skipping entry '{entry.name}' in tree view for '{path}': {ve}")
                             except Exception as inner_e:
                                 logger.error(f"Error processing entry '{entry.name}' in tree view for '{path}': {inner_e}", exc_info=True)
                 except PermissionError as pe:
                     logger.warning(f"Permission denied reading directory '{current_path}' for tree view: {pe}")
-                    tree.append({"name": f"Error accessing {current_path.name}", "type": "error", "message": "Permission Denied"})
+                    tree.append(f"{prefix}- Error accessing {current_path.name}: Permission Denied")
                 except Exception as e:
-                     logger.error(f"Error iterating directory {current_path} for tree: {e}", exc_info=True)
-                     tree.append({"name": f"Error iterating {current_path.name}", "type": "error", "message": str(e)})
+                    logger.error(f"Error iterating directory {current_path} for tree: {e}", exc_info=True)
+                    tree.append(f"{prefix}- Error iterating {current_path.name}: {str(e)}")
                 return tree
 
             tree_data = build_tree(valid_root_path)
             logger.info(f"Successfully generated directory tree for: {valid_root_path}")
-            return json.dumps(tree_data, indent=2)
+            if not tree_data:
+                return f"Directory '{path}' is empty or inaccessible."
+            return f"Directory tree for '{path}':\n" + "\n".join(tree_data)
 
         except (ValidationException, FileNotFoundError, NotADirectoryError, PermissionError) as e:
             logger.error(f"Error generating directory tree for '{path}': {e}")
-            return json.dumps({"error": _format_error("directory_tree", path, str(e))}, indent=2)
+            return _format_error("directory_tree", path, str(e))
         except Exception as e:
             logger.exception(f"Unexpected error generating directory tree for '{path}'")
-            return json.dumps({"error": _format_error("directory_tree", path, f"Unexpected error: {e}")}, indent=2)
+            return _format_error("directory_tree", path, f"Unexpected error: {e}")
 
     @function_tool
     def move_file(source: str, destination: str) -> str:
@@ -630,7 +625,7 @@ else:
 
     def create_directory(path: str) -> str: return _format_error("create_directory", path, "Operation failed")
     def list_directory(path: str) -> str: return _format_error("list_directory", path, "Operation failed")
-    def directory_tree(path: str) -> str: return json.dumps({"error": _format_error("directory_tree", path, "Operation failed")}, indent=2)
+    def directory_tree(path: str) -> str: return _format_error("directory_tree", path, "Operation failed")
     def move_file(source: str, destination: str) -> str: return _format_error("move_file", source, "Operation failed")
     def search_files(path: str, pattern: str, case_sensitive: bool) -> str: return _format_error("search_files", path, "Operation failed")
     def get_file_info(path: str) -> str: return _format_error("get_file_info", path, "Operation failed")

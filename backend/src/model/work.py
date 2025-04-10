@@ -20,11 +20,11 @@ class Work(BaseModel):
     validation_criteria: List[str] = Field(default_factory=list, description="At least one automatable criterion to verify successful completion")
     tasks: Optional[List[ExecutableTask]] = Field(default_factory=lambda: [], description="List of executable tasks decomposing this work package")
     # Status tracking fields
-    status: Optional[StatusEnum] = Field(default=StatusEnum.PENDING, description="Status of the work execution")
-    result: Optional[Any] = Field(default=None, description="Result of the work execution")
+    status: Optional[StatusEnum] = Field(None, description="Status of the work execution")
+    result: Optional[str] = Field(None, description="Result of the work execution as a string")
     error_message: Optional[str] = Field(default=None, description="Error message if execution failed")
-    started_at: Optional[datetime] = Field(default=None, description="Timestamp when execution started")
-    completed_at: Optional[datetime] = Field(default=None, description="Timestamp when execution completed")
+    started_at: Optional[str] = Field(None, description="Timestamp when execution started (ISO format)")
+    completed_at: Optional[str] = Field(None, description="Timestamp when execution completed (ISO format)")
 
 class WorkList(BaseModel):
     work_packages: List[Work]

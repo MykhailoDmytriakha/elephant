@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, ChevronDown, ChevronRight, Layers, Workflow, Minimize2, Maximize2, MessageCircle } from 'lucide-react';
 import { LoadingSpinner, ErrorDisplay } from '../components/task/TaskComponents';
 import { useTaskDetails } from '../hooks/useTaskDetails';
-import { generateAllWorkPackages, generateTasksForAllStages, chatWithTaskAssistant } from '../utils/api';
+import { generateAllWorkPackages, generateTasksForAllStages, chatWithTaskAssistant, loadTaskDataOnly } from '../utils/api';
 import { useToast } from '../components/common/ToastProvider';
 import TaskStreamingChat from '../components/task/TaskStreamingChat';
 
@@ -24,6 +24,12 @@ export default function AllStagesPage() {
   const [isGeneratingAllTasks, setIsGeneratingAllTasks] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isChatExpanded, setIsChatExpanded] = useState(true);
+  
+  // Store chat history at this level to prevent it from resetting during task updates
+  const [chatHistory, setChatHistory] = useState([]);
+  const [streamingMessage, setStreamingMessage] = useState('');
+  const [chatError, setChatError] = useState(null);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   // Use the task details hook for fetching data
   const {
@@ -31,6 +37,7 @@ export default function AllStagesPage() {
     loading,
     error,
     loadTask,
+    setTask,
   } = useTaskDetails(taskId);
 
   // Initialize all stages as expanded by default
@@ -91,7 +98,8 @@ export default function AllStagesPage() {
     try {
       await generateAllWorkPackages(taskId);
       toast.showSuccess('Successfully generated work packages for all stages.');
-      await loadTask();
+      // Update only task stages data, not the entire UI
+      await loadTaskStagesOnly();
     } catch (error) {
       console.error("Error generating all work packages:", error);
       toast.showError(`Failed to generate work packages: ${error.message || 'Unknown error'}`);
@@ -107,7 +115,8 @@ export default function AllStagesPage() {
     try {
       await generateTasksForAllStages(taskId);
       toast.showSuccess('Successfully generated tasks for all stages.');
-      await loadTask();
+      // Update only task stages data, not the entire UI
+      await loadTaskStagesOnly();
     } catch (error) {
       console.error("Error generating tasks for all stages:", error);
       toast.showError(`Failed to generate tasks: ${error.message || 'Unknown error'}`);
@@ -116,18 +125,119 @@ export default function AllStagesPage() {
     }
   };
 
+  // New function to load only the task stages without affecting the chat panel
+  const loadTaskStagesOnly = async () => {
+    if (!taskId) return;
+    try {
+      const updatedTask = await loadTaskDataOnly(taskId);
+      if (updatedTask && updatedTask.network_plan) {
+        // Update only the relevant parts of the task state, keeping chat state intact
+        setTask(prevTask => ({
+          ...prevTask,
+          network_plan: updatedTask.network_plan
+        }));
+      }
+    } catch (error) {
+      console.error("Error loading task stages:", error);
+      toast.showError(`Failed to load task stages: ${error.message || 'Unknown error'}`);
+    }
+  };
+
   // Handler for chat messages
   const handleSendChatMessage = async (message, callbacks, messageHistory) => {
     if (!taskId) return;
     setIsChatLoading(true);
-    try {
-      await chatWithTaskAssistant(taskId, message, callbacks, messageHistory);
-    } catch (error) {
-      console.error("Error in chat:", error);
-      toast.showError(`Chat error: ${error.message || 'Unknown error'}`);
-    } finally {
-      setIsChatLoading(false);
+    setChatError(null);
+    setIsStreaming(true);
+    
+    const isEdit = messageHistory.length < chatHistory.length && 
+                   chatHistory[messageHistory.length]?.role === 'user' &&
+                   chatHistory[messageHistory.length + 1]?.role === 'assistant';
+                   
+    let currentChatHistory = chatHistory;
+    let editIndex = -1;
+    
+    if (isEdit) {
+        // This is an edit, update the history
+        editIndex = messageHistory.length; // The index of the message being edited
+        console.log(`Detected edit at index: ${editIndex}`);
+        // Truncate the history and replace the edited message
+        currentChatHistory = [
+            ...chatHistory.slice(0, editIndex),
+            { role: 'user', content: message } // Replace with the new message content
+        ];
+        // Update the state immediately to reflect the truncated history + edited message
+        setChatHistory(currentChatHistory);
+        // We will add the assistant's response later
+        setStreamingMessage(''); // Clear any previous streaming message
+    } else {
+        // This is a new message, add user message to chat history
+        const userMessage = { role: 'user', content: message };
+        setChatHistory(prev => [...prev, userMessage]);
+        currentChatHistory = [...chatHistory, userMessage]; // Use updated history for API call
     }
+    
+    try {
+      const customCallbacks = {
+        onChunk: (chunk) => {
+          setStreamingMessage(prev => prev + chunk);
+          if (callbacks?.onChunk) callbacks.onChunk(chunk);
+        },
+        onComplete: (fullResponse) => {
+          setChatHistory(prev => [...prev, { role: 'assistant', content: fullResponse }]);
+          setStreamingMessage('');
+          setIsStreaming(false);
+          if (callbacks?.onComplete) callbacks.onComplete(fullResponse);
+        },
+        onError: (error) => {
+          console.error("Error in chat:", error);
+          const errorMessage = error.message || 'Unknown error';
+          setChatError(errorMessage);
+          setIsStreaming(false);
+          setChatHistory(prev => [...prev, { 
+            role: 'system', 
+            content: `Error: ${errorMessage}`
+          }]);
+          if (callbacks?.onError) callbacks.onError(error);
+        }
+      };
+      
+      // Use the potentially truncated history for the API call
+      const historyForApi = currentChatHistory.map(msg => ({
+          role: msg.role,
+          content: msg.content
+      }));
+      
+      await chatWithTaskAssistant(taskId, message, customCallbacks, historyForApi);
+    } catch (error) {
+      console.error("Error in chat handling:", error);
+      const errorMessage = error.message || 'Unknown error';
+      setChatError(errorMessage);
+      setIsStreaming(false);
+      toast.showError(`Chat error: ${errorMessage}`);
+      // Ensure the system error message is added to the potentially updated history
+      setChatHistory(prev => [...prev, { 
+        role: 'system', 
+        content: `Error: ${errorMessage}`
+      }]);
+    } finally {
+      // Don't set isLoading to false here if streaming is still happening
+      // It will be set in onComplete/onError
+      // Set loading to false only if not streaming anymore (e.g., initial error)
+      if (!isStreaming) {
+           setIsChatLoading(false); 
+      }
+       // Ensure streaming message is cleared if an error occurred before completion
+       // setStreamingMessage(''); // This is handled in onComplete/onError now
+    }
+  };
+  
+  // Handler to reset chat
+  const handleResetChat = () => {
+    setChatHistory([]);
+    setStreamingMessage('');
+    setChatError(null);
+    setIsStreaming(false);
   };
 
   // Check if any stage already has work packages
@@ -306,10 +416,10 @@ export default function AllStagesPage() {
             <div className="flex-grow overflow-y-auto p-4 space-y-4">
               <div className="space-y-2">
                 {task.network_plan.stages.map((stage, stageIndex) => (
-                  <div key={stage.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div key={stage.id} className="border-2 border-indigo-300 rounded-lg overflow-hidden">
                     {/* Stage Header */}
                     <div 
-                      className="flex items-center justify-between bg-gray-50 p-3 cursor-pointer hover:bg-gray-100"
+                      className="flex items-center justify-between bg-indigo-50 p-3 cursor-pointer hover:bg-indigo-100"
                       onClick={() => toggleStage(stage.id)}
                     >
                       <div className="flex items-center gap-2">
@@ -349,6 +459,89 @@ export default function AllStagesPage() {
                           </div>
                         )}
                         
+                        {/* Stage Additional Details */}
+                        <div className="mb-3 bg-white p-2 rounded border border-gray-200 text-xs">
+                          <div className="grid grid-cols-2 gap-2">
+                            {stage.sequence_order !== undefined && (
+                              <div>
+                                <span className="font-medium">Sequence:</span> {stage.sequence_order}
+                              </div>
+                            )}
+                            {stage.status && (
+                              <div>
+                                <span className="font-medium">Status:</span> 
+                                <span className={`ml-1 px-1.5 py-0.5 rounded ${
+                                  stage.status === 'Completed' ? 'bg-green-200 text-green-800 border border-green-300' : 
+                                  stage.status === 'Failed' ? 'bg-red-200 text-red-800 border border-red-300' : 
+                                  stage.status === 'In Progress' ? 'bg-yellow-200 text-yellow-800 border border-yellow-300' : 
+                                  stage.status === 'Waiting' ? 'bg-blue-200 text-blue-800 border border-blue-300' :
+                                  stage.status === 'Cancelled' ? 'bg-purple-200 text-purple-800 border border-purple-300' :
+                                  'bg-gray-200 text-gray-700 border border-gray-300'
+                                }`}>
+                                  {stage.status}
+                                </span>
+                              </div>
+                            )}
+                            {stage.started_at && (
+                              <div>
+                                <span className="font-medium">Started:</span> {new Date(stage.started_at).toLocaleString()}
+                              </div>
+                            )}
+                            {stage.completed_at && (
+                              <div>
+                                <span className="font-medium">Completed:</span> {new Date(stage.completed_at).toLocaleString()}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Dependencies section for stages if applicable */}
+                          {stage.dependencies && stage.dependencies.length > 0 && (
+                            <div className="mt-2">
+                              <span className="font-medium">Dependencies:</span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {stage.dependencies.map(dep => (
+                                  <span key={dep} className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-xs">
+                                    {dep}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Additional stage information if available */}
+                          {stage.metadata && Object.keys(stage.metadata).length > 0 && (
+                            <div className="mt-2">
+                              <span className="font-medium">Additional Info:</span>
+                              <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1">
+                                {Object.entries(stage.metadata).map(([key, value]) => (
+                                  <div key={key} className="text-xs">
+                                    <span className="font-medium">{key}:</span> {typeof value === 'object' ? JSON.stringify(value) : value}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Result/Error display for stages if applicable */}
+                          {stage.result && (
+                            <div className="mt-2">
+                              <span className="font-medium">Result:</span>
+                              <div className="mt-1 p-1 bg-gray-50 rounded border border-gray-300 max-h-24 overflow-y-auto">
+                                {stage.result}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {stage.error_message && (
+                            <div className="mt-2">
+                              <span className="font-medium text-red-600">Error:</span>
+                              <div className="mt-1 p-1 bg-red-50 rounded border border-red-200 max-h-24 overflow-y-auto text-red-800">
+                                {stage.error_message}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
                         {/* If no work packages */}
                         {(!stage.work_packages || stage.work_packages.length === 0) && (
                           <div className="text-sm text-gray-500 italic p-2">
@@ -359,11 +552,11 @@ export default function AllStagesPage() {
                         {/* Work packages list */}
                         <div className="space-y-2">
                           {stage.work_packages?.map((work, workIndex) => (
-                            <div key={work.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                            <div key={work.id} className="border-2 border-blue-300 rounded-lg overflow-hidden">
                               {/* Work content */}
                               {/* Work Package Header */}
                               <div 
-                                className="flex items-center justify-between bg-gray-50 p-2 cursor-pointer hover:bg-gray-100"
+                                className="flex items-center justify-between bg-blue-50 p-2 cursor-pointer hover:bg-blue-100"
                                 onClick={() => toggleWork(work.id)}
                               >
                                 <div className="flex items-center gap-2">
@@ -392,6 +585,75 @@ export default function AllStagesPage() {
                                     </div>
                                   )}
                                   
+                                  {/* Work Package Additional Details */}
+                                  <div className="mb-3 bg-white p-2 rounded border border-gray-200 text-xs">
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {work.sequence_order !== undefined && (
+                                        <div>
+                                          <span className="font-medium">Sequence:</span> {work.sequence_order}
+                                        </div>
+                                      )}
+                                      {work.status && (
+                                        <div>
+                                          <span className="font-medium">Status:</span> 
+                                          <span className={`ml-1 px-1.5 py-0.5 rounded ${
+                                            work.status === 'Completed' ? 'bg-green-200 text-green-800 border border-green-300' : 
+                                            work.status === 'Failed' ? 'bg-red-200 text-red-800 border border-red-300' : 
+                                            work.status === 'In Progress' ? 'bg-yellow-200 text-yellow-800 border border-yellow-300' :
+                                            work.status === 'Waiting' ? 'bg-blue-200 text-blue-800 border border-blue-300' :
+                                            work.status === 'Cancelled' ? 'bg-purple-200 text-purple-800 border border-purple-300' :
+                                            'bg-gray-200 text-gray-700 border border-gray-300'
+                                          }`}>
+                                            {work.status}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {work.started_at && (
+                                        <div>
+                                          <span className="font-medium">Started:</span> {new Date(work.started_at).toLocaleString()}
+                                        </div>
+                                      )}
+                                      {work.completed_at && (
+                                        <div>
+                                          <span className="font-medium">Completed:</span> {new Date(work.completed_at).toLocaleString()}
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Dependencies section for work packages if applicable */}
+                                    {work.dependencies && work.dependencies.length > 0 && (
+                                      <div className="mt-2">
+                                        <span className="font-medium">Dependencies:</span>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {work.dependencies.map(dep => (
+                                            <span key={dep} className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-xs">
+                                              {dep}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Result/Error display for work packages if applicable */}
+                                    {work.result && (
+                                      <div className="mt-2">
+                                        <span className="font-medium">Result:</span>
+                                        <div className="mt-1 p-1 bg-gray-50 rounded border border-gray-300 max-h-24 overflow-y-auto">
+                                          {work.result}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {work.error_message && (
+                                      <div className="mt-2">
+                                        <span className="font-medium text-red-600">Error:</span>
+                                        <div className="mt-1 p-1 bg-red-50 rounded border border-red-200 max-h-24 overflow-y-auto text-red-800">
+                                          {work.error_message}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
                                   {/* If no tasks */}
                                   {(!work.tasks || work.tasks.length === 0) && (
                                     <div className="text-sm text-gray-500 italic p-2">
@@ -402,10 +664,10 @@ export default function AllStagesPage() {
                                   {/* Tasks list */}
                                   <div className="space-y-2">
                                     {work.tasks?.map((task, taskIndex) => (
-                                      <div key={task.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                                      <div key={task.id} className="border-2 border-purple-300 rounded-lg overflow-hidden">
                                         {/* Task Header */}
                                         <div 
-                                          className="flex items-center justify-between bg-gray-50 p-2 cursor-pointer hover:bg-gray-100"
+                                          className="flex items-center justify-between bg-purple-50 p-2 cursor-pointer hover:bg-purple-100"
                                           onClick={() => toggleTask(task.id)}
                                         >
                                           <div className="flex items-center gap-2">
@@ -432,9 +694,118 @@ export default function AllStagesPage() {
                                               <span className="font-medium">Description:</span> {task.description}
                                             </div>
                                             
+                                            {/* Task Additional Details */}
+                                            <div className="mb-3 bg-white p-2 rounded border border-gray-200 text-xs">
+                                              <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                  <span className="font-medium">Status:</span> 
+                                                  <span className={`ml-1 px-1.5 py-0.5 rounded ${
+                                                    task.status === 'Completed' ? 'bg-green-200 text-green-800 border border-green-300' : 
+                                                    task.status === 'Failed' ? 'bg-red-200 text-red-800 border border-red-300' : 
+                                                    task.status === 'In Progress' ? 'bg-yellow-200 text-yellow-800 border border-yellow-300' :
+                                                    task.status === 'Waiting' ? 'bg-blue-200 text-blue-800 border border-blue-300' :
+                                                    task.status === 'Cancelled' ? 'bg-purple-200 text-purple-800 border border-purple-300' :
+                                                    'bg-gray-200 text-gray-700 border border-gray-300'
+                                                  }`}>
+                                                    {task.status || 'Pending'}
+                                                  </span>
+                                                </div>
+                                                <div>
+                                                  <span className="font-medium">Sequence:</span> {task.sequence_order}
+                                                </div>
+                                                {task.started_at && (
+                                                  <div>
+                                                    <span className="font-medium">Started:</span> {new Date(task.started_at).toLocaleString()}
+                                                  </div>
+                                                )}
+                                                {task.completed_at && (
+                                                  <div>
+                                                    <span className="font-medium">Completed:</span> {new Date(task.completed_at).toLocaleString()}
+                                                  </div>
+                                                )}
+                                              </div>
+                                              
+                                              {/* Dependencies section */}
+                                              {task.dependencies && task.dependencies.length > 0 && (
+                                                <div className="mt-2">
+                                                  <span className="font-medium">Dependencies:</span>
+                                                  <div className="flex flex-wrap gap-1 mt-1">
+                                                    {task.dependencies.map(dep => (
+                                                      <span key={dep} className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-xs">
+                                                        {dep}
+                                                      </span>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                              
+                                              {/* Required Inputs */}
+                                              {task.required_inputs && task.required_inputs.length > 0 && (
+                                                <div className="mt-2">
+                                                  <span className="font-medium">Required Inputs:</span>
+                                                  <div className="mt-1">
+                                                    {task.required_inputs.map((input, idx) => (
+                                                      <div key={idx} className="text-xs py-0.5">
+                                                        • {input.name} ({input.type})
+                                                        {input.description && <span className="text-gray-500 ml-1">- {input.description}</span>}
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                              
+                                              {/* Generated Artifacts */}
+                                              {task.generated_artifacts && task.generated_artifacts.length > 0 && (
+                                                <div className="mt-2">
+                                                  <span className="font-medium">Generated Artifacts:</span>
+                                                  <div className="mt-1">
+                                                    {task.generated_artifacts.map((artifact, idx) => (
+                                                      <div key={idx} className="text-xs py-0.5">
+                                                        • {artifact.name} ({artifact.type})
+                                                        {artifact.description && <span className="text-gray-500 ml-1">- {artifact.description}</span>}
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                              
+                                              {/* Validation Criteria */}
+                                              {task.validation_criteria && task.validation_criteria.length > 0 && (
+                                                <div className="mt-2">
+                                                  <span className="font-medium">Validation Criteria:</span>
+                                                  <div className="mt-1">
+                                                    {task.validation_criteria.map((criteria, idx) => (
+                                                      <div key={idx} className="text-xs py-0.5">
+                                                        • {criteria}
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                              
+                                              {/* Result/Error display */}
+                                              {task.result && (
+                                                <div className="mt-2">
+                                                  <span className="font-medium">Result:</span>
+                                                  <div className="mt-1 p-1 bg-gray-50 rounded border border-gray-300 max-h-24 overflow-y-auto">
+                                                    {task.result}
+                                                  </div>
+                                                </div>
+                                              )}
+                                              
+                                              {task.error_message && (
+                                                <div className="mt-2">
+                                                  <span className="font-medium text-red-600">Error:</span>
+                                                  <div className="mt-1 p-1 bg-red-50 rounded border border-red-200 max-h-24 overflow-y-auto text-red-800">
+                                                    {task.error_message}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                            
                                             {/* If no subtasks */}
                                             {(!task.subtasks || task.subtasks.length === 0) && (
-                                              <div className="text-sm text-gray-500 italic">
+                                              <div className="text-sm text-gray-500 italic p-2">
                                                 No subtasks generated yet.
                                               </div>
                                             )}
@@ -442,14 +813,28 @@ export default function AllStagesPage() {
                                             {/* Subtasks list */}
                                             <div className="space-y-1">
                                               {task.subtasks?.map((subtask, subtaskIndex) => (
-                                                <div key={subtask.id} className="border border-gray-200 rounded p-2 bg-gray-50">
+                                                <div key={subtask.id} className={`border-2 rounded p-2 ${
+                                                  subtask.status === 'Completed' ? 'border-green-400 bg-green-50' :
+                                                  subtask.status === 'Failed' ? 'border-red-400 bg-red-50' :
+                                                  subtask.status === 'In Progress' ? 'border-yellow-400 bg-yellow-50' :
+                                                  subtask.status === 'Waiting' ? 'border-blue-400 bg-blue-50' :
+                                                  subtask.status === 'Cancelled' ? 'border-purple-400 bg-purple-50' :
+                                                  'border-gray-300 bg-gray-50'
+                                                }`}>
                                                   <div className="flex items-center justify-between">
                                                     <span className="text-sm">
                                                       {stageIndex + 1}.{workIndex + 1}.{taskIndex + 1}.{subtaskIndex + 1} {subtask.name || subtask.subtask_name || subtask.description?.slice(0, 30) + "..." || `Subtask ${subtask.id}`}
                                                       <span className="ml-2 text-xs text-gray-500">ID: {subtask.id}</span>
                                                     </span>
-                                                    <span className="text-xs bg-gray-200 text-gray-700 py-0.5 px-2 rounded-full">
-                                                      {subtask.executor_type || 'Unknown'}
+                                                    <span className={`text-xs py-0.5 px-2 rounded-full ${
+                                                      subtask.status === 'Completed' ? 'bg-green-200 text-green-800 border border-green-300' :
+                                                      subtask.status === 'Failed' ? 'bg-red-200 text-red-800 border border-red-300' :
+                                                      subtask.status === 'In Progress' ? 'bg-yellow-200 text-yellow-800 border border-yellow-300' :
+                                                      subtask.status === 'Waiting' ? 'bg-blue-200 text-blue-800 border border-blue-300' :
+                                                      subtask.status === 'Cancelled' ? 'bg-purple-200 text-purple-800 border border-purple-300' :
+                                                      'bg-gray-200 text-gray-700 border border-gray-300'
+                                                    }`}>
+                                                      {subtask.status || 'Pending'} | {subtask.executor_type || 'Unknown'}
                                                     </span>
                                                   </div>
                                                   {subtask.description && (
@@ -457,6 +842,46 @@ export default function AllStagesPage() {
                                                       {subtask.description}
                                                     </p>
                                                   )}
+                                                  
+                                                  {/* Expanded Subtask Details */}
+                                                  <div className="mt-2 text-xs border-t border-gray-200 pt-2">
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                      <div>
+                                                        <span className="font-medium">Sequence:</span> {subtask.sequence_order}
+                                                      </div>
+                                                      <div>
+                                                        <span className="font-medium">Parent Task:</span> {subtask.parent_executable_task_id}
+                                                      </div>
+                                                      {subtask.started_at && (
+                                                        <div>
+                                                          <span className="font-medium">Started:</span> {new Date(subtask.started_at).toLocaleString()}
+                                                        </div>
+                                                      )}
+                                                      {subtask.completed_at && (
+                                                        <div>
+                                                          <span className="font-medium">Completed:</span> {new Date(subtask.completed_at).toLocaleString()}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                    
+                                                    {subtask.result && (
+                                                      <div className="mt-2">
+                                                        <span className="font-medium">Result:</span>
+                                                        <div className="mt-1 p-1 bg-white rounded border border-gray-300 max-h-24 overflow-y-auto">
+                                                          {subtask.result}
+                                                        </div>
+                                                      </div>
+                                                    )}
+                                                    
+                                                    {subtask.error_message && (
+                                                      <div className="mt-2">
+                                                        <span className="font-medium text-red-600">Error:</span>
+                                                        <div className="mt-1 p-1 bg-red-50 rounded border border-red-200 max-h-24 overflow-y-auto text-red-800">
+                                                          {subtask.error_message}
+                                                        </div>
+                                                      </div>
+                                                    )}
+                                                  </div>
                                                 </div>
                                               ))}
                                             </div>
@@ -486,6 +911,13 @@ export default function AllStagesPage() {
               taskId={taskId}
               onSendMessage={handleSendChatMessage}
               isLoading={isChatLoading}
+              onResetChat={handleResetChat}
+              // Pass the preserved chat state
+              chatHistory={chatHistory}
+              streamingMessage={streamingMessage}
+              error={chatError}
+              isStreaming={isStreaming}
+              isExternallyManaged={true}
             />
           </div>
         )}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Activity, Download, Upload, ShieldCheck, ChevronsRight, RefreshCw, AlertCircle, ListTree } from 'lucide-react';
-import { CollapsibleSection } from './TaskComponents';
+import { CollapsibleSection, StatusDetailsDisplay } from './TaskComponents';
 import { SubtaskDisplay } from './SubtaskDisplay';
 
 export const ExecutableTaskDisplay = ({ task, taskIndex, taskId, stageId, workId, onGenerateSubtasks }) => {
@@ -44,6 +44,12 @@ export const ExecutableTaskDisplay = ({ task, taskIndex, taskId, stageId, workId
 
       {/* Description */}
       <p className="text-sm text-gray-700 ml-7">{task.description}</p>
+
+      {/* --- NEW: Executable Task Status Details --- */}
+      <div className="ml-7">
+        <StatusDetailsDisplay item={task} />
+      </div>
+      {/* --- END: Executable Task Status Details --- */}
 
       {/* Dependencies */}
       {task.dependencies && task.dependencies.length > 0 && (
@@ -118,13 +124,6 @@ export const ExecutableTaskDisplay = ({ task, taskIndex, taskId, stageId, workId
             className="bg-transparent shadow-none border-none p-0"
         >
            <div className="mt-3 space-y-3">
-                {isGeneratingSubtasks && (
-                    <div className="text-center py-4">
-                        <RefreshCw className="w-5 h-5 text-blue-600 mx-auto animate-spin mb-1" />
-                        <p className="text-xs text-gray-500">Generating subtasks...</p>
-                    </div>
-                )}
-
                 {!isGeneratingSubtasks && subtaskGenerationError && (
                     <div className="bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded text-xs mb-2 flex items-center gap-1">
                         <AlertCircle className="w-4 h-4" />
@@ -132,9 +131,14 @@ export const ExecutableTaskDisplay = ({ task, taskIndex, taskId, stageId, workId
                     </div>
                 )}
 
-                {!isGeneratingSubtasks && !subtaskGenerationError && (
+                {!subtaskGenerationError && (
                     <>
-                        {hasSubtasks ? (
+                        {isGeneratingSubtasks ? (
+                            <div className="text-center py-4">
+                                <RefreshCw className="w-5 h-5 text-blue-600 mx-auto animate-spin mb-1" />
+                                <p className="text-xs text-gray-500">Generating subtasks...</p>
+                            </div>
+                        ) : hasSubtasks ? (
                             <div className="space-y-2">
                                 {subtasks.map((subtaskItem) => (
                                     <SubtaskDisplay key={subtaskItem.id} subtask={subtaskItem} />

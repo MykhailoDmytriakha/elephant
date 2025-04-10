@@ -93,6 +93,7 @@ export function useTaskDetails(taskId) {
     task,
     loading,
     error,
+    setTask,
     
     // Operations
     loadTask,

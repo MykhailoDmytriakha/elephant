@@ -23,11 +23,17 @@ class ExecutableTask(BaseModel):
     validation_criteria: List[str] = Field(default_factory=lambda: [], description="Specific, automatable criteria to verify successful completion of *this* task. Min 1 item.")
     subtasks: Optional[List[Subtask]] = Field(default_factory=lambda: [], description="List of atomic subtasks decomposing this executable task")
     # Status tracking fields
-    status: Optional[StatusEnum] = Field(default=StatusEnum.PENDING, description="Status of the executable task execution")
-    result: Optional[Any] = Field(default=None, description="Result of the executable task execution")
+    status: Optional[StatusEnum] = Field(None, description="Status of the executable task execution")
+    result: Optional[str] = Field(None, description="Result of the executable task execution as a string")
     error_message: Optional[str] = Field(default=None, description="Error message if execution failed")
-    started_at: Optional[datetime] = Field(default=None, description="Timestamp when execution started")
-    completed_at: Optional[datetime] = Field(default=None, description="Timestamp when execution completed")
+    started_at: Optional[str] = Field(None, description="Timestamp when execution started (ISO format)")
+    completed_at: Optional[str] = Field(None, description="Timestamp when execution completed (ISO format)")
+
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
 
 class ExecutableTaskList(BaseModel):
     tasks: List[ExecutableTask]

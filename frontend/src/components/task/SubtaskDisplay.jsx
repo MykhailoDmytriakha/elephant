@@ -2,6 +2,10 @@
 import React from 'react';
 import { Cpu, Cog, User, ListTree } from 'lucide-react'; // Added ListTree
 
+// --- NEW: Import StatusDetailsDisplay ---
+import { StatusDetailsDisplay } from './TaskComponents'; 
+// --- END: Import StatusDetailsDisplay ---
+
 // Helper to get executor icon
 const getExecutorIcon = (executorType) => {
   switch (executorType) {
@@ -35,6 +39,12 @@ export const SubtaskDisplay = ({ subtask }) => {
 
       {/* Description */}
       <p className="text-xs text-gray-600 ml-6">{subtask.description}</p>
+
+      {/* --- NEW: Subtask Status Details --- */}
+      <div className="ml-6">
+        <StatusDetailsDisplay item={subtask} />
+      </div>
+      {/* --- END: Subtask Status Details --- */}
 
       {/* Executor Type */}
       <div className="ml-6 text-xs text-gray-500 flex items-center gap-1">

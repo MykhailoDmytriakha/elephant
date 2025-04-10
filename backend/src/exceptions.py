@@ -74,4 +74,8 @@ class FeatureNotImplementedException(BaseAPIException):
 
 class ImportException(FeatureNotImplementedException):
     """Raised when there is an error importing a dependency."""
+    pass
+
+class SubtaskNotFoundException(ResourceNotFoundException):
+    "Raised when a specific subtask is not found within an executable task."
     pass 

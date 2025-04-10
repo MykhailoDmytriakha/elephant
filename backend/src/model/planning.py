@@ -26,11 +26,11 @@ class Stage(BaseModel):
     checkpoints: List[Checkpoint] = Field(default_factory=list)
     work_packages: Optional[List[Work]] = Field(default_factory=lambda: [], description="List of work packages decomposing this stage")
     # Status tracking fields
-    status: Optional[StatusEnum] = Field(default=StatusEnum.PENDING, description="Status of the stage execution")
-    result_data: Optional[Any] = Field(default=None, description="Result of the stage execution")
+    status: Optional[StatusEnum] = Field(None, description="Status of the stage execution")
+    result_data: Optional[str] = Field(None, description="Result of the stage execution as a string")
     error_message: Optional[str] = Field(default=None, description="Error message if execution failed")
-    started_at: Optional[datetime] = Field(default=None, description="Timestamp when execution started")
-    completed_at: Optional[datetime] = Field(default=None, description="Timestamp when execution completed")
+    started_at: Optional[str] = Field(None, description="Timestamp when execution started (ISO format)")
+    completed_at: Optional[str] = Field(None, description="Timestamp when execution completed (ISO format)")
 
 class Connection(BaseModel):
     """

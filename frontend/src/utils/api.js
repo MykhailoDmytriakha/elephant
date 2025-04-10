@@ -104,6 +104,10 @@ export const fetchTaskDetails = async (taskId) => {
   return apiRequest('get', `/tasks/${taskId}`, null, `Failed to fetch details for task ${taskId}`);
 };
 
+export const loadTaskDataOnly = async (taskId) => {
+  return apiRequest('get', `/tasks/${taskId}`, null, `Failed to fetch data for task ${taskId}`);
+};
+
 export const updateTaskContext = async (taskId, answers, queryParams = '') => {
   return apiRequest(
     'post', 

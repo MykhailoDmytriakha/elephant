@@ -3,6 +3,26 @@ import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, RefreshCw, FileText } from 'lucide-react';
 import { getStateColor, getReadableState } from '../../constants/taskStates';
 
+// --- NEW: Status Enum Colors ---
+const getExecutionStatusColorClasses = (status) => {
+  switch (status) {
+    case 'Completed':
+      return 'bg-green-100 text-green-800 border border-green-300';
+    case 'Failed':
+      return 'bg-red-100 text-red-800 border border-red-300';
+    case 'In Progress':
+      return 'bg-yellow-100 text-yellow-800 border border-yellow-300';
+    case 'Waiting':
+      return 'bg-blue-100 text-blue-800 border border-blue-300';
+    case 'Cancelled':
+      return 'bg-purple-100 text-purple-800 border border-purple-300';
+    case 'Pending': // Fallback for Pending or undefined
+    default:
+      return 'bg-gray-100 text-gray-700 border border-gray-300';
+  }
+};
+// --- END: Status Enum Colors ---
+
 export const StatusBadge = ({ state }) => {
   const getStatusIcon = () => {
     const stateNumber = parseInt(state?.split('.')[0]);
@@ -170,3 +190,63 @@ export const ArtifactDisplay = ({ artifact, title = "Artifact" }) => {
     );
 };
 // --- END: ArtifactDisplay Component ---
+
+// --- NEW: StatusDetailsDisplay Component ---
+/**
+ * Displays status badge, timestamps, result, and error for execution items.
+ * @param {object} item - The item (work, task, subtask) containing status fields.
+ */
+export const StatusDetailsDisplay = ({ item }) => {
+    if (!item || !item.status) {
+        return null; // Don't render if no status info
+    }
+
+    const formatTimestamp = (isoString) => {
+        if (!isoString) return 'N/A';
+        try {
+            return new Date(isoString).toLocaleString();
+        } catch (e) {
+            return 'Invalid Date';
+        }
+    };
+
+    return (
+        <div className="mt-2 mb-3 bg-white p-2 rounded border border-gray-200 text-xs space-y-1">
+            <div className="flex items-center gap-2">
+                <span className="font-medium">Status:</span>
+                <span className={`px-1.5 py-0.5 rounded font-medium ${getExecutionStatusColorClasses(item.status)}`}>
+                    {item.status || 'Pending'}
+                </span>
+            </div>
+            {item.started_at && (
+                <div>
+                    <span className="font-medium">Started:</span> {formatTimestamp(item.started_at)}
+                </div>
+            )}
+            {item.completed_at && (
+                <div>
+                    <span className="font-medium">Completed:</span> {formatTimestamp(item.completed_at)}
+                </div>
+            )}
+            {/* Result Display */}
+            {item.result && (
+                <div className="mt-1 pt-1 border-t border-gray-100">
+                    <span className="font-medium">Result:</span>
+                    <div className="mt-0.5 p-1 bg-gray-50 rounded border border-gray-300 max-h-24 overflow-y-auto text-xs">
+                        <pre className="whitespace-pre-wrap">{item.result}</pre>
+                    </div>
+                </div>
+            )}
+            {/* Error Display */}
+            {item.error_message && (
+                <div className="mt-1 pt-1 border-t border-red-100">
+                    <span className="font-medium text-red-600">Error:</span>
+                    <div className="mt-0.5 p-1 bg-red-50 rounded border border-red-200 max-h-24 overflow-y-auto text-red-800 text-xs">
+                        <pre className="whitespace-pre-wrap">{item.error_message}</pre>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+// --- END: StatusDetailsDisplay Component ---

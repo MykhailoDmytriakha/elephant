@@ -18,11 +18,11 @@ class Subtask(BaseModel):
     sequence_order: int = Field(..., description="Execution order within the parent ExecutableTask (0-based index)")
     executor_type: Literal["AI_AGENT", "ROBOT", "HUMAN"] = Field(..., description="Specifies the type of executor needed for this subtask")
     # Status tracking fields
-    status: Optional[StatusEnum] = Field(default=StatusEnum.PENDING, description="Status of the subtask execution")
-    result: Optional[Any] = Field(default=None, description="Result of the subtask execution")
+    status: Optional[StatusEnum] = Field(None, description="Status of the subtask execution")
+    result: Optional[str] = Field(None, description="Result of the subtask execution as a string")
     error_message: Optional[str] = Field(default=None, description="Error message if execution failed")
-    started_at: Optional[datetime] = Field(default=None, description="Timestamp when execution started")
-    completed_at: Optional[datetime] = Field(default=None, description="Timestamp when execution completed")
+    started_at: Optional[str] = Field(None, description="Timestamp when execution started (ISO format)")
+    completed_at: Optional[str] = Field(None, description="Timestamp when execution completed (ISO format)")
     
 
 class SubtaskList(BaseModel):

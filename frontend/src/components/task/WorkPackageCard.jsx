@@ -4,7 +4,7 @@ import {
     ChevronRight, Download, Upload, ShieldCheck, TerminalSquare, ChevronsRight, RefreshCw, AlertCircle, ListPlus
 } from 'lucide-react';
 import { ExecutableTaskDisplay } from './ExecutableTaskDisplay';
-import { ArtifactDisplay } from './TaskComponents';
+import { ArtifactDisplay, StatusDetailsDisplay } from './TaskComponents';
 
 /**
  * Card component to display details of a Work Package and its Executable Tasks.
@@ -63,6 +63,9 @@ const WorkPackageCard = ({
                 <div id={`work-details-${work.id}`} className="p-4 border-t border-gray-200 bg-gray-50 space-y-4 w-full">
                     {/* Work Description */}
                     <p className="text-sm text-gray-800 w-full">{work.description}</p>
+
+                    {/* Work Package Status Details */}
+                    <StatusDetailsDisplay item={work} />
 
                     {/* Dependencies */}
                     {work.dependencies?.length > 0 && (
