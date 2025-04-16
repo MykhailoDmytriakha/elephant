@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # OpenAI settings
     OPENAI_API_KEY: str = "no key"
     OPENAI_MODEL: str = "gpt-4o-mini"
+    
+    # CORS settings
+    FRONTEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     # Filesystem Tool Settings
     # Define base directory relative to the project root (backend/..)
@@ -20,7 +23,7 @@ class Settings(BaseSettings):
     ALLOWED_BASE_DIR: Path = PROJECT_ROOT / ".data"
     ALLOWED_BASE_DIR_RESOLVED: Path | None = None
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", env_nested_delimiter=",")
 
 settings = Settings()
 

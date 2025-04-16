@@ -38,7 +38,6 @@ async def clear_task_scope(
     
     return {"message": SUCCESS_SCOPE_CLEARED.format(task_id=task_id)} 
 
-# cleanup specific group
 @router.delete("/tasks/{task_id}/clear-group/{group}", response_model=dict)
 @api_error_handler(OP_GROUP_CLEARING)
 async def clear_task_group(

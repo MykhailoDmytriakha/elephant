@@ -133,10 +133,11 @@ elephant/
     ```bash
     pip install -r requirements.txt
     ```
-4.  Create a `.env` file from `.env_example` and add your `OPENAI_API_KEY`:
+4.  Create a `.env` file from `.env_example` and add your `OPENAI_API_KEY` and other settings:
     ```bash
     cp .env_example .env
-    # Edit .env and add your key
+    # Edit .env and add your key (OPENAI_API_KEY)
+    # Optionally, configure CORS origins (FRONTEND_CORS_ORIGINS) as a comma-separated list
     ```
 5.  Run the backend server:
     ```bash
@@ -150,6 +151,12 @@ elephant/
     ```bash
     cd frontend
     ```
+2.  (Optional) Create a `.env.local` file in the `frontend` directory to configure the API base URL:
+    ```bash
+    # .env.local
+    REACT_APP_API_BASE_URL=http://localhost:8000
+    ```
+    If not set, defaults to `http://localhost:8000`.
 2.  Install dependencies:
     ```bash
     npm install

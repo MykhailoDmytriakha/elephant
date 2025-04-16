@@ -74,11 +74,6 @@ router = APIRouter()
 class EditContextRequest(BaseModel):
     feedback: str
 
-# @router.post("/", response_model=Task)
-# # task creaeted manually by user
-# async def create_task(user_query: UserQuery, analyzer: ProblemAnalyzer = Depends(get_problem_analyzer)):
-#     """Create a new task based on user query"""
-#     # TODO: do not implemet yet. Keeping it for future, maybe it make sense to create task manualy by user
 @router.delete("/", response_model=dict)
 @api_error_handler(OP_TASK_DELETION)
 async def delete_all_tasks(db: DatabaseService = Depends(get_db_service)):

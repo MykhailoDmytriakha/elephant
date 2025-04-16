@@ -22,11 +22,6 @@ from src.constants import (
 router = APIRouter()
 
 
-# POST
-# url: http://localhost:8000/user-queries
-# {
-#     "query": "What is the status of my order?"
-# }
 @router.post("/", response_model=UserQueryCreate)
 @api_error_handler(OP_CREATE_QUERY)
 async def create_user_query(user_query: UserQuery, db: DatabaseService = Depends(get_db_service)):
@@ -45,8 +40,6 @@ async def create_user_query(user_query: UserQuery, db: DatabaseService = Depends
     )
     return UserQueryCreate(**created_query)
 
-# GET
-# url: http://localhost:8000/user-queries/
 @router.get("/", response_model=List[UserQueryCreate])
 @api_error_handler(OP_GET_QUERIES)
 async def get_user_queries(db: DatabaseService = Depends(get_db_service)):
@@ -54,8 +47,6 @@ async def get_user_queries(db: DatabaseService = Depends(get_db_service)):
     raw_queries = db.fetch_user_queries()
     return [UserQueryCreate(**query) for query in raw_queries]
 
-# DELETE
-# url: http://localhost:8000/user-queries/
 @router.delete("/", response_model=dict)
 @api_error_handler(OP_DELETE_QUERIES)
 async def delete_all_user_queries(db: DatabaseService = Depends(get_db_service)):
@@ -63,8 +54,6 @@ async def delete_all_user_queries(db: DatabaseService = Depends(get_db_service))
     db.delete_all_user_queries()
     return {"message": SUCCESS_ALL_QUERIES_DELETED}
 
-# GET
-# url: http://localhost:8000/user-queries/{query_id}
 @router.get("/{query_id}", response_model=UserQueryDB)
 @api_error_handler(OP_GET_QUERIES)
 async def get_user_query(query_id: int, db: DatabaseService = Depends(get_db_service)):
@@ -75,8 +64,6 @@ async def get_user_query(query_id: int, db: DatabaseService = Depends(get_db_ser
     return UserQueryDB(**query)
 
 
-# GET
-# url: http://localhost:8000/user-queries/tasks/{task_id}
 @router.get("/tasks/{task_id}", response_model=List[UserQueryDB])
 @api_error_handler(OP_GET_QUERIES)
 async def get_task_user_queries(task_id: str, db: DatabaseService = Depends(get_db_service)):

@@ -12,6 +12,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
 from fastapi import FastAPI
+from src.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes import user_queries_routes, tasks_routes, util_routes
 import logging
@@ -26,10 +27,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # CORS configuration
-origins = [
-    "http://localhost:3000",  # Frontend address
-    # Add other allowed origins if necessary
-]
+origins = settings.FRONTEND_CORS_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,

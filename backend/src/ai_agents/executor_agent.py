@@ -55,26 +55,43 @@ def _update_subtask_in_database(task: Task, subtask_id: str, operation: str) -> 
 def get_subtask_id(wrapper: RunContextWrapper[Task]) -> str:
     """Retrieves the subtask ID from the context."""
     return wrapper.context['subtask_id']
+    
+@function_tool
+def get_task_context(wrapper: RunContextWrapper[Task]) -> str:
+    """
+    Retrieves detailed information about the entire task, including scope, requirements, plan, and subtasks.
+    """
+    logger.info("Getting full task context")
+    try:
+        # Return full Task JSON
+        return wrapper.context['task'].model_dump_json()
+    except Exception as e:
+        logger.error(f"Error retrieving task context: {e}", exc_info=True)
+        return f'{{"error": "Failed to retrieve task context: {str(e)}"}}'
 
 @function_tool
 def get_subtask_details(wrapper: RunContextWrapper[Task], subtask_id: str) -> str:
     """
-    Retrieves all details about a specific subtask by its ID.
+    Retrieves all details about a specific subtask by its ID and loads it into context.
     Use this to get comprehensive information about a subtask before executing it.
-    
+
     Args:
         subtask_id: The ID of the subtask to retrieve information for
-        
+
     Returns:
-        A JSON string containing all details of the subtask
+        A formatted string containing details of the subtask, or an error message if not found.
     """
     logger.info(f"Getting details for subtask: {subtask_id}")
-    
-    subtask_details = context_utils.get_subtask_context_by_id(wrapper.context['task'], subtask_id)
-    if subtask_details:
-        return subtask_details
-    else:
+    # Locate the Subtask model instance in the Task
+    subtask_obj = context_utils.find_subtask_by_id(wrapper.context['task'], subtask_id)
+    if not subtask_obj:
+        logger.warning(f"Subtask with ID {subtask_id} not found in Task {wrapper.context['task'].id}")
         return f"Subtask with ID {subtask_id} not found"
+    # Store the Subtask object in context for subsequent operations
+    wrapper.context['subtask'] = subtask_obj
+    # Retrieve and return the formatted subtask context string
+    details = context_utils.get_subtask_context_by_id(wrapper.context['task'], subtask_id)
+    return details
 
 @function_tool
 def mark_subtask_as_successful(wrapper: RunContextWrapper[Task], subtask_id: str, result: str) -> str:
@@ -213,6 +230,9 @@ def create_executor_agent() -> Agent:
 
     **Available Tools:**
 
+    *   **Task Context:**
+        *   `get_task_context()`: Retrieves detailed information about the entire task, including scope, requirements, plan, and subtasks.
+
     *   **Subtask Management:**
         *   `get_subtask_id()`: Retrieves the target subtask ID from the context. **Call this first.**
         *   `get_subtask_details(subtask_id)`: Retrieves details for the **specific** subtask ID you were given. **Crucial second step.**
@@ -250,6 +270,7 @@ def create_executor_agent() -> Agent:
     """
     
     tools = [
+        get_task_context,
         get_subtask_id,
         get_subtask_details,
         mark_subtask_as_successful,

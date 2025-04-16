@@ -10,3 +10,5 @@ requests
 pytest-cov
 httpx
 pytest-mock
+google-adk
+litellm

@@ -10,7 +10,7 @@ export OPENAI_API_KEY="dummy-key-for-testing"
 export PYTHONPATH=backend
 
 # Default to running all tests if no arguments provided
-TEST_TARGET=${1:-backend/tests/test_user_queries_routes.py}
+TEST_TARGET=${1:-backend/tests}
 
 echo "Running tests for: $TEST_TARGET"
 
