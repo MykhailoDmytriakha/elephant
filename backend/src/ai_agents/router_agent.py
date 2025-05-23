@@ -2,6 +2,7 @@ import logging
 from typing import AsyncGenerator, List, Any, Optional, Dict
 import json 
 from enum import Enum
+from datetime import datetime, timezone
 
 from src.model.task import Task
 from src.ai_agents.utils import detect_language, get_language_instruction
@@ -167,24 +168,18 @@ Be intelligent, helpful, and efficient in your routing decisions."""
 
 async def route_and_execute_request(task: Task, user_message: str, workspace_path: str, session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
     """
-    Main routing function that analyzes the request and routes to appropriate agent.
-    Now with detailed tracking and transparency.
+    Routes user request to appropriate specialist agent based on intent analysis.
+    Provides real-time execution trace and tool call monitoring.
     """
-    # Initialize tracker
-    tracker = get_tracker(str(task.id), session_id or f"session_{task.id}")
+    # Get or create the tracker for this task/session
+    from src.ai_agents.agent_tracker import get_tracker
+    effective_session_id = session_id or f"session_{task.id}"
+    tracker = get_tracker(str(task.id), effective_session_id)
     
     try:
-        # Log initial request
-        tracker.log_activity(
-            agent_name="Router",
-            action_type="REQUEST_RECEIVED",
-            description=f"Processing user request: '{user_message[:100]}...'" if len(user_message) > 100 else f"Processing user request: '{user_message}'",
-            details={"user_message": user_message, "workspace_path": workspace_path}
-        )
-        
-        # Analyze the request intent
+        # Analyze the request to determine appropriate agent
         intent_analysis = analyze_request_intent(user_message)
-        agent_type = intent_analysis["agent_type"]
+        agent_type = AgentType(intent_analysis["agent_type"])
         confidence = intent_analysis["confidence"]
         
         # Log intent analysis
@@ -209,6 +204,11 @@ async def route_and_execute_request(task: Task, user_message: str, workspace_pat
         yield f"📊 Intent Scores: {', '.join([f'{k.value}: {v}' for k, v in intent_analysis['scores'].items() if v > 0])}\n"
         yield f"🏗️ Workspace: `{workspace_path}`\n\n"
         
+        # Start real-time execution trace
+        yield f"🔍 **Agent Execution Trace**\n"
+        yield f"📋 Task: {str(task.id)}\n"
+        yield f"🔗 Session: {session_id or f'session_{task.id}'}\n\n"
+        
         # Route to appropriate agent based on analysis
         if agent_type == AgentType.DATA_ANALYSIS:
             tracker.log_agent_transfer(
@@ -217,6 +217,12 @@ async def route_and_execute_request(task: Task, user_message: str, workspace_pat
                 reason=f"Data analysis request detected with confidence {confidence:.2f}",
                 confidence_score=confidence
             )
+            
+            # Stream the agent transfer immediately
+            yield f"🔗 **Agent Routing:**\n"
+            yield f"  • Router → **Data Analysis Agent** (confidence: {confidence:.2f})\n"
+            yield f"    Reason: Data analysis request detected with confidence {confidence:.2f}\n\n"
+            
             yield f"🔍 Routing to **Data Analysis Agent**...\n\n"
             async for chunk in stream_data_analysis_response(task, user_message, workspace_path, session_id):
                 yield chunk
@@ -228,6 +234,12 @@ async def route_and_execute_request(task: Task, user_message: str, workspace_pat
                 reason=f"Code development request detected with confidence {confidence:.2f}",
                 confidence_score=confidence
             )
+            
+            # Stream the agent transfer immediately
+            yield f"🔗 **Agent Routing:**\n"
+            yield f"  • Router → **Code Development Agent** (confidence: {confidence:.2f})\n"
+            yield f"    Reason: Code development request detected with confidence {confidence:.2f}\n\n"
+            
             yield f"💻 Routing to **Code Development Agent**...\n\n"
             # For now, route to general chat agent with coding focus
             async for chunk in stream_chat_with_agent_sdk(task, f"[CODE DEVELOPMENT FOCUS] {user_message}", session_id=session_id):
@@ -240,6 +252,12 @@ async def route_and_execute_request(task: Task, user_message: str, workspace_pat
                 reason=f"Research request detected with confidence {confidence:.2f}",
                 confidence_score=confidence
             )
+            
+            # Stream the agent transfer immediately
+            yield f"🔗 **Agent Routing:**\n"
+            yield f"  • Router → **Research Agent** (confidence: {confidence:.2f})\n"
+            yield f"    Reason: Research request detected with confidence {confidence:.2f}\n\n"
+            
             yield f"🔬 Routing to **Research Agent**...\n\n"
             # For now, route to general chat agent with research focus
             async for chunk in stream_chat_with_agent_sdk(task, f"[RESEARCH FOCUS] {user_message}", session_id=session_id):
@@ -252,6 +270,12 @@ async def route_and_execute_request(task: Task, user_message: str, workspace_pat
                 reason=f"Planning request detected with confidence {confidence:.2f}",
                 confidence_score=confidence
             )
+            
+            # Stream the agent transfer immediately
+            yield f"🔗 **Agent Routing:**\n"
+            yield f"  • Router → **Planning Agent** (confidence: {confidence:.2f})\n"
+            yield f"    Reason: Planning request detected with confidence {confidence:.2f}\n\n"
+            
             yield f"📋 Routing to **Planning Agent**...\n\n"
             # For now, route to general chat agent with planning focus
             async for chunk in stream_chat_with_agent_sdk(task, f"[PLANNING FOCUS] {user_message}", session_id=session_id):
@@ -264,19 +288,28 @@ async def route_and_execute_request(task: Task, user_message: str, workspace_pat
                 reason=f"General chat or fallback (confidence: {confidence:.2f})",
                 confidence_score=confidence
             )
+            
+            # Stream the agent transfer immediately
+            yield f"🔗 **Agent Routing:**\n"
+            yield f"  • Router → **General Chat Agent** (confidence: {confidence:.2f})\n"
+            yield f"    Reason: General chat or fallback (confidence: {confidence:.2f})\n\n"
+            
             yield f"💬 Routing to **General Chat Agent**...\n\n"
             async for chunk in stream_chat_with_agent_sdk(task, user_message, session_id=session_id):
                 yield chunk
         
-        # Log completion and show trace
+        # Log completion
         tracker.log_activity(
             agent_name="Router",
             action_type="REQUEST_COMPLETED",
             description="Request processing completed successfully"
         )
         
-        # Yield execution trace
-        yield f"\n\n{tracker.format_trace()}"
+        # Show final execution summary
+        total_time = (datetime.now(timezone.utc) - tracker.start_time).total_seconds()
+        yield f"\n\n⏱️ **Execution Summary:** Completed in {total_time:.2f}s\n"
+        yield f"🛠️ **Tools Used:** {len(tracker.tool_calls)} tool calls\n"
+        yield f"📝 **Activities:** {len(tracker.activities)} logged activities\n"
                 
     except Exception as e:
         tracker.log_activity(

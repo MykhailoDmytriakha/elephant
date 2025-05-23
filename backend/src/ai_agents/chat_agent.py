@@ -8,6 +8,7 @@ from src.ai_agents.utils import detect_language, get_language_instruction
 from src.ai_agents.tools.filesystem_tools import google_adk_filesystem_tools, create_tracked_filesystem_tools
 from src.ai_agents.tools.cognitive_tools import google_adk_cognitive_tools, create_tracked_cognitive_tools
 from src.ai_agents.tools.web_tools import google_adk_web_tools, create_tracked_web_tools
+from src.ai_agents.tools.task_management_tools import create_tracked_task_management_tools
 from src.ai_agents.executor_agent import create_executor_agent
 from src.core.config import settings
 from src.ai_agents.agent_tracker import get_tracker
@@ -91,18 +92,42 @@ def get_enhanced_instruction(task: Task, workspace_path: str) -> str:
 
     base_instruction += """
 
+**INTELLIGENT TASK MANAGEMENT:**
+You have special tools to analyze and manage the current task's structure:
+
+1. **get_task_stages_summary(task_id)** - Analyzes current task structure and shows which stages need work packages, which work packages need tasks, etc.
+2. **suggest_next_action(task_id)** - Gets intelligent suggestions for the next logical step based on current task state.
+3. **generate_work_packages_for_stage(task_id, stage_id)** - Generates work packages for a specific stage.
+4. **generate_tasks_for_work_package(task_id, stage_id, work_id)** - Generates executable tasks for a work package.
+5. **generate_subtasks_for_executable_task(task_id, stage_id, work_id, executable_task_id)** - Generates subtasks for execution.
+
+**WORK PACKAGE IDENTIFIER RECOGNITION:**
+- When user mentions "s1_w1", "S1_W1", or similar patterns, this refers to work package ID "S1_W1" in stage "S1"
+- Pattern: "s<stage_number>_w<work_number>" = Stage ID "S<stage_number>", Work ID "S<stage_number>_W<work_number>"
+- Examples: "s1_w1" = Stage "S1", Work "S1_W1"; "s2_w3" = Stage "S2", Work "S2_W3"
+
+**SMART WORKFLOW:**
+- ALWAYS start with analyzing the current task state using get_task_stages_summary() when user asks to work on stages or tasks
+- Use suggest_next_action() to understand what needs to be done next
+- When user asks to generate tasks for a specific work package (like "s1_w1"), IMMEDIATELY use generate_tasks_for_work_package()
+- When user says "only do this for the s1_w1" or similar, they want you to generate tasks for that specific work package
+- Suggest work package generation if stages are missing work packages
+- Offer to generate tasks or subtasks when appropriate
+- Explain what you're doing and why each step is needed
+- NEVER provide manual text descriptions of tasks - ALWAYS use the actual task generation tools
+
 **Guidelines**:
-1. Be proactive - don't wait for permission to use tools
-2. Create organized file structures in your workspace
-3. Document your work process
-4. If you need to delegate to specialized agents, use the appropriate handoff tools
-5. Always explain what you're doing and why
+1. Be proactive - analyze task state and suggest logical next steps
+2. When user mentions working on "этап 1" or "stage 1", analyze what needs to be done for that stage
+3. Always explain the task structure and current progress before making suggestions
+4. If work packages are missing, offer to generate them and explain the benefits
+5. Create organized file structures in your workspace when needed
 6. Handle errors gracefully and try alternative approaches
 7. Save important results and maintain session state
 
-**Available Tools**: You have access to filesystem tools, web search, cognitive tools, and can hand off to specialized agents when needed.
+**Available Tools**: You have access to filesystem tools, web search, cognitive tools, task management tools, and can hand off to specialized agents when needed.
 
-Please respond naturally and use your tools as needed to accomplish the user's goals."""
+Please respond naturally and use your tools as needed to accomplish the user's goals. When working with tasks and stages, always analyze the current state first and provide intelligent suggestions."""
 
     return base_instruction
 
@@ -170,7 +195,6 @@ async def stream_chat_with_agent_sdk(task: Task, user_message: str, message_hist
 
     # Create the content for the user message
     content = types.Content(role='user', parts=[types.Part(text=user_message)])
-    agent_response_accumulator = ""
     
     try:
         # Ensure session exists - Fixed approach: handle synchronous session service
@@ -204,19 +228,25 @@ async def stream_chat_with_agent_sdk(task: Task, user_message: str, message_hist
         all_tools = []
         
         # Add tracked tools for enhanced monitoring
-        tracker = get_tracker(str(task.id), session_id)
+        # Ensure session_id is a string
+        effective_session_id = session_id or f"session_{task.id}"
+        tracker = get_tracker(str(task.id), effective_session_id)
         
         # Add filesystem tools (for working in the agent's workspace) with tracking
-        all_tools.extend(create_tracked_filesystem_tools(str(task.id), session_id))
+        # Google ADK will automatically wrap Python functions as FunctionTool instances
+        all_tools.extend(create_tracked_filesystem_tools(str(task.id), effective_session_id))
         
         # Add cognitive tools (for analysis and planning) with tracking
-        all_tools.extend(create_tracked_cognitive_tools(str(task.id), session_id))
+        all_tools.extend(create_tracked_cognitive_tools(str(task.id), effective_session_id))
         
         # Add web tools (for research and information gathering) with tracking
-        all_tools.extend(create_tracked_web_tools(str(task.id), session_id))
+        all_tools.extend(create_tracked_web_tools(str(task.id), effective_session_id))
+        
+        # Add task management tools - Google ADK auto-wraps functions as FunctionTool
+        all_tools.extend(create_tracked_task_management_tools(str(task.id), effective_session_id))
         
         # Create executor agent tools for delegation
-        executor_tools = create_tracked_executor_tools(str(task.id), session_id)
+        executor_tools = create_tracked_executor_tools(str(task.id), effective_session_id)
         
         # Add executor functions directly (they should already be simple functions)
         all_tools.extend(executor_tools)
@@ -238,16 +268,71 @@ async def stream_chat_with_agent_sdk(task: Task, user_message: str, message_hist
         
         # Run and stream using ADK with the confirmed session ID
         logger.info(f"Starting autonomous agent with session_id: {session_id}, workspace: {workspace_path}")
+        
+        # Variables for tracking streaming state
+        agent_response_accumulator = ""
+        tools_displayed = False
+        
         async for event in runner.run_async(user_id=user_id, session_id=session_id, new_message=content):
-            if event.is_final_response():
-                text = event.content.parts[0].text if event.content and event.content.parts else ""
-                agent_response_accumulator += text
-                yield text
-                return
+            # Track event details for debugging
+            logger.debug(f"ADK Event: author={getattr(event, 'author', 'unknown')}, "
+                        f"partial={getattr(event, 'partial', None)}, "
+                        f"has_content={bool(event.content)}, "
+                        f"is_final={event.is_final_response()}")
+            
+            # Handle Function Calls (Tool Requests) - Display immediately
+            function_calls = event.get_function_calls() if hasattr(event, 'get_function_calls') else []
+            if function_calls:
+                if not tools_displayed:
+                    yield f"\n🛠️ **Tools Used:** (real-time as tools are called ✅)\n"
+                    tools_displayed = True
                 
-        # If no final response was received, yield an empty response
-        if not agent_response_accumulator:
-            yield "I apologize, but I couldn't generate a response. Please try again."
+                for call in function_calls:
+                    tool_name = getattr(call, 'name', 'unknown_tool')
+                    yield f"  • 🔄 {tool_name} (executing...)\n"
+                    
+                    # Log tool call in tracker
+                    tracker.log_tool_call(
+                        tool_name=tool_name,
+                        parameters=getattr(call, 'args', {}),
+                        success=True,  # Initial call is successful, will be updated if there's an error
+                        execution_time_ms=None
+                    )
+            
+            # Handle Function Responses (Tool Results) - Display results
+            function_responses = event.get_function_responses() if hasattr(event, 'get_function_responses') else []
+            if function_responses:
+                for response in function_responses:
+                    tool_name = getattr(response, 'name', 'unknown_tool')
+                    success = True  # Assume success if we got a response
+                    
+                    # Update the tool call status in display
+                    yield f"  • ✅ {tool_name} (completed)\n"
+                    
+                    # Update tracker with results
+                    tracker.log_tool_call(
+                        tool_name=tool_name,
+                        result=str(getattr(response, 'response', 'No response'))[:100],
+                        success=success
+                    )
+            
+            # Handle Text Content - Stream as it comes
+            if event.content and event.content.parts:
+                for part in event.content.parts:
+                    if hasattr(part, 'text') and part.text:
+                        text_chunk = part.text
+                        agent_response_accumulator += text_chunk
+                        
+                        # Yield the text chunk immediately for real-time streaming
+                        yield text_chunk
+            
+            # Check if this is the final response
+            if event.is_final_response():
+                logger.debug(f"Final response detected, accumulated text length: {len(agent_response_accumulator)}")
+                # Final response reached - end the stream
+                if not agent_response_accumulator.strip():
+                    yield "\n\n✅ Task completed."
+                return
 
     # Error handling with better session error detection
     except Exception as e:

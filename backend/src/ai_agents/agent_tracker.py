@@ -49,7 +49,20 @@ class AgentTracker:
         self.agent_transfers: List[AgentTransfer] = []
         self.start_time = datetime.now(timezone.utc)
         self.current_agent = "Router"
+        self.live_streaming_callbacks = []  # For real-time updates
         
+    def add_live_streaming_callback(self, callback):
+        """Add a callback function to receive real-time trace updates"""
+        self.live_streaming_callbacks.append(callback)
+        
+    def _notify_live_update(self, update_type: str, data: Dict[str, Any]):
+        """Notify all live streaming callbacks of an update"""
+        for callback in self.live_streaming_callbacks:
+            try:
+                callback(update_type, data)
+            except Exception as e:
+                logger.warning(f"Live streaming callback failed: {e}")
+    
     def _get_timestamp(self) -> str:
         """Получить текущий timestamp"""
         return datetime.now(timezone.utc).isoformat()
@@ -69,6 +82,15 @@ class AgentTracker:
         )
         self.activities.append(activity)
         logger.info(f"Agent Activity: {agent_name} - {action_type} - {description}")
+        
+        # Notify live streaming callbacks
+        self._notify_live_update("activity", {
+            "agent_name": agent_name,
+            "action_type": action_type,
+            "description": description,
+            "success": success,
+            "timestamp": activity.timestamp
+        })
     
     def log_tool_call(self, tool_name: str, parameters: Optional[Dict[str, Any]] = None,
                      result: Optional[str] = None, success: bool = True,
@@ -86,6 +108,14 @@ class AgentTracker:
         )
         self.tool_calls.append(tool_call)
         logger.info(f"Tool Call: {tool_name} - {'Success' if success else 'Failed'}")
+        
+        # Notify live streaming callbacks
+        self._notify_live_update("tool_call", {
+            "tool_name": tool_name,
+            "success": success,
+            "execution_time_ms": execution_time_ms,
+            "timestamp": tool_call.timestamp
+        })
     
     def log_agent_transfer(self, from_agent: str, to_agent: str, reason: str,
                           context: Optional[Dict[str, Any]] = None, 
@@ -102,6 +132,15 @@ class AgentTracker:
         self.agent_transfers.append(transfer)
         self.current_agent = to_agent
         logger.info(f"Agent Transfer: {from_agent} → {to_agent} (reason: {reason})")
+        
+        # Notify live streaming callbacks
+        self._notify_live_update("agent_transfer", {
+            "from_agent": from_agent,
+            "to_agent": to_agent,
+            "reason": reason,
+            "confidence_score": confidence_score,
+            "timestamp": transfer.timestamp
+        })
     
     def get_summary(self) -> Dict[str, Any]:
         """Получить сводку по всей активности"""
@@ -136,7 +175,7 @@ class AgentTracker:
         
         # Agent transfers
         if self.agent_transfers:
-            trace_lines.append("�� **Agent Routing:**")
+            trace_lines.append("🔗 **Agent Routing:**")
             for transfer in self.agent_transfers:
                 confidence = f" (confidence: {transfer.confidence_score:.2f})" if transfer.confidence_score else ""
                 trace_lines.append(f"  • {transfer.from_agent} → **{transfer.to_agent}**{confidence}")
@@ -169,6 +208,23 @@ class AgentTracker:
             trace_lines.append("")
         
         return "\n".join(trace_lines)
+    
+    def format_live_trace_update(self, update_type: str, data: Dict[str, Any]) -> str:
+        """Format a single trace update for live streaming"""
+        if update_type == "agent_transfer":
+            confidence = f" (confidence: {data['confidence_score']:.2f})" if data.get('confidence_score') else ""
+            return f"  • {data['from_agent']} → **{data['to_agent']}**{confidence}\n    Reason: {data['reason']}\n"
+        
+        elif update_type == "tool_call":
+            status = "✅" if data['success'] else "❌"
+            time_info = f" ({data['execution_time_ms']:.0f}ms)" if data.get('execution_time_ms') else ""
+            return f"  • {status} {data['tool_name']}{time_info}\n"
+        
+        elif update_type == "activity":
+            status = "✅" if data['success'] else "❌"
+            return f"  • {status} [{data['agent_name']}] {data['description']}\n"
+        
+        return ""
     
     def to_json(self) -> str:
         """Экспорт в JSON формат"""
