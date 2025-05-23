@@ -312,6 +312,10 @@ export const chatWithTaskAssistant = async (taskId, message, callbacks = {}, mes
   const { onChunk, onComplete, onError } = callbacks;
   const endpoint = `${API_BASE_URL}/tasks/${taskId}/chat/stream`;
   
+  // Generate a stable session ID based on the task ID if not provided
+  // This ensures we use the same session for the same task
+  const sessionId = `session_${taskId}`;
+  
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -320,7 +324,8 @@ export const chatWithTaskAssistant = async (taskId, message, callbacks = {}, mes
       },
       body: JSON.stringify({ 
         message,
-        message_history: messageHistory
+        message_history: messageHistory,
+        session_id: sessionId  // Send the session ID to the backend
       }),
     });
     

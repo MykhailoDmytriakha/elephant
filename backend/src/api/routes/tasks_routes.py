@@ -807,7 +807,16 @@ async def stream_chat_with_task_assistant(
             task_data = db.fetch_task_by_id(task_id)
             task = deserialize_task(task_data, task_id)
             
-            async for chunk in stream_chat_response(task, chat_request.message, chat_request.message_history):
+            # Pass the session_id from the request to stream_chat_response
+            session_id = chat_request.session_id
+            logger.info(f"Using session_id: {session_id} for chat with task {task_id}")
+            
+            async for chunk in stream_chat_response(
+                task, 
+                chat_request.message, 
+                chat_request.message_history,
+                session_id=session_id
+            ):
                 if chunk:
                     # Ensure chunk is a string before JSON serialization
                     chunk_str = str(chunk)

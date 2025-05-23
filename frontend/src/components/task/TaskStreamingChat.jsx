@@ -3,6 +3,7 @@ import { MessageCircle, Send, Brain, RefreshCw, AlertTriangle, Pencil } from 'lu
 
 /**
  * A streaming chat component that supports history and reasoning with OpenAI agents
+ * Now using server-side session management via Google ADK
  */
 export default function TaskStreamingChat({
   taskId,
@@ -117,15 +118,11 @@ export default function TaskStreamingChat({
         }
       });
       
-      // Format chat history for the API
-      const messageHistory = externalChatHistory.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
-      
-      // Let parent component handle everything
+      // Let parent component handle everything - no need to send message_history anymore
+      // since we're using server-side session management
       try {
-        await onSendMessage(trimmedMessage, {}, messageHistory);
+        // Note: We're no longer passing messageHistory since it's tracked on the server
+        await onSendMessage(trimmedMessage, {}, []);
       } catch (error) {
         console.error('Error sending message:', error);
       }
@@ -150,14 +147,8 @@ export default function TaskStreamingChat({
     });
     
     try {
-      // Format chat history for the API
-      const messageHistory = chatHistory.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
-      
       // Call the parent component's message handler
-      await onSendMessage(trimmedMessage, { // Send trimmed message
+      await onSendMessage(trimmedMessage, { 
         onChunk: (chunk) => {
           // Check if the chunk contains an error message
           if (chunk.includes('⚠️ Error:')) {
@@ -182,7 +173,7 @@ export default function TaskStreamingChat({
             content: `Error: ${err.message || 'Failed to get a response'}`
           }]);
         }
-      }, messageHistory);
+      }, []);  // Empty history, since we're using server-side session management
     } catch (error) {
       console.error('Error sending message:', error);
       setError(error.message || 'Failed to send message');
@@ -194,7 +185,7 @@ export default function TaskStreamingChat({
     }
   };
 
-  // --- NEW: Handlers for Edit Start/Cancel ---
+  // --- Handlers for Edit Start/Cancel ---
   const handleEditClick = (index, content) => {
     setEditingMessageIndex(index);
     setEditedMessageContent(content);
@@ -209,36 +200,26 @@ export default function TaskStreamingChat({
     setEditingMessageIndex(null);
     setEditedMessageContent('');
   };
-  // --- END: Handlers for Edit Start/Cancel ---
 
-  // --- NEW: Handler for Saving Edit ---
+  // --- Handler for Saving Edit ---
   const handleSaveEdit = async (index) => {
     const trimmedEditedMessage = editedMessageContent.trim();
     if (!trimmedEditedMessage || isLoading || isStreaming) return;
 
     if (isExternallyManaged) {
-      // Calculate the history up to the edited message
-      const truncatedHistory = displayChatHistory.slice(0, index).map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
-
       // Reset edit state immediately
       setEditingMessageIndex(null);
       setEditedMessageContent('');
 
-      // Call the parent's onSendMessage with the edited content and truncated history
-      // The parent component (AllStagesPage) will handle updating its history and calling the API
+      // Call the parent's onSendMessage with the edited content
+      // We no longer pass truncated history since we'll reuse the session on the server
       try {
-        await onSendMessage(trimmedEditedMessage, {}, truncatedHistory);
+        await onSendMessage(trimmedEditedMessage, {}, []);
       } catch (error) {
         console.error('Error sending edited message:', error);
-        // Consider how to display this error - perhaps back to the parent?
       }
-
     } else {
-      // Internal state management (less common for this component now)
-      // Update local chat history: replace the message and remove subsequent ones
+      // Internal state management (less common now)
       const newChatHistory = [ 
           ...chatHistory.slice(0, index), 
           { role: 'user', content: trimmedEditedMessage } 
@@ -248,17 +229,13 @@ export default function TaskStreamingChat({
       // Reset edit state
       setEditingMessageIndex(null);
       setEditedMessageContent('');
-      setError(null);
+
+      // Make a new request with the edited message
       setIsStreaming(true);
       setStreamingMessage('');
+      setError(null);
       
-      // Call the API using the updated local history
       try {
-        const messageHistoryForApi = newChatHistory.map(msg => ({ // Use the updated history
-          role: msg.role,
-          content: msg.content
-        }));
-        
         await onSendMessage(trimmedEditedMessage, {
           onChunk: (chunk) => {
             if (chunk.includes('⚠️ Error:')) {
@@ -272,41 +249,42 @@ export default function TaskStreamingChat({
             setIsStreaming(false);
           },
           onError: (err) => {
-            setError(err.message || 'An error occurred');
-            setChatHistory(prev => [...prev, { role: 'system', content: `Error: ${err.message}` }]);
+            console.error('Error in chat response:', err);
+            setError(err.message || 'An error occurred while getting a response');
             setIsStreaming(false);
+            setChatHistory(prev => [...prev, { 
+              role: 'system', 
+              content: `Error: ${err.message || 'Failed to get a response'}`
+            }]);
           }
-        }, messageHistoryForApi); // Send the correct history
+        }, []);  // Empty history, using server-side session management
       } catch (error) {
-        setError(error.message || 'Failed to send message');
-        setChatHistory(prev => [...prev, { role: 'system', content: `Error: ${error.message}` }]);
+        console.error('Error sending edited message:', error);
+        setError(error.message || 'Failed to send edited message');
+        setChatHistory(prev => [...prev, { 
+          role: 'system', 
+          content: `Error: ${error.message || 'Failed to get a response'}`
+        }]);
         setIsStreaming(false);
       }
     }
   };
-  // --- END: Handler for Saving Edit ---
 
   const handleKeyDown = (e) => {
-    // Send on Enter (without Shift)
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault(); // Prevent default newline behavior
+      e.preventDefault(); // Prevent newline
       handleSubmit();
-    } 
-    // If Shift+Enter, the default behavior (newline) is already handled by the textarea
-    // No specific action needed here for Shift+Enter
+    }
   };
 
   const handleResetChat = () => {
     if (isExternallyManaged) {
-      // Let parent component handle the reset
       if (onResetChat) onResetChat();
     } else {
-      // Handle locally
       setChatHistory([]);
       setStreamingMessage('');
-      setIsStreaming(false);
       setError(null);
-      if (onResetChat) onResetChat();
+      setIsStreaming(false);
     }
   };
 

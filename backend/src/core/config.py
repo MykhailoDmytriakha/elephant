@@ -38,3 +38,7 @@ except Exception as e:
     # Decide if you want to raise an error or proceed without filesystem tools
     # raise e
     settings.ALLOWED_BASE_DIR_RESOLVED = None # Indicate failure
+
+# --- Expose OpenAI API key for underlying clients (OpenAI, ADK LiteLLM) ---
+import os as _os
+_os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY

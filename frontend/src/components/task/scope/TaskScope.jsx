@@ -12,7 +12,9 @@ import { findNextUnansweredGroup as findNext } from '../../../utils/scopeUtils';
 export default function TaskScope({
     task,
     isContextGathered,
-    defaultOpen = true
+    defaultOpen = true,
+    onTaskUpdate,
+    onLocalTaskUpdate
 }) {
     // Use our custom hook to manage all state
     const {
@@ -333,6 +335,8 @@ export default function TaskScope({
                 onSetErrorMessage={setErrorMessage}
                 onSetLoading={setIsLoading}
                 onSetFlowState={setFlowState}
+                onTaskUpdate={onTaskUpdate}
+                onLocalTaskUpdate={onLocalTaskUpdate}
             />
         );
     };

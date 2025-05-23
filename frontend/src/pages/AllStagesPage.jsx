@@ -150,32 +150,10 @@ export default function AllStagesPage() {
     setChatError(null);
     setIsStreaming(true);
     
-    const isEdit = messageHistory.length < chatHistory.length && 
-                   chatHistory[messageHistory.length]?.role === 'user' &&
-                   chatHistory[messageHistory.length + 1]?.role === 'assistant';
-                   
-    let currentChatHistory = chatHistory;
-    let editIndex = -1;
-    
-    if (isEdit) {
-        // This is an edit, update the history
-        editIndex = messageHistory.length; // The index of the message being edited
-        console.log(`Detected edit at index: ${editIndex}`);
-        // Truncate the history and replace the edited message
-        currentChatHistory = [
-            ...chatHistory.slice(0, editIndex),
-            { role: 'user', content: message } // Replace with the new message content
-        ];
-        // Update the state immediately to reflect the truncated history + edited message
-        setChatHistory(currentChatHistory);
-        // We will add the assistant's response later
-        setStreamingMessage(''); // Clear any previous streaming message
-    } else {
-        // This is a new message, add user message to chat history
-        const userMessage = { role: 'user', content: message };
-        setChatHistory(prev => [...prev, userMessage]);
-        currentChatHistory = [...chatHistory, userMessage]; // Use updated history for API call
-    }
+    // Add the user message to chat history to immediately show it in UI
+    const userMessage = { role: 'user', content: message };
+    setChatHistory(prev => [...prev, userMessage]);
+    setStreamingMessage(''); // Clear any previous streaming message
     
     try {
       const customCallbacks = {
@@ -202,20 +180,15 @@ export default function AllStagesPage() {
         }
       };
       
-      // Use the potentially truncated history for the API call
-      const historyForApi = currentChatHistory.map(msg => ({
-          role: msg.role,
-          content: msg.content
-      }));
-      
-      await chatWithTaskAssistant(taskId, message, customCallbacks, historyForApi);
+      // Pass an empty array for messageHistory since we're using server-side sessions
+      await chatWithTaskAssistant(taskId, message, customCallbacks, []);
     } catch (error) {
       console.error("Error in chat handling:", error);
       const errorMessage = error.message || 'Unknown error';
       setChatError(errorMessage);
       setIsStreaming(false);
       toast.showError(`Chat error: ${errorMessage}`);
-      // Ensure the system error message is added to the potentially updated history
+      // Ensure the system error message is added to chat history
       setChatHistory(prev => [...prev, { 
         role: 'system', 
         content: `Error: ${errorMessage}`
@@ -227,8 +200,6 @@ export default function AllStagesPage() {
       if (!isStreaming) {
            setIsChatLoading(false); 
       }
-       // Ensure streaming message is cleared if an error occurred before completion
-       // setStreamingMessage(''); // This is handled in onComplete/onError now
     }
   };
   
@@ -526,8 +497,16 @@ export default function AllStagesPage() {
                           {stage.result && (
                             <div className="mt-2">
                               <span className="font-medium">Result:</span>
-                              <div className="mt-1 p-1 bg-gray-50 rounded border border-gray-300 max-h-24 overflow-y-auto">
-                                {stage.result}
+                              <div className="mt-1 p-1 bg-gray-50 rounded border border-gray-300">
+                                {Array.isArray(stage.result) ? (
+                                  <ul className="list-disc list-inside space-y-1">
+                                    {stage.result.map((item, index) => (
+                                      <li key={index} className="text-sm">{item}</li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="whitespace-pre-wrap">{stage.result}</div>
+                                )}
                               </div>
                             </div>
                           )}
@@ -544,8 +523,13 @@ export default function AllStagesPage() {
                         
                         {/* If no work packages */}
                         {(!stage.work_packages || stage.work_packages.length === 0) && (
-                          <div className="text-sm text-gray-500 italic p-2">
-                            No work packages generated yet.
+                          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              No work packages generated yet.
+                            </div>
                           </div>
                         )}
                         
@@ -638,8 +622,16 @@ export default function AllStagesPage() {
                                     {work.result && (
                                       <div className="mt-2">
                                         <span className="font-medium">Result:</span>
-                                        <div className="mt-1 p-1 bg-gray-50 rounded border border-gray-300 max-h-24 overflow-y-auto">
-                                          {work.result}
+                                        <div className="mt-1 p-1 bg-gray-50 rounded border border-gray-300">
+                                          {Array.isArray(work.result) ? (
+                                            <ul className="list-disc list-inside space-y-1">
+                                              {work.result.map((item, index) => (
+                                                <li key={index} className="text-sm">{item}</li>
+                                              ))}
+                                            </ul>
+                                          ) : (
+                                            <div className="whitespace-pre-wrap">{work.result}</div>
+                                          )}
                                         </div>
                                       </div>
                                     )}
@@ -656,8 +648,13 @@ export default function AllStagesPage() {
                                   
                                   {/* If no tasks */}
                                   {(!work.tasks || work.tasks.length === 0) && (
-                                    <div className="text-sm text-gray-500 italic p-2">
-                                      No tasks generated yet.
+                                    <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        No tasks generated yet.
+                                      </div>
                                     </div>
                                   )}
                                   
@@ -787,8 +784,16 @@ export default function AllStagesPage() {
                                               {task.result && (
                                                 <div className="mt-2">
                                                   <span className="font-medium">Result:</span>
-                                                  <div className="mt-1 p-1 bg-gray-50 rounded border border-gray-300 max-h-24 overflow-y-auto">
-                                                    {task.result}
+                                                  <div className="mt-1 p-1 bg-gray-50 rounded border border-gray-300">
+                                                    {Array.isArray(task.result) ? (
+                                                      <ul className="list-disc list-inside space-y-1">
+                                                        {task.result.map((item, index) => (
+                                                          <li key={index} className="text-sm">{item}</li>
+                                                        ))}
+                                                      </ul>
+                                                    ) : (
+                                                      <div className="whitespace-pre-wrap">{task.result}</div>
+                                                    )}
                                                   </div>
                                                 </div>
                                               )}
@@ -805,8 +810,13 @@ export default function AllStagesPage() {
                                             
                                             {/* If no subtasks */}
                                             {(!task.subtasks || task.subtasks.length === 0) && (
-                                              <div className="text-sm text-gray-500 italic p-2">
-                                                No subtasks generated yet.
+                                              <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                                                <div className="flex items-center justify-center gap-2">
+                                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                  </svg>
+                                                  No subtasks generated yet.
+                                                </div>
                                               </div>
                                             )}
                                             
@@ -867,8 +877,16 @@ export default function AllStagesPage() {
                                                     {subtask.result && (
                                                       <div className="mt-2">
                                                         <span className="font-medium">Result:</span>
-                                                        <div className="mt-1 p-1 bg-white rounded border border-gray-300 max-h-24 overflow-y-auto">
-                                                          {subtask.result}
+                                                        <div className="mt-1 p-1 bg-white rounded border border-gray-300">
+                                                          {Array.isArray(subtask.result) ? (
+                                                            <ul className="list-disc list-inside space-y-1">
+                                                              {subtask.result.map((item, index) => (
+                                                                <li key={index} className="text-sm">{item}</li>
+                                                              ))}
+                                                            </ul>
+                                                          ) : (
+                                                            <div className="whitespace-pre-wrap">{subtask.result}</div>
+                                                          )}
                                                         </div>
                                                       </div>
                                                     )}

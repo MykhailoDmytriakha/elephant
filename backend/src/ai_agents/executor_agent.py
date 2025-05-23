@@ -7,24 +7,47 @@ from src.services.database_service import DatabaseService
 from src.utils import context_utils
 logger = logging.getLogger(__name__)
 
+# Import Pydantic for type handling
+from pydantic import BaseModel, ConfigDict
+from typing import Any, Dict, Optional
+
 # Try to import the OpenAI Agents SDK
 try:
     from agents import Agent, function_tool # type: ignore
-    from agents.run_context import RunContextWrapper # type: ignore
     AGENTS_SDK_AVAILABLE = True
+    
+    # Create a wrapper for function_tool that allows arbitrary types
+    def adk_function_tool(func):
+        # Add model_config with arbitrary_types_allowed=True to make Pydantic accept ToolContext
+        setattr(func, 'model_config', ConfigDict(arbitrary_types_allowed=True))
+        return function_tool(func)
+        
 except ImportError:
     logger.warning("OpenAI Agents SDK not installed. Some functionality will be limited.")
+    # Define a dummy decorator if the SDK is not available
+    def function_tool(func):
+        return func
+    
+    # Match the API of the real decorator 
+    adk_function_tool = function_tool
+    
     AGENTS_SDK_AVAILABLE = False
 
-if not AGENTS_SDK_AVAILABLE:
-    logger.error("OpenAI Agents SDK not installed.")
-    raise ImportError("OpenAI Agents SDK not installed. Please install with `pip install openai-agents`")
+# Import Agent from Google ADK
+from google.adk.agents import Agent  # type: ignore
+from google.adk.tools.tool_context import ToolContext  # type: ignore
+from google.adk.tools.base_tool import BaseTool  # type: ignore
+# Import InMemoryArtifactService for binary data handling
+from google.adk.artifacts import InMemoryArtifactService  # type: ignore
+# Import InMemorySessionService for conversation management
+from google.adk.sessions import InMemorySessionService  # type: ignore
 
 from src.core.config import settings
 model = settings.OPENAI_MODEL
 
 from src.ai_agents.tools.filesystem_tools import filesystem_tools_list
 from src.ai_agents.tools.cognitive_tools import cognitive_tools_list
+from src.ai_agents.tools.web_tools import web_tools_list
 
 # Helper function to update task in database with subtask changes
 def _update_subtask_in_database(task: Task, subtask_id: str, operation: str) -> tuple[bool, str]:
@@ -51,26 +74,29 @@ def _update_subtask_in_database(task: Task, subtask_id: str, operation: str) -> 
         return False, error_msg
 
 # --- Executor Agent Tools ---
-@function_tool
-def get_subtask_id(wrapper: RunContextWrapper[Task]) -> str:
-    """Retrieves the subtask ID from the context."""
-    return wrapper.context['subtask_id']
+def get_subtask_id() -> str:
+    """Retrieves the subtask ID stored in the session state."""
+    from google.adk.tools.current import current_context
+    tool_context = current_context()
+    return tool_context.state.get('subtask_id', '')
     
-@function_tool
-def get_task_context(wrapper: RunContextWrapper[Task]) -> str:
+def get_task_context() -> str:
     """
-    Retrieves detailed information about the entire task, including scope, requirements, plan, and subtasks.
+    Retrieves detailed information about the entire Task stored in session state.
     """
-    logger.info("Getting full task context")
+    from google.adk.tools.current import current_context
+    tool_context = current_context()
+    logger.info("Getting full task context from session state")
+    task: Task = tool_context.state.get('task')
+    if not task:
+        return '{"error": "No Task found in session state"}'
     try:
-        # Return full Task JSON
-        return wrapper.context['task'].model_dump_json()
+        return task.model_dump_json()
     except Exception as e:
         logger.error(f"Error retrieving task context: {e}", exc_info=True)
         return f'{{"error": "Failed to retrieve task context: {str(e)}"}}'
 
-@function_tool
-def get_subtask_details(wrapper: RunContextWrapper[Task], subtask_id: str) -> str:
+def get_subtask_details(subtask_id: str) -> str:
     """
     Retrieves all details about a specific subtask by its ID and loads it into context.
     Use this to get comprehensive information about a subtask before executing it.
@@ -81,20 +107,23 @@ def get_subtask_details(wrapper: RunContextWrapper[Task], subtask_id: str) -> st
     Returns:
         A formatted string containing details of the subtask, or an error message if not found.
     """
+    from google.adk.tools.current import current_context
+    tool_context = current_context()
     logger.info(f"Getting details for subtask: {subtask_id}")
-    # Locate the Subtask model instance in the Task
-    subtask_obj = context_utils.find_subtask_by_id(wrapper.context['task'], subtask_id)
+    task: Task = tool_context.state.get('task')
+    if not task:
+        return "No Task found in session state"
+    subtask_obj = context_utils.find_subtask_by_id(task, subtask_id)
     if not subtask_obj:
-        logger.warning(f"Subtask with ID {subtask_id} not found in Task {wrapper.context['task'].id}")
+        logger.warning(f"Subtask with ID {subtask_id} not found in Task {task.id}")
         return f"Subtask with ID {subtask_id} not found"
     # Store the Subtask object in context for subsequent operations
-    wrapper.context['subtask'] = subtask_obj
+    tool_context.state['subtask'] = subtask_obj
     # Retrieve and return the formatted subtask context string
-    details = context_utils.get_subtask_context_by_id(wrapper.context['task'], subtask_id)
+    details = context_utils.get_subtask_context_by_id(task, subtask_id)
     return details
 
-@function_tool
-def mark_subtask_as_successful(wrapper: RunContextWrapper[Task], subtask_id: str, result: str) -> str:
+def mark_subtask_as_successful(subtask_id: str, result: str) -> str:
     """
     Marks a subtask as successful.
     
@@ -104,9 +133,11 @@ def mark_subtask_as_successful(wrapper: RunContextWrapper[Task], subtask_id: str
     Returns:
         A string containing the subtask ID that was marked as successful
     """
+    from google.adk.tools.current import current_context
+    tool_context = current_context()
     logger.info(f"Marking subtask {subtask_id} as successful with result: {result}")
-    subtask = wrapper.context['subtask']
-    task = wrapper.context['task']
+    subtask: Subtask = tool_context.state.get('subtask')
+    task: Task = tool_context.state.get('task')
     if subtask is not None and isinstance(subtask, Subtask):
         subtask.status = StatusEnum.COMPLETED
         subtask.result = result
@@ -119,10 +150,9 @@ def mark_subtask_as_successful(wrapper: RunContextWrapper[Task], subtask_id: str
         
         return f"Subtask {subtask_id} marked as successful with result: {result}"
     else:
-        return f"Subtask with ID {subtask_id} not found, get subtask details first using get_subtask_details()"
+        return f"Subtask with ID {subtask_id} not found; fetch details first with get_subtask_details()"
 
-@function_tool
-def mark_subtask_as_failed(wrapper: RunContextWrapper[Task], subtask_id: str, error_message: str) -> str:
+def mark_subtask_as_failed(subtask_id: str, error_message: str) -> str:
     """
     Marks a subtask as failed.
     
@@ -132,9 +162,11 @@ def mark_subtask_as_failed(wrapper: RunContextWrapper[Task], subtask_id: str, er
     Returns:
         A string containing the subtask ID that was marked as failed
     """
+    from google.adk.tools.current import current_context
+    tool_context = current_context()
     logger.info(f"Marking subtask {subtask_id} as failed with error: {error_message}")
-    subtask = wrapper.context['subtask']
-    task = wrapper.context['task']
+    subtask: Subtask = tool_context.state.get('subtask')
+    task: Task = tool_context.state.get('task')
     if subtask is not None and isinstance(subtask, Subtask):
         subtask.status = StatusEnum.FAILED
         subtask.error_message = error_message
@@ -147,10 +179,9 @@ def mark_subtask_as_failed(wrapper: RunContextWrapper[Task], subtask_id: str, er
         
         return f"Subtask {subtask_id} marked as failed with error: {error_message}"
     else:
-        return f"Subtask with ID {subtask_id} not found, get subtask details first using get_subtask_details()"
+        return f"Subtask with ID {subtask_id} not found; fetch details first with get_subtask_details()"
     
-@function_tool
-def mark_subtask_as_in_progress(wrapper: RunContextWrapper[Task], subtask_id: str) -> str:
+def mark_subtask_as_in_progress(subtask_id: str) -> str:
     """
     Marks a subtask as in progress.
     
@@ -159,13 +190,15 @@ def mark_subtask_as_in_progress(wrapper: RunContextWrapper[Task], subtask_id: st
     Returns:
         A string containing the subtask ID that was marked as in progress
     """
+    from google.adk.tools.current import current_context
+    tool_context = current_context()
     logger.info(f"Marking subtask {subtask_id} as in progress")
     # if exist subtask and task in context, mark as in progress
-    if not wrapper.context.get('subtask') or not wrapper.context.get('task'):
-        return f"Subtask with ID {subtask_id} not found, get subtask details first using get_subtask_details()"
+    if not tool_context.state.get('subtask') or not tool_context.state.get('task'):
+        return f"Subtask with ID {subtask_id} not found; fetch details first with get_subtask_details()"
     
-    subtask = wrapper.context['subtask']
-    task = wrapper.context['task']
+    subtask: Subtask = tool_context.state.get('subtask')
+    task: Task = tool_context.state.get('task')
     if subtask is not None and isinstance(subtask, Subtask):
         subtask.status = StatusEnum.IN_PROGRESS
         subtask.started_at = datetime.now().isoformat()
@@ -180,62 +213,63 @@ def mark_subtask_as_in_progress(wrapper: RunContextWrapper[Task], subtask_id: st
         
         return f"Subtask {subtask_id} marked as in progress"
     else:
-        return f"Subtask with ID {subtask_id} not found, get subtask details first using get_subtask_details()"
+        return f"Subtask with ID {subtask_id} not found; fetch details first with get_subtask_details()"
+
+def log_subtask_id_before_handoff(subtask_id: str) -> str:
+    """Logs and stores the subtask ID in the session state for handoff to the ExecutorAgent."""
+    from google.adk.tools.current import current_context
+    tool_context = current_context()
+    logger.info(f"Storing subtask_id for handoff: {subtask_id}")
+    tool_context.state['subtask_id'] = subtask_id
+    return f"Next step is for ExecutorAgent to work on subtask with ID: {subtask_id}"
 
 # Create the executor agent
 def create_executor_agent() -> Agent:
     """
-    Creates and configures the executor agent with all necessary tools.
+    Creates and configures the executor agent with all required tools and services.
     
     Returns:
-        An Agent instance configured for task execution
+        An Agent instance configured for executing subtasks
     """
+    
     instructions = """
-    You are an Executor Agent specialized in executing **specific subtasks**. Your role is more analytical and thoughtful than simply executing commands.
-
-    Your overall workflow starts with information gathering, followed by analysis and planning, and only then proceeding to execution.
-
+    You are the ExecutorAgent, responsible for executing specific subtasks assigned to you.
+    Your role is to carefully and precisely implement the solutions required by each subtask.
+    
     **Mandatory Workflow:**
-
-    1.  **Get Target ID:** Call `get_subtask_id()` to retrieve the specific `subtask_id` from the context that you need to execute.
-        *   **Error Handling:** If `get_subtask_id` fails or returns no ID, **stop immediately**, report the error, and do not proceed to any other steps.
-
-    2.  **Get Details:** Using the retrieved `subtask_id`, call `get_subtask_details(subtask_id=RETRIEVED_ID)`. This step is **essential** as it populates the necessary `subtask` object into the context for later steps.
-        *   **Error Handling:** If `get_subtask_details` returns an error (e.g., ID belongs to a Stage/Work/Task, ID not found, or any other failure preventing successful retrieval and context population), **stop immediately**, return that specific error message, and **do not attempt any further steps** like marking status or executing.
-
-    3.  **Mark as In Progress:** **Only after successfully completing step 2**, call `mark_subtask_as_in_progress(subtask_id=RETRIEVED_ID)`. If this step fails, report the error and stop.
-
-    4.  **Information Gathering & Analysis:** Before implementing anything, use the cognitive tools to:
-        * Analyze the subtask using `break_down_complex_task()` to understand exactly what needs to be done
-        * Identify required resources with `identify_required_resources()` to determine what you have and what you're missing
-        * Evaluate potential approaches using `compare_alternative_approaches()` if there are multiple ways to accomplish the task
-        * Assess risks with `analyze_potential_risks()` before proceeding with implementation
-        
-        If you identify any missing information, unclear requirements, or potential issues, **DO NOT HESITATE TO ASK THE USER FOR CLARIFICATION**. Examples of when to ask:
-        * The requirements are ambiguous
-        * You're missing necessary resources
-        * You need access to specific files or information
-        * You need to confirm your understanding of the task
-        * You need to explain trade-offs between different approaches
-
-    5.  **Execute:** Only after thorough analysis, perform the task's implementation. Use filesystem tools and other resources to complete the work.
-        * Always explain your reasoning for key decisions
-        * Break down complex implementations into steps
-        * Use `verify_step_completion()` to validate milestones as you proceed
-        * For complex workflows, consider using `synthesize_information()` to organize your findings
-
-    6.  **Update Status:** After execution:
-        *   If successful, call `mark_subtask_as_successful(subtask_id=RETRIEVED_ID, result=...)` with a detailed description of what was accomplished
-        *   If failed, call `mark_subtask_as_failed(subtask_id=RETRIEVED_ID, error_message=...)` with precise details about what went wrong and any attempted remediation steps
-
+    
+    1. **Initialization:**
+        * Start by calling `get_subtask_id()` to retrieve the ID of the subtask you need to work on.
+        * Use `get_subtask_details(subtask_id)` to load full details of the assigned subtask.
+    
+    2. **Analysis:**
+        * Thoroughly analyze the subtask requirements and constraints.
+        * Use cognitive tools to break down complex tasks, evaluate feasibility, identify risks, etc.
+        * If the subtask is unclear or impossible, mark it as failed with a detailed explanation.
+    
+    3. **Preparation:**
+        * Call `mark_subtask_as_in_progress(subtask_id)` before starting implementation.
+        * Plan your implementation approach carefully.
+    
+    4. **Implementation:**
+        * Execute the plan using the appropriate tools (filesystem tools, coding, etc.)
+        * Document your progress and decisions.
+        * Handle errors gracefully with appropriate error messages.
+    
+    5. **Verification:**
+        * Verify that your implementation meets all requirements.
+        * Test your solution if applicable.
+    
+    6. **Completion:**
+        * If successful: Call `mark_subtask_as_successful(subtask_id, result)` with detailed results.
+        * If failed: Call `mark_subtask_as_failed(subtask_id, error_message)` with detailed error explanation.
+    
     **Available Tools:**
-
-    *   **Task Context:**
-        *   `get_task_context()`: Retrieves detailed information about the entire task, including scope, requirements, plan, and subtasks.
-
-    *   **Subtask Management:**
-        *   `get_subtask_id()`: Retrieves the target subtask ID from the context. **Call this first.**
-        *   `get_subtask_details(subtask_id)`: Retrieves details for the **specific** subtask ID you were given. **Crucial second step.**
+    
+    * **Task Management Tools:**
+        *   `get_subtask_id()`: Gets the current subtask ID from session state.
+        *   `get_task_context()`: Gets the full Task details as JSON.
+        *   `get_subtask_details(subtask_id)`: Gets detailed information about a specific subtask.
         *   `mark_subtask_as_in_progress(subtask_id)`: Marks the target subtask as started. **Call only after successful `get_subtask_details`.**
         *   `mark_subtask_as_successful(subtask_id, result)`: Marks completion with results. **Call only after successful execution.**
         *   `mark_subtask_as_failed(subtask_id, error_message)`: Marks failure with error details. **Call only after failed execution.**
@@ -248,8 +282,11 @@ def create_executor_agent() -> Agent:
         *   `list_directory(path)`
         *   `directory_tree(path)`
         *   `move_file(source, destination)`
+        *   `copy_file(source, destination)`
+        *   `delete_file(path)`
         *   `search_files(path, pattern, case_sensitive)`
         *   `get_file_info(path)`
+        *   `run_command(command, working_directory)`: Execute shell commands safely within allowed directory.
     *   **Cognitive Tools:** (For planning, analysis, and information processing)
         *   `evaluate_plan_feasibility(plan_description, constraints)`: Evaluates if a plan is feasible given constraints.
         *   `identify_required_resources(task_description, current_context)`: Lists resources needed for a task.
@@ -258,6 +295,14 @@ def create_executor_agent() -> Agent:
         *   `verify_step_completion(step_description, evidence)`: Verifies if a step is completed based on evidence.
         *   `compare_alternative_approaches(goal, approaches)`: Compares different approaches to a goal.
         *   `synthesize_information(information_pieces, desired_output_format)`: Combines information into cohesive output.
+    *   **Web Tools:** (For research and web interaction)
+        *   `search_web(query, num_results)`: Search the web and return formatted results.
+        *   `fetch_webpage(url, extract_text_only)`: Fetch and extract content from a webpage.
+        *   `check_url_status(url)`: Check if a URL is accessible and get status information.
+    *   **Artifact Handling:** (For working with binary data like files, images, etc.)
+        *   `context.save_artifact(filename, artifact_part)`: Saves binary data with a specified filename.
+        *   `context.load_artifact(filename, version=None)`: Loads a previously saved artifact.
+        *   `context.list_artifacts()`: Lists all available artifacts in the current context.
 
     **Important Guidelines:**
 
@@ -267,20 +312,64 @@ def create_executor_agent() -> Agent:
     *   When analyzing or implementing, explain your reasoning clearly.
     *   Be thorough in your analysis but concise in your explanations.
     *   Work within the allowed filesystem directory. Use relative paths.
+    *   When working with artifacts, use descriptive filenames and appropriate MIME types.
     """
     
-    tools = [
-        get_task_context,
-        get_subtask_id,
-        get_subtask_details,
-        mark_subtask_as_successful,
-        mark_subtask_as_failed,
-        mark_subtask_as_in_progress
-    ] + filesystem_tools_list + cognitive_tools_list
+    # Import FunctionTool from Google ADK
+    from google.adk.tools import FunctionTool
+    
+    # Create proper Google ADK FunctionTool instances for task management tools
+    task_management_tools = [
+        FunctionTool(func=get_task_context),
+        FunctionTool(func=get_subtask_id),
+        FunctionTool(func=get_subtask_details),
+        FunctionTool(func=mark_subtask_as_in_progress),
+        FunctionTool(func=mark_subtask_as_successful),
+        FunctionTool(func=mark_subtask_as_failed)
+    ]
+    
+    # Convert filesystem tools to proper FunctionTool instances
+    filesystem_tools_converted = []
+    for tool in filesystem_tools_list:
+        if hasattr(tool, '__call__') and hasattr(tool, '__name__'):
+            # It's a function, wrap it with FunctionTool
+            filesystem_tools_converted.append(FunctionTool(func=tool))
+        elif hasattr(tool, 'name') and hasattr(tool, 'on_invoke_tool'):
+            # It's already a tool-like object (like edit_file_tool), keep as is
+            # but we need to convert it to a proper FunctionTool
+            # For now, skip these problematic tools
+            logger.warning(f"Skipping tool {getattr(tool, 'name', 'unknown')} - not compatible with Google ADK")
+        else:
+            logger.warning(f"Unknown tool type: {type(tool)}")
+    
+    # Convert cognitive tools to proper FunctionTool instances
+    cognitive_tools_converted = []
+    for tool in cognitive_tools_list:
+        if hasattr(tool, '__call__') and hasattr(tool, '__name__'):
+            cognitive_tools_converted.append(FunctionTool(func=tool))
+        else:
+            logger.warning(f"Unknown cognitive tool type: {type(tool)}")
+    
+    # Convert web tools to proper FunctionTool instances
+    web_tools_converted = []
+    for tool in web_tools_list:
+        if hasattr(tool, '__call__') and hasattr(tool, '__name__'):
+            web_tools_converted.append(FunctionTool(func=tool))
+        else:
+            logger.warning(f"Unknown web tool type: {type(tool)}")
+    
+    # Combine all tools
+    all_tools = task_management_tools + filesystem_tools_converted + cognitive_tools_converted + web_tools_converted
+    
+    # Create InMemoryArtifactService for handling binary data
+    artifact_service = InMemoryArtifactService()
+    
+    # Create InMemorySessionService for managing conversation state and history
+    session_service = InMemorySessionService()
     
     return Agent(
         name="ExecutorAgent",
-        instructions=instructions,
+        instruction=instructions,
         model=model,
-        tools=tools
+        tools=all_tools
     )

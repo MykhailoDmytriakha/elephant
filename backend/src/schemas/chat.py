@@ -13,6 +13,10 @@ class ChatRequest(BaseModel):
         default=None, 
         description="Previous messages in the conversation, if any"
     )
+    session_id: Optional[str] = Field(
+        default=None,
+        description="ID for the conversation session to maintain state between requests"
+    )
 
 class ChatResponse(BaseModel):
     """Response from chat endpoint (non-streaming)"""

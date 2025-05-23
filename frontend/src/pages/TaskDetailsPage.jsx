@@ -50,7 +50,8 @@ export default function TaskDetailsPage() {
     isEditingContext,
     contextFeedback,
     handleContextFeedbackChange,
-    submitContextFeedback
+    submitContextFeedback,
+    setTask
   } = useTaskDetails(taskId);
 
   const handleNavigateToAllStages = () => {
@@ -170,6 +171,8 @@ export default function TaskDetailsPage() {
                 task={task}
                 isContextGathered={task.is_context_sufficient}
                 defaultOpen={!(task.scope && task.scope.status === "approved")}
+                onTaskUpdate={loadTask}
+                onLocalTaskUpdate={setTask}
               />
             )}
 

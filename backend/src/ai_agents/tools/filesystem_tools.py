@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from src.core.config import settings
 from src.exceptions import ValidationException
 import asyncio # Add asyncio import
+import subprocess
+import shlex
 
 try:
     from agents import function_tool, FunctionTool, RunContextWrapper # type: ignore
@@ -588,6 +590,159 @@ if AGENTS_SDK_AVAILABLE:
             logger.exception(f"Unexpected error getting info for '{path}'")
             return _format_error("get_file_info", path, f"Unexpected error: {e}")
 
+    @function_tool
+    def run_command(command: str, working_directory: str = ".") -> str:
+        """
+        Executes a shell command within the allowed directory with security restrictions.
+        Limited to safe commands and has timeout protection.
+
+        Args:
+            command: The shell command to execute (string)
+            working_directory: The relative path to run the command from (defaults to base directory)
+
+        Returns:
+            The command output (stdout + stderr) or an error message starting with 'Error:'.
+        """
+        logger.info(f"Tool executed: run_command (Command: {command}, Working Dir: {working_directory})")
+        
+        # Security: List of allowed command prefixes
+        allowed_commands = [
+            'ls', 'cat', 'head', 'tail', 'grep', 'find', 'wc', 'sort', 'uniq',
+            'echo', 'pwd', 'date', 'whoami',
+            'git', 'npm', 'yarn', 'pip', 'python', 'node', 'pytest', 'jest',
+            'docker', 'kubectl', 'make', 'cmake', 'gcc', 'g++', 'javac', 'java',
+            'rustc', 'cargo', 'go', 'dotnet', 'mvn', 'gradle'
+        ]
+        
+        try:
+            # Validate working directory
+            valid_work_dir = _validate_path(working_directory, check_existence=True, check_is_dir=True)
+            
+            # Parse command safely
+            try:
+                cmd_parts = shlex.split(command)
+            except ValueError as e:
+                return _format_error("run_command", None, f"Invalid command syntax: {e}")
+            
+            if not cmd_parts:
+                return _format_error("run_command", None, "Empty command")
+            
+            # Security check: verify command is in allowed list
+            cmd_name = cmd_parts[0]
+            if not any(cmd_name.startswith(allowed) for allowed in allowed_commands):
+                return _format_error("run_command", None, f"Command '{cmd_name}' not allowed for security reasons")
+            
+            # Execute command with timeout
+            result = subprocess.run(
+                cmd_parts,
+                cwd=str(valid_work_dir),
+                capture_output=True,
+                text=True,
+                timeout=30,  # 30 second timeout
+                check=False  # Don't raise exception on non-zero exit
+            )
+            
+            # Combine stdout and stderr
+            output = ""
+            if result.stdout:
+                output += f"STDOUT:\n{result.stdout}\n"
+            if result.stderr:
+                output += f"STDERR:\n{result.stderr}\n"
+            
+            output += f"Exit code: {result.returncode}"
+            
+            logger.info(f"Command executed successfully: {command} (exit code: {result.returncode})")
+            return f"Command: {command}\nWorking directory: {working_directory}\n\n{output}"
+            
+        except subprocess.TimeoutExpired:
+            logger.error(f"Command timed out: {command}")
+            return _format_error("run_command", None, "Command timed out after 30 seconds")
+        except (ValidationException, FileNotFoundError, NotADirectoryError) as e:
+            logger.error(f"Error with working directory '{working_directory}': {e}")
+            return _format_error("run_command", working_directory, str(e))
+        except Exception as e:
+            logger.exception(f"Unexpected error running command '{command}'")
+            return _format_error("run_command", None, f"Unexpected error: {e}")
+
+    @function_tool
+    def delete_file(path: str) -> str:
+        """
+        Deletes a file or empty directory within the allowed directory.
+        Use with caution - this operation cannot be undone.
+
+        Args:
+            path: The relative path to the file or directory to delete.
+
+        Returns:
+            A confirmation message or an error message starting with 'Error:'.
+        """
+        logger.info(f"Tool executed: delete_file (Path: {path})")
+        try:
+            valid_path = _validate_path(path, check_existence=True)
+            
+            if valid_path.is_file():
+                valid_path.unlink()
+                logger.info(f"Successfully deleted file: {valid_path}")
+                return f"Successfully deleted file '{path}'."
+            elif valid_path.is_dir():
+                valid_path.rmdir()  # Only removes empty directories
+                logger.info(f"Successfully deleted empty directory: {valid_path}")
+                return f"Successfully deleted empty directory '{path}'."
+            else:
+                return _format_error("delete_file", path, "Path is neither a file nor a directory")
+                
+        except OSError as e:
+            if "Directory not empty" in str(e):
+                logger.error(f"Cannot delete non-empty directory '{path}': {e}")
+                return _format_error("delete_file", path, "Directory not empty (only empty directories can be deleted)")
+            else:
+                logger.error(f"Error deleting '{path}': {e}")
+                return _format_error("delete_file", path, str(e))
+        except (ValidationException, FileNotFoundError, PermissionError) as e:
+            logger.error(f"Error deleting '{path}': {e}")
+            return _format_error("delete_file", path, str(e))
+        except Exception as e:
+            logger.exception(f"Unexpected error deleting '{path}'")
+            return _format_error("delete_file", path, f"Unexpected error: {e}")
+
+    @function_tool
+    def copy_file(source: str, destination: str) -> str:
+        """
+        Copies a file from source to destination within the allowed directory.
+        Fails if the destination already exists.
+
+        Args:
+            source: The relative source path.
+            destination: The relative destination path.
+
+        Returns:
+            A confirmation message or an error message starting with 'Error:'.
+        """
+        logger.info(f"Tool executed: copy_file (Source: {source}, Destination: {destination})")
+        try:
+            valid_source = _validate_path(source, check_existence=True, check_is_dir=False)
+            valid_dest = _validate_path(destination, check_existence=False, allow_create=True)
+            
+            if valid_dest.exists():
+                raise FileExistsError(f"Destination path '{destination}' already exists.")
+            
+            dest_parent = valid_dest.parent
+            if not dest_parent.exists():
+                raise FileNotFoundError(f"Parent directory for destination '{destination}' does not exist.")
+            if not dest_parent.is_dir():
+                raise NotADirectoryError(f"Parent path for destination '{destination}' is not a directory.")
+            
+            shutil.copy2(str(valid_source), str(valid_dest))
+            logger.info(f"Successfully copied '{valid_source}' to '{valid_dest}'")
+            return f"Successfully copied '{source}' to '{destination}'."
+            
+        except (ValidationException, FileNotFoundError, FileExistsError, NotADirectoryError, IsADirectoryError, PermissionError, OSError) as e:
+            logger.error(f"Error copying '{source}' to '{destination}': {e}")
+            return _format_error("copy_file", source, str(e))
+        except Exception as e:
+            logger.exception(f"Unexpected error copying '{source}' to '{destination}'")
+            return _format_error("copy_file", source, f"Unexpected error: {e}")
+
 else:
     def _format_error(tool_name: str, path: Optional[str], message: str) -> str:
         """Formats consistent error messages when SDK is unavailable."""
@@ -629,6 +784,9 @@ else:
     def move_file(source: str, destination: str) -> str: return _format_error("move_file", source, "Operation failed")
     def search_files(path: str, pattern: str, case_sensitive: bool) -> str: return _format_error("search_files", path, "Operation failed")
     def get_file_info(path: str) -> str: return _format_error("get_file_info", path, "Operation failed")
+    def run_command(command: str, working_directory: str = ".") -> str: return _format_error("run_command", None, "Operation failed")
+    def delete_file(path: str) -> str: return _format_error("delete_file", path, "Operation failed")
+    def copy_file(source: str, destination: str) -> str: return _format_error("copy_file", source, "Operation failed")
 
 filesystem_tools_list = [
     list_allowed_directory,
@@ -642,4 +800,7 @@ filesystem_tools_list = [
     move_file,
     search_files,
     get_file_info,
+    run_command,
+    delete_file,
+    copy_file,
 ]

@@ -232,8 +232,16 @@ export const StatusDetailsDisplay = ({ item }) => {
             {item.result && (
                 <div className="mt-1 pt-1 border-t border-gray-100">
                     <span className="font-medium">Result:</span>
-                    <div className="mt-0.5 p-1 bg-gray-50 rounded border border-gray-300 max-h-24 overflow-y-auto text-xs">
-                        <pre className="whitespace-pre-wrap">{item.result}</pre>
+                    <div className="mt-0.5 p-1 bg-gray-50 rounded border border-gray-300 text-xs">
+                        {Array.isArray(item.result) ? (
+                            <ul className="list-disc list-inside space-y-1">
+                                {item.result.map((resultItem, index) => (
+                                    <li key={index}>{resultItem}</li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <pre className="whitespace-pre-wrap">{item.result}</pre>
+                        )}
                     </div>
                 </div>
             )}

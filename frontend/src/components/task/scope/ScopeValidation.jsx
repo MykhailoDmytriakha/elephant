@@ -22,6 +22,8 @@ import { validateScope } from '../../../utils/api';
  * @param {Function} onSetErrorMessage - Function to update error message
  * @param {Function} onSetLoading - Function to update loading state
  * @param {Function} onSetFlowState - Function to update flow state
+ * @param {Function} onTaskUpdate - Function to update task state
+ * @param {Function} onLocalTaskUpdate - Function to update local task state
  */
 export default function ScopeValidation({
   task,
@@ -39,7 +41,9 @@ export default function ScopeValidation({
   onSetLocallyApproved,
   onSetErrorMessage,
   onSetLoading,
-  onSetFlowState
+  onSetFlowState,
+  onTaskUpdate,
+  onLocalTaskUpdate
 }) {
   // State for showing/hiding validation criteria
   const [showValidationCriteria, setShowValidationCriteria] = useState(true);
@@ -116,6 +120,27 @@ export default function ScopeValidation({
           
           // Clear feedback
           onSetFeedback(null);
+          
+          // Update the task state to reflect approved scope
+          if (onLocalTaskUpdate) {
+            // Update local task state immediately
+            onLocalTaskUpdate(prevTask => ({
+              ...prevTask,
+              scope: {
+                ...prevTask.scope,
+                status: 'approved'
+              }
+            }));
+          }
+          
+          // Optionally, refresh task data from server to ensure consistency
+          if (onTaskUpdate) {
+            // Wait a bit to allow backend to process, then refresh
+            setTimeout(() => {
+              onTaskUpdate();
+            }, 500);
+          }
+        
         } catch (error) {
           console.error('Error finalizing task:', error);
           // Still show final scope screen even if API fails
