@@ -13,3 +13,9 @@ pytest-mock
 google-adk
 litellm
 beautifulsoup4
+pandas
+numpy
+matplotlib
+seaborn
+plotly
+scikit-learn

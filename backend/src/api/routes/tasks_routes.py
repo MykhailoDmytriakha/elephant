@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from typing import List, Optional, cast, AsyncGenerator
 import logging
 import json
@@ -65,6 +65,7 @@ from src.constants import (
 
 # Import the chat agent
 from src.ai_agents import stream_chat_response
+from src.ai_agents.agent_tracker import get_tracker, _trackers
 
 logger = logging.getLogger(__name__)
 
@@ -916,3 +917,88 @@ async def reset_chat_session(
             "success": False,
             "message": f"Failed to reset chat session: {str(e)}"
         }
+
+@router.get("/{task_id}/trace")
+async def get_agent_trace(task_id: str, session_id: Optional[str] = None) -> JSONResponse:
+    """
+    Get detailed agent execution trace for a task.
+    Shows what agents were used, what tools were called, and execution flow.
+    """
+    try:
+        # Find the tracker
+        tracker = None
+        search_session_id = session_id or f"session_{task_id}"
+        
+        # Try to find exact match first
+        key = f"{task_id}_{search_session_id}"
+        if key in _trackers:
+            tracker = _trackers[key]
+        else:
+            # Try to find any tracker for this task
+            for tracker_key in _trackers:
+                if tracker_key.startswith(f"{task_id}_"):
+                    tracker = _trackers[tracker_key]
+                    break
+        
+        if not tracker:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": "No execution trace found for this task",
+                    "task_id": task_id,
+                    "session_id": search_session_id,
+                    "available_trackers": list(_trackers.keys())
+                }
+            )
+        
+        # Return detailed trace information
+        trace_data = {
+            "task_id": task_id,
+            "session_id": search_session_id,
+            "summary": tracker.get_summary(),
+            "formatted_trace": tracker.format_trace(),
+            "agent_transfers": [
+                {
+                    "timestamp": transfer.timestamp,
+                    "from_agent": transfer.from_agent,
+                    "to_agent": transfer.to_agent,
+                    "reason": transfer.reason,
+                    "confidence_score": transfer.confidence_score,
+                    "context": transfer.context
+                }
+                for transfer in tracker.agent_transfers
+            ],
+            "tool_calls": [
+                {
+                    "timestamp": call.timestamp,
+                    "tool_name": call.tool_name,
+                    "parameters": call.parameters,
+                    "success": call.success,
+                    "error_message": call.error_message,
+                    "execution_time_ms": call.execution_time_ms,
+                    "result_preview": call.result[:100] + "..." if call.result and len(call.result) > 100 else call.result
+                }
+                for call in tracker.tool_calls
+            ],
+            "activities": [
+                {
+                    "timestamp": activity.timestamp,
+                    "agent_name": activity.agent_name,
+                    "action_type": activity.action_type,
+                    "description": activity.description,
+                    "success": activity.success,
+                    "error_message": activity.error_message,
+                    "details": activity.details
+                }
+                for activity in tracker.activities
+            ]
+        }
+        
+        return JSONResponse(content=trace_data)
+        
+    except Exception as e:
+        logger.error(f"Error getting agent trace: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to get agent trace: {str(e)}"}
+        )

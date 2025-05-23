@@ -804,3 +804,272 @@ filesystem_tools_list = [
     delete_file,
     copy_file,
 ]
+
+# Export simple functions for Google ADK (without decorators)
+def _list_allowed_directory() -> str:
+    """Returns the base directory path that the filesystem tools are restricted to operate within."""
+    logger.info("Tool executed: list_allowed_directory")
+    try:
+        if not settings.ALLOWED_BASE_DIR_RESOLVED:
+            raise ValidationException("Filesystem tools are disabled (base directory not configured).")
+        return f"Operations are restricted to the directory: {settings.ALLOWED_BASE_DIR_RESOLVED}"
+    except ValidationException as e:
+        logger.error(f"Error in list_allowed_directory: {e}")
+        return _format_error("list_allowed_directory", None, str(e))
+    except Exception as e:
+        logger.exception("Unexpected error in list_allowed_directory")
+        return _format_error("list_allowed_directory", None, f"Unexpected error: {e}")
+
+def _read_file(path: str) -> str:
+    """Reads the content of a text file within the allowed directory."""
+    logger.info(f"Tool executed: read_file (Path: {path})")
+    try:
+        valid_path = _validate_path(path, check_existence=True, check_is_dir=False)
+        content = valid_path.read_text(encoding='utf-8')
+        logger.info(f"Successfully read file: {valid_path}")
+        return f"Content of '{path}':\n```\n{content}\n```"
+    except (ValidationException, FileNotFoundError, IsADirectoryError, PermissionError, UnicodeDecodeError) as e:
+        logger.error(f"Error reading file '{path}': {e}")
+        return _format_error("read_file", path, str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error reading file '{path}'")
+        return _format_error("read_file", path, f"Unexpected error: {e}")
+
+def _write_file(path: str, content: str) -> str:
+    """Writes or overwrites a text file within the allowed directory."""
+    logger.info(f"Tool executed: write_file (Path: {path})")
+    try:
+        valid_path = _validate_path(path, check_existence=False, allow_create=True, check_is_dir=False)
+        
+        parent_dir = valid_path.parent
+        if not parent_dir.exists():
+            if settings.ALLOWED_BASE_DIR_RESOLVED:
+                parent_rel_path = parent_dir.relative_to(settings.ALLOWED_BASE_DIR_RESOLVED)
+                raise FileNotFoundError(f"Parent directory '{parent_rel_path}' does not exist. Use create_directory first.")
+            else:
+                raise FileNotFoundError(f"Parent directory '{parent_dir}' does not exist and base directory is not configured.")
+        
+        valid_path.write_text(content, encoding='utf-8')
+        logger.info(f"Successfully wrote to file: {valid_path}")
+        return f"Successfully wrote content to '{path}'."
+    except (ValidationException, FileNotFoundError, NotADirectoryError, IsADirectoryError, PermissionError, OSError) as e:
+        logger.error(f"Error writing file '{path}': {e}")
+        return _format_error("write_file", path, str(e))
+    except Exception as e:
+         logger.exception(f"Unexpected error writing file '{path}'")
+         return _format_error("write_file", path, f"Unexpected error: {e}")
+
+def _create_directory(path: str) -> str:
+    """Creates a directory within the allowed directory."""
+    logger.info(f"Tool executed: create_directory (Path: {path})")
+    try:
+        valid_path = _validate_path(path, check_existence=False, allow_create=True, check_is_dir=None)
+        
+        if valid_path.exists():
+            if valid_path.is_dir():
+                return f"Directory '{path}' already exists."
+            else:
+                raise FileExistsError(f"Path '{path}' exists but is not a directory.")
+        
+        valid_path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Successfully created directory: {valid_path}")
+        return f"Successfully created directory '{path}'."
+    except (ValidationException, FileExistsError, PermissionError, OSError) as e:
+        logger.error(f"Error creating directory '{path}': {e}")
+        return _format_error("create_directory", path, str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error creating directory '{path}'")
+        return _format_error("create_directory", path, f"Unexpected error: {e}")
+
+def _list_directory(path: str) -> str:
+    """Lists the contents of a directory within the allowed directory."""
+    logger.info(f"Tool executed: list_directory (Path: {path})")
+    try:
+        valid_path = _validate_path(path, check_existence=True, check_is_dir=True)
+        
+        items = []
+        for item in sorted(valid_path.iterdir()):
+            item_type = "DIR" if item.is_dir() else "FILE"
+            size = ""
+            if item.is_file():
+                try:
+                    size = f" ({item.stat().st_size} bytes)"
+                except:
+                    size = ""
+            items.append(f"{item_type}: {item.name}{size}")
+        
+        if not items:
+            result = f"Directory '{path}' is empty."
+        else:
+            result = f"Contents of '{path}':\n" + "\n".join(items)
+        
+        logger.info(f"Successfully listed directory: {valid_path}")
+        return result
+    except (ValidationException, FileNotFoundError, NotADirectoryError, PermissionError) as e:
+        logger.error(f"Error listing directory '{path}': {e}")
+        return _format_error("list_directory", path, str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error listing directory '{path}'")
+        return _format_error("list_directory", path, f"Unexpected error: {e}")
+
+def _run_command(command: str, working_directory: str = ".") -> str:
+    """Runs a shell command in the specified working directory."""
+    logger.info(f"Tool executed: run_command (Command: {command}, WorkDir: {working_directory})")
+    
+    # Security: List of allowed command prefixes
+    allowed_commands = [
+        'ls', 'cat', 'head', 'tail', 'grep', 'find', 'wc', 'sort', 'uniq',
+        'echo', 'pwd', 'date', 'whoami',
+        'git', 'npm', 'yarn', 'pip', 'python', 'node', 'pytest', 'jest',
+        'docker', 'kubectl', 'make', 'cmake', 'gcc', 'g++', 'javac', 'java',
+        'rustc', 'cargo', 'go', 'dotnet', 'mvn', 'gradle'
+    ]
+    
+    try:
+        # Validate working directory
+        valid_work_dir = _validate_path(working_directory, check_existence=True, check_is_dir=True)
+        
+        # Parse command safely
+        try:
+            cmd_parts = shlex.split(command)
+        except ValueError as e:
+            return _format_error("run_command", None, f"Invalid command syntax: {e}")
+        
+        if not cmd_parts:
+            return _format_error("run_command", None, "Empty command")
+        
+        # Security check: verify command is in allowed list
+        cmd_name = cmd_parts[0]
+        if not any(cmd_name.startswith(allowed) for allowed in allowed_commands):
+            return _format_error("run_command", None, f"Command '{cmd_name}' not allowed for security reasons")
+        
+        # Execute command with timeout
+        result = subprocess.run(
+            cmd_parts,
+            cwd=str(valid_work_dir),
+            capture_output=True,
+            text=True,
+            timeout=30,  # 30 second timeout
+            check=False  # Don't raise exception on non-zero exit
+        )
+        
+        # Combine stdout and stderr
+        output = ""
+        if result.stdout:
+            output += f"STDOUT:\n{result.stdout}\n"
+        if result.stderr:
+            output += f"STDERR:\n{result.stderr}\n"
+        
+        output += f"Exit code: {result.returncode}"
+        
+        logger.info(f"Command executed successfully: {command} (exit code: {result.returncode})")
+        return f"Command: {command}\nWorking directory: {working_directory}\n\n{output}"
+        
+    except subprocess.TimeoutExpired:
+        logger.error(f"Command timed out: {command}")
+        return _format_error("run_command", None, "Command timed out after 30 seconds")
+    except (ValidationException, FileNotFoundError, NotADirectoryError) as e:
+        logger.error(f"Error with working directory '{working_directory}': {e}")
+        return _format_error("run_command", working_directory, str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error running command '{command}'")
+        return _format_error("run_command", None, f"Unexpected error: {e}")
+
+# Google ADK compatible tools (simple functions)
+google_adk_filesystem_tools = [
+    _list_allowed_directory,
+    _read_file,  
+    _write_file,
+    _create_directory,
+    _list_directory,
+    _run_command,
+]
+
+# Tracked filesystem tools for enhanced monitoring
+def create_tracked_filesystem_tools(task_id: str, session_id: str):
+    """Creates filesystem tools with tracking for specific task/session."""
+    from src.ai_agents.agent_tracker import get_tracker
+    import time
+    
+    tracker = get_tracker(task_id, session_id)
+    
+    def tracked_list_allowed_directory() -> str:
+        start_time = time.time()
+        try:
+            result = _list_allowed_directory()
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("list_allowed_directory", {}, result[:100] + "..." if len(result) > 100 else result, True, None, execution_time)
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("list_allowed_directory", {}, None, False, str(e), execution_time)
+            raise
+    
+    def tracked_read_file(path: str) -> str:
+        start_time = time.time()
+        try:
+            result = _read_file(path)
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("read_file", {"path": path}, result[:100] + "..." if len(result) > 100 else result, True, None, execution_time)
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("read_file", {"path": path}, None, False, str(e), execution_time)
+            raise
+    
+    def tracked_write_file(path: str, content: str) -> str:
+        start_time = time.time()
+        try:
+            result = _write_file(path, content)
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("write_file", {"path": path, "content_length": len(content)}, result, True, None, execution_time)
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("write_file", {"path": path, "content_length": len(content)}, None, False, str(e), execution_time)
+            raise
+    
+    def tracked_create_directory(path: str) -> str:
+        start_time = time.time()
+        try:
+            result = _create_directory(path)
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("create_directory", {"path": path}, result, True, None, execution_time)
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("create_directory", {"path": path}, None, False, str(e), execution_time)
+            raise
+    
+    def tracked_list_directory(path: str) -> str:
+        start_time = time.time()
+        try:
+            result = _list_directory(path)
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("list_directory", {"path": path}, result[:100] + "..." if len(result) > 100 else result, True, None, execution_time)
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("list_directory", {"path": path}, None, False, str(e), execution_time)
+            raise
+    
+    def tracked_run_command(command: str, working_directory: str = ".") -> str:
+        start_time = time.time()
+        try:
+            result = _run_command(command, working_directory)
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("run_command", {"command": command, "working_directory": working_directory}, result[:200] + "..." if len(result) > 200 else result, True, None, execution_time)
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("run_command", {"command": command, "working_directory": working_directory}, None, False, str(e), execution_time)
+            raise
+    
+    return [
+        tracked_list_allowed_directory,
+        tracked_read_file,
+        tracked_write_file,
+        tracked_create_directory,
+        tracked_list_directory,
+        tracked_run_command,
+    ]

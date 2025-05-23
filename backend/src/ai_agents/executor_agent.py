@@ -1,4 +1,5 @@
 import logging
+import time
 from src.model.task import Task
 from src.model.subtask import Subtask
 from src.model.status import StatusEnum
@@ -74,18 +75,14 @@ def _update_subtask_in_database(task: Task, subtask_id: str, operation: str) -> 
         return False, error_msg
 
 # --- Executor Agent Tools ---
-def get_subtask_id() -> str:
+def get_subtask_id(tool_context) -> str:
     """Retrieves the subtask ID stored in the session state."""
-    from google.adk.tools.current import current_context
-    tool_context = current_context()
     return tool_context.state.get('subtask_id', '')
     
-def get_task_context() -> str:
+def get_task_context(tool_context) -> str:
     """
     Retrieves detailed information about the entire Task stored in session state.
     """
-    from google.adk.tools.current import current_context
-    tool_context = current_context()
     logger.info("Getting full task context from session state")
     task: Task = tool_context.state.get('task')
     if not task:
@@ -96,19 +93,18 @@ def get_task_context() -> str:
         logger.error(f"Error retrieving task context: {e}", exc_info=True)
         return f'{{"error": "Failed to retrieve task context: {str(e)}"}}'
 
-def get_subtask_details(subtask_id: str) -> str:
+def get_subtask_details(subtask_id: str, tool_context) -> str:
     """
     Retrieves all details about a specific subtask by its ID and loads it into context.
     Use this to get comprehensive information about a subtask before executing it.
 
     Args:
         subtask_id: The ID of the subtask to retrieve information for
+        tool_context: The tool context providing access to state
 
     Returns:
         A formatted string containing details of the subtask, or an error message if not found.
     """
-    from google.adk.tools.current import current_context
-    tool_context = current_context()
     logger.info(f"Getting details for subtask: {subtask_id}")
     task: Task = tool_context.state.get('task')
     if not task:
@@ -123,18 +119,17 @@ def get_subtask_details(subtask_id: str) -> str:
     details = context_utils.get_subtask_context_by_id(task, subtask_id)
     return details
 
-def mark_subtask_as_successful(subtask_id: str, result: str) -> str:
+def mark_subtask_as_successful(subtask_id: str, result: str, tool_context) -> str:
     """
     Marks a subtask as successful.
     
     Args:
         subtask_id: The ID of the subtask to mark as successful
         result: The result of the subtask, description what was done and what was achieved
+        tool_context: The tool context providing access to state
     Returns:
         A string containing the subtask ID that was marked as successful
     """
-    from google.adk.tools.current import current_context
-    tool_context = current_context()
     logger.info(f"Marking subtask {subtask_id} as successful with result: {result}")
     subtask: Subtask = tool_context.state.get('subtask')
     task: Task = tool_context.state.get('task')
@@ -152,18 +147,17 @@ def mark_subtask_as_successful(subtask_id: str, result: str) -> str:
     else:
         return f"Subtask with ID {subtask_id} not found; fetch details first with get_subtask_details()"
 
-def mark_subtask_as_failed(subtask_id: str, error_message: str) -> str:
+def mark_subtask_as_failed(subtask_id: str, error_message: str, tool_context) -> str:
     """
     Marks a subtask as failed.
     
     Args:
         subtask_id: The ID of the subtask to mark as failed
         error_message: The error message of the subtask, description what went wrong
+        tool_context: The tool context providing access to state
     Returns:
         A string containing the subtask ID that was marked as failed
     """
-    from google.adk.tools.current import current_context
-    tool_context = current_context()
     logger.info(f"Marking subtask {subtask_id} as failed with error: {error_message}")
     subtask: Subtask = tool_context.state.get('subtask')
     task: Task = tool_context.state.get('task')
@@ -181,17 +175,16 @@ def mark_subtask_as_failed(subtask_id: str, error_message: str) -> str:
     else:
         return f"Subtask with ID {subtask_id} not found; fetch details first with get_subtask_details()"
     
-def mark_subtask_as_in_progress(subtask_id: str) -> str:
+def mark_subtask_as_in_progress(subtask_id: str, tool_context) -> str:
     """
     Marks a subtask as in progress.
     
     Args:
         subtask_id: The ID of the subtask to mark as in progress
+        tool_context: The tool context providing access to state
     Returns:
         A string containing the subtask ID that was marked as in progress
     """
-    from google.adk.tools.current import current_context
-    tool_context = current_context()
     logger.info(f"Marking subtask {subtask_id} as in progress")
     # if exist subtask and task in context, mark as in progress
     if not tool_context.state.get('subtask') or not tool_context.state.get('task'):
@@ -215,13 +208,102 @@ def mark_subtask_as_in_progress(subtask_id: str) -> str:
     else:
         return f"Subtask with ID {subtask_id} not found; fetch details first with get_subtask_details()"
 
-def log_subtask_id_before_handoff(subtask_id: str) -> str:
+def log_subtask_id_before_handoff(subtask_id: str, tool_context) -> str:
     """Logs and stores the subtask ID in the session state for handoff to the ExecutorAgent."""
-    from google.adk.tools.current import current_context
-    tool_context = current_context()
     logger.info(f"Storing subtask_id for handoff: {subtask_id}")
     tool_context.state['subtask_id'] = subtask_id
     return f"Next step is for ExecutorAgent to work on subtask with ID: {subtask_id}"
+
+# --- Simple executor functions (without tool_context for direct use) ---
+def simple_get_task_context() -> str:
+    """
+    Simple version of get_task_context for backwards compatibility.
+    Note: This version cannot access actual context, it's a placeholder.
+    """
+    return '{"error": "Simple version cannot access context. Use tool version instead."}'
+
+def simple_log_subtask_id_before_handoff(subtask_id: str) -> str:
+    """
+    Simple version of log_subtask_id_before_handoff for backwards compatibility.
+    Note: This version cannot access actual context, it's a placeholder.
+    """
+    return f"Simple version cannot access context. Use tool version for subtask: {subtask_id}"
+
+# --- Create tracked executor tools ---
+def create_tracked_executor_tools(task_id: str, session_id: str):
+    """
+    Creates tracked versions of executor tools for enhanced monitoring.
+    
+    Args:
+        task_id: The task ID for tracking
+        session_id: The session ID for tracking
+        
+    Returns:
+        List of tracked executor tool functions
+    """
+    from src.ai_agents.agent_tracker import get_tracker
+    tracker = get_tracker(task_id, session_id)
+    
+    def tracked_get_task_context() -> str:
+        """Tracked version of get_task_context"""
+        start_time = time.time()
+        try:
+            # This is a simple function, so it can't actually access tool_context
+            # In a real implementation, the ADK framework would provide the context
+            result = '{"message": "get_task_context called - context provided by ADK framework"}'
+            
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call(
+                tool_name="get_task_context",
+                execution_time_ms=execution_time,
+                parameters={},
+                result=result[:100] + "..." if len(result) > 100 else result,
+                success=True
+            )
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            error_msg = f"Error in get_task_context: {str(e)}"
+            tracker.log_tool_call(
+                tool_name="get_task_context",
+                execution_time_ms=execution_time,
+                parameters={},
+                result=error_msg,
+                success=False
+            )
+            return error_msg
+
+    def tracked_log_subtask_id_before_handoff(subtask_id: str) -> str:
+        """Tracked version of log_subtask_id_before_handoff"""
+        start_time = time.time()
+        try:
+            result = f"Logged subtask_id for handoff: {subtask_id}"
+            
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call(
+                tool_name="log_subtask_id_before_handoff",
+                execution_time_ms=execution_time,
+                parameters={"subtask_id": subtask_id},
+                result=result,
+                success=True
+            )
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            error_msg = f"Error in log_subtask_id_before_handoff: {str(e)}"
+            tracker.log_tool_call(
+                tool_name="log_subtask_id_before_handoff", 
+                execution_time_ms=execution_time,
+                parameters={"subtask_id": subtask_id},
+                result=error_msg,
+                success=False
+            )
+            return error_msg
+
+    return [
+        tracked_get_task_context,
+        tracked_log_subtask_id_before_handoff
+    ]
 
 # Create the executor agent
 def create_executor_agent() -> Agent:

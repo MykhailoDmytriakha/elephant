@@ -344,3 +344,165 @@ cognitive_tools_list = [
     compare_alternative_approaches,
     synthesize_information,
 ]
+
+# Google ADK compatible functions (without decorators)
+def _evaluate_plan_feasibility(plan_description: str, constraints: Optional[List[str]] = None) -> str:
+    """Evaluates whether a plan or approach is feasible given the current constraints."""
+    logger.info(f"Cognitive Tool: Evaluating feasibility of plan: {plan_description}")
+    if not client:
+        return "Error: OpenAI client not initialized."
+
+    system_instructions = (
+        "You are an expert AI assistant specializing in feasibility analysis. "
+        "Evaluate the provided plan or approach for feasibility based on common constraints like time, resources, technology limitations, and logical dependencies. "
+        "Provide a clear assessment (e.g., 'Feasible', 'Challenging but possible', 'Not feasible') with specific reasoning."
+    )
+    user_input = f"Plan Description:\n{plan_description}\n\n"
+    if constraints:
+        constraints_str = "\n".join(f"- {constraint}" for constraint in constraints)
+        user_input += f"Known Constraints:\n{constraints_str}\n"
+    else:
+        user_input += "Known Constraints: None explicitly provided.\n"
+    user_input += "\nPlease provide your feasibility assessment."
+
+    try:
+        response = client.responses.create(
+            model=model,
+            instructions=system_instructions,
+            input=user_input,
+        )
+        return response.output_text
+    except Exception as e:
+        logger.error(f"Error calling OpenAI API for evaluate_plan_feasibility: {e}", exc_info=True)
+        return f"Error during plan feasibility evaluation: {str(e)}"
+
+def _break_down_complex_task(task_description: str, max_depth: int) -> str:
+    """Decomposes a complex task description into smaller, more manageable sub-tasks."""
+    logger.info(f"Cognitive Tool: Breaking down task: {task_description}")
+    if not client:
+        return "Error: OpenAI client not initialized."
+
+    system_instructions = (
+        "You are an expert AI assistant specializing in task decomposition and planning. "
+        "Break down the given complex task description into a sequence of smaller, logical, and actionable sub-tasks. "
+        "The goal is to create a clear plan that can be followed step-by-step. "
+        "Present the sub-tasks in a structured format, preferably as a numbered or bulleted list."
+    )
+    user_input = f"Complex Task Description:\n{task_description}\n\n"
+    user_input += "\nPlease provide the breakdown into sub-tasks."
+
+    try:
+        response = client.responses.create(
+            model=model,
+            instructions=system_instructions,
+            input=user_input,
+        )
+        return response.output_text
+    except Exception as e:
+        logger.error(f"Error calling OpenAI API for break_down_complex_task: {e}", exc_info=True)
+        return f"Error during task breakdown: {str(e)}"
+
+def _analyze_potential_risks(action_description: str, context: Optional[str] = None) -> str:
+    """Analyzes a proposed action or plan to identify potential risks, side effects, or failure modes."""
+    logger.info(f"Cognitive Tool: Analyzing risks for action: {action_description}")
+    if not client:
+        return "Error: OpenAI client not initialized."
+
+    system_instructions = (
+        "You are an expert AI assistant specializing in risk analysis. "
+        "Analyze the proposed action description and any provided context to identify potential risks, negative side effects, or failure modes. "
+        "For each identified risk, briefly describe it and estimate its potential impact (e.g., High, Medium, Low) and likelihood (e.g., High, Medium, Low). "
+        "Focus on practical and significant risks."
+    )
+    user_input = f"Action/Plan Description:\n{action_description}\n\n"
+    if context:
+        user_input += f"Context:\n{context}\n"
+    else:
+        user_input += "Context: None provided.\n"
+    user_input += "\nPlease provide your risk analysis."
+
+    try:
+        response = client.responses.create(
+            model=model,
+            instructions=system_instructions,
+            input=user_input,
+        )
+        return response.output_text
+    except Exception as e:
+        logger.error(f"Error calling OpenAI API for analyze_potential_risks: {e}", exc_info=True)
+        return f"Error during risk analysis: {str(e)}"
+
+# Google ADK compatible tools (simple functions)
+google_adk_cognitive_tools = [
+    _evaluate_plan_feasibility,
+    _break_down_complex_task,
+    _analyze_potential_risks,
+]
+
+# Tracked cognitive tools for enhanced monitoring
+def create_tracked_cognitive_tools(task_id: str, session_id: str):
+    """Creates cognitive tools with tracking for specific task/session."""
+    from src.ai_agents.agent_tracker import get_tracker
+    import time
+    
+    tracker = get_tracker(task_id, session_id)
+    
+    def tracked_evaluate_plan_feasibility(plan_description: str, constraints: Optional[List[str]] = None) -> str:
+        start_time = time.time()
+        try:
+            result = _evaluate_plan_feasibility(plan_description, constraints)
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("evaluate_plan_feasibility", 
+                                {"plan_description": plan_description[:100] + "..." if len(plan_description) > 100 else plan_description, 
+                                 "constraints_count": len(constraints) if constraints else 0}, 
+                                result[:200] + "..." if len(result) > 200 else result, True, None, execution_time)
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("evaluate_plan_feasibility", 
+                                {"plan_description": plan_description[:100] + "..." if len(plan_description) > 100 else plan_description, 
+                                 "constraints_count": len(constraints) if constraints else 0}, 
+                                None, False, str(e), execution_time)
+            raise
+    
+    def tracked_break_down_complex_task(task_description: str, max_depth: int = 3) -> str:
+        start_time = time.time()
+        try:
+            result = _break_down_complex_task(task_description, max_depth)
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("break_down_complex_task", 
+                                {"task_description": task_description[:100] + "..." if len(task_description) > 100 else task_description, 
+                                 "max_depth": max_depth}, 
+                                result[:200] + "..." if len(result) > 200 else result, True, None, execution_time)
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("break_down_complex_task", 
+                                {"task_description": task_description[:100] + "..." if len(task_description) > 100 else task_description, 
+                                 "max_depth": max_depth}, 
+                                None, False, str(e), execution_time)
+            raise
+    
+    def tracked_analyze_potential_risks(action_description: str, context: Optional[str] = None) -> str:
+        start_time = time.time()
+        try:
+            result = _analyze_potential_risks(action_description, context)
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("analyze_potential_risks", 
+                                {"action_description": action_description[:100] + "..." if len(action_description) > 100 else action_description, 
+                                 "has_context": context is not None}, 
+                                result[:200] + "..." if len(result) > 200 else result, True, None, execution_time)
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            tracker.log_tool_call("analyze_potential_risks", 
+                                {"action_description": action_description[:100] + "..." if len(action_description) > 100 else action_description, 
+                                 "has_context": context is not None}, 
+                                None, False, str(e), execution_time)
+            raise
+    
+    return [
+        tracked_evaluate_plan_feasibility,
+        tracked_break_down_complex_task,
+        tracked_analyze_potential_risks,
+    ]
