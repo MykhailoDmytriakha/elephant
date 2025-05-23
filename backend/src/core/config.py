@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # Database settings
     DATABASE_URL: str = "../data/tasks.db"
 
-    # OpenAI settings
+    # OpenAI settings (for use with Google ADK via LiteLLM)
     OPENAI_API_KEY: str = "no key"
     OPENAI_MODEL: str = "gpt-4o-mini"
     
@@ -39,6 +39,7 @@ except Exception as e:
     # raise e
     settings.ALLOWED_BASE_DIR_RESOLVED = None # Indicate failure
 
-# --- Expose OpenAI API key for underlying clients (OpenAI, ADK LiteLLM) ---
+# --- Expose OpenAI API key for Google ADK LiteLLM integration ---
 import os as _os
 _os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+print(f"OpenAI API key configured for Google ADK")

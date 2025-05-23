@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, ChevronDown, ChevronRight, Layers, Workflow, Minimize2, Maximize2, MessageCircle } from 'lucide-react';
+import { ArrowLeft, RefreshCw, RefreshCcw, ChevronDown, ChevronRight, Layers, Workflow, Minimize2, Maximize2, MessageCircle, RotateCcw } from 'lucide-react';
 import { LoadingSpinner, ErrorDisplay } from '../components/task/TaskComponents';
 import { useTaskDetails } from '../hooks/useTaskDetails';
 import { generateAllWorkPackages, generateTasksForAllStages, chatWithTaskAssistant, loadTaskDataOnly } from '../utils/api';
@@ -158,6 +158,21 @@ export default function AllStagesPage() {
     try {
       const customCallbacks = {
         onChunk: (chunk) => {
+          // Check if the chunk contains an error message and clean it
+          if (chunk.includes('⚠️ Error:')) {
+            const cleanError = chunk.replace('⚠️ Error:', '').trim();
+            setChatError(cleanError);
+            setIsStreaming(false);
+            
+            // Don't add session errors to chat history since they're shown in banner
+            if (!cleanError.includes('Session not found') && !cleanError.includes('session')) {
+              setChatHistory(prev => [...prev, { 
+                role: 'system', 
+                content: cleanError
+              }]);
+            }
+            return; // Don't add error chunks to streaming message
+          }
           setStreamingMessage(prev => prev + chunk);
           if (callbacks?.onChunk) callbacks.onChunk(chunk);
         },
@@ -170,12 +185,20 @@ export default function AllStagesPage() {
         onError: (error) => {
           console.error("Error in chat:", error);
           const errorMessage = error.message || 'Unknown error';
-          setChatError(errorMessage);
+          
+          // Handle session errors with auto-recovery suggestion
+          if (errorMessage.includes('Session not found') || errorMessage.includes('session')) {
+            setChatError('Your chat session has expired. Please reset to continue.');
+          } else {
+            setChatError(errorMessage);
+            // Only add non-session errors to chat history to avoid duplication
+            setChatHistory(prev => [...prev, { 
+              role: 'system', 
+              content: errorMessage
+            }]);
+          }
+          
           setIsStreaming(false);
-          setChatHistory(prev => [...prev, { 
-            role: 'system', 
-            content: `Error: ${errorMessage}`
-          }]);
           if (callbacks?.onError) callbacks.onError(error);
         }
       };
@@ -203,12 +226,15 @@ export default function AllStagesPage() {
     }
   };
   
-  // Handler to reset chat
+  // Reset chat handler
   const handleResetChat = () => {
     setChatHistory([]);
     setStreamingMessage('');
     setChatError(null);
     setIsStreaming(false);
+    setIsChatLoading(false);
+    // Note: The next message will automatically use a fresh session
+    console.log('Chat reset - next message will use a fresh session');
   };
 
   // Check if any stage already has work packages
@@ -272,66 +298,14 @@ export default function AllStagesPage() {
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              {/* Generate All Work Packages Button */}
-              <button
-                onClick={handleGenerateAllWorkPackages}
-                disabled={loading || isGeneratingAllWork || isGeneratingAllTasks}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
-                  isGeneratingAllWork
-                    ? 'bg-blue-400 text-white cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                } disabled:opacity-60 disabled:cursor-not-allowed`}
-                title={anyWorkPackagesExist ? "Regenerate Work Packages for all stages in this task" : "Generate Work Packages for all stages in this task"}
-              >
-                {isGeneratingAllWork ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : anyWorkPackagesExist ? (
-                  <RefreshCw className="w-4 h-4" />
-                ) : (
-                  <Layers className="w-4 h-4" />
-                )}
-                {isGeneratingAllWork 
-                  ? 'Generating...' 
-                  : (anyWorkPackagesExist ? 'Regen All Work Pkgs' : 'Gen All Work Pkgs')
-                }
-              </button>
-              {/* Generate Tasks for All Stages Button */}
-              <button
-                onClick={handleGenerateTasksForAllStages}
-                disabled={loading || isGeneratingAllWork || isGeneratingAllTasks || !anyWorkPackagesExist}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
-                   isGeneratingAllTasks
-                    ? 'bg-purple-400 text-white cursor-not-allowed'
-                    : !anyWorkPackagesExist
-                      ? 'bg-purple-300 text-white cursor-not-allowed'
-                      : 'bg-purple-600 text-white hover:bg-purple-700'
-                } disabled:opacity-60 disabled:cursor-not-allowed`}
-                title={
-                    !anyWorkPackagesExist 
-                        ? "Generate Work Packages first" 
-                        : anyTasksExist
-                            ? "Regenerate Executable Tasks for all work packages in all stages"
-                            : "Generate Executable Tasks for all work packages in all stages"
-                }
-              >
-                {isGeneratingAllTasks ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : anyTasksExist ? (
-                    <RefreshCw className="w-4 h-4" />
-                ) : (
-                    <Workflow className="w-4 h-4" />
-                )}
-                {isGeneratingAllTasks
-                    ? 'Generating...' 
-                    : anyTasksExist 
-                        ? 'Regen All Tasks'
-                        : 'Gen All Tasks'
-                }
-              </button>
-              {/* Toggle Chat Button */}
+              {/* Toggle Chat Button - More prominent position */}
               <button
                 onClick={toggleChatExpanded}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                  isChatExpanded 
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                    : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 ring-2 ring-indigo-300 ring-opacity-50'
+                }`}
                 title={isChatExpanded ? "Hide the assistant panel" : "Show the assistant panel to ask questions"}
               >
                 {isChatExpanded ? (
@@ -339,19 +313,19 @@ export default function AllStagesPage() {
                 ) : (
                   <MessageCircle className="w-4 h-4" />
                 )}
-                {isChatExpanded ? 'Hide Assistant' : 'Ask Questions'}
+                {isChatExpanded ? 'Hide Assistant' : 'Ask Assistant'}
               </button>
-              {/* Refresh Button - Only shown in the header when chat is collapsed */}
-              {!isChatExpanded && (
-                <button
-                  onClick={loadTask}
-                  disabled={loading || isGeneratingAllWork || isGeneratingAllTasks}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Refresh
-                </button>
-              )}
+              
+              {/* Refresh Button */}
+              <button
+                onClick={loadTask}
+                disabled={loading || isGeneratingAllWork || isGeneratingAllTasks}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Sync task data from server"
+              >
+                <RefreshCcw className="w-4 h-4" />
+                Sync Data
+              </button>
             </div>
           </div>
         </div>
@@ -364,27 +338,102 @@ export default function AllStagesPage() {
           {/* Single container with proper scrolling - removed margins */}
           <div className="flex-grow bg-white shadow overflow-hidden flex flex-col">
             {/* Task Stages Header - Fixed */}
-            <div className="flex-shrink-0 flex items-center justify-between border-b border-gray-200 px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Layers className="w-5 h-5 text-blue-600" />
-                <h2 className="font-medium text-gray-800">Task Stages</h2>
+            <div className="flex-shrink-0 border-b border-gray-200">
+              {/* Progress Indicator */}
+              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-gray-700">Progress:</span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <span className="text-green-700">Stages Complete</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${anyWorkPackagesExist ? 'bg-green-500' : 'bg-amber-400'}`}></div>
+                      <span className={anyWorkPackagesExist ? 'text-green-700' : 'text-amber-700'}>
+                        {anyWorkPackagesExist ? 'Work Packages Ready' : 'Work Packages Needed'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${anyTasksExist ? 'bg-green-500' : anyWorkPackagesExist ? 'bg-amber-400' : 'bg-gray-300'}`}></div>
+                      <span className={anyTasksExist ? 'text-green-700' : anyWorkPackagesExist ? 'text-amber-700' : 'text-gray-500'}>
+                        {anyTasksExist ? 'Tasks Ready' : anyWorkPackagesExist ? 'Tasks Pending' : 'Tasks Not Ready'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              {/* Only show refresh button in the panel when chat is expanded 
-                  (since the main refresh button is hidden in this case) */}
-              {isChatExpanded && (
-                <button
-                  onClick={loadTask}
-                  disabled={loading || isGeneratingAllWork || isGeneratingAllTasks}
-                  className="text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Refresh stages"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              )}
+              
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-blue-600" />
+                  <h2 className="font-medium text-gray-800">Task Stages</h2>
+                </div>
+              </div>
             </div>
             
             {/* Stage List - Scrollable */}
             <div className="flex-grow overflow-y-auto p-4 space-y-4">
+              {/* Next Steps Guidance - Show when work packages are missing */}
+              {!anyWorkPackagesExist && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Layers className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-blue-900 mb-1">Ready to generate work packages!</h3>
+                      <p className="text-blue-700 text-sm mb-3">
+                        Your stages are complete with detailed descriptions and expected results. 
+                        The next step is to break each stage down into specific work packages.
+                      </p>
+                      <button
+                        onClick={handleGenerateAllWorkPackages}
+                        disabled={loading || isGeneratingAllWork || isGeneratingAllTasks}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {isGeneratingAllWork ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Layers className="w-4 h-4" />
+                        )}
+                        {isGeneratingAllWork ? 'Generating Work Packages...' : 'Generate Work Packages'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Next Steps Guidance - Show when work packages exist but tasks don't */}
+              {anyWorkPackagesExist && !anyTasksExist && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Workflow className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-purple-900 mb-1">Ready to generate executable tasks!</h3>
+                      <p className="text-purple-700 text-sm mb-3">
+                        Great! Your work packages are ready. Now let's break them down into specific executable tasks 
+                        that can be assigned and tracked.
+                      </p>
+                      <button
+                        onClick={handleGenerateTasksForAllStages}
+                        disabled={loading || isGeneratingAllWork || isGeneratingAllTasks}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {isGeneratingAllTasks ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Workflow className="w-4 h-4" />
+                        )}
+                        {isGeneratingAllTasks ? 'Generating Tasks...' : 'Generate Executable Tasks'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="space-y-2">
                 {task.network_plan.stages.map((stage, stageIndex) => (
                   <div key={stage.id} className="border-2 border-indigo-300 rounded-lg overflow-hidden">

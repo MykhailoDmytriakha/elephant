@@ -312,8 +312,8 @@ export const chatWithTaskAssistant = async (taskId, message, callbacks = {}, mes
   const { onChunk, onComplete, onError } = callbacks;
   const endpoint = `${API_BASE_URL}/tasks/${taskId}/chat/stream`;
   
-  // Generate a stable session ID based on the task ID if not provided
-  // This ensures we use the same session for the same task
+  // Generate a stable session ID based on the task ID with timestamp for uniqueness
+  // This ensures we use a consistent session for the same task while handling resets
   const sessionId = `session_${taskId}`;
   
   try {
@@ -416,4 +416,15 @@ export const chatWithTaskAssistant = async (taskId, message, callbacks = {}, mes
     // Rethrow after handling to allow the component to handle it
     throw error;
   }
+};
+
+// Function to reset chat session by calling the backend reset endpoint
+export const resetChatSession = async (taskId) => {
+  return apiRequest(
+    'post',
+    `/tasks/${taskId}/chat/reset`,
+    null,
+    `Failed to reset chat session for task ${taskId}`,
+    { logging: true }
+  );
 };

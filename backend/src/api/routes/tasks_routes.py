@@ -845,3 +845,74 @@ async def stream_chat_with_task_assistant(
             "X-Accel-Buffering": "no",  # Disable buffering for nginx
         }
     )
+
+@router.post("/{task_id}/chat/reset")
+@api_error_handler(OP_CHAT)
+async def reset_chat_session(
+    task_id: str,
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Reset the chat session for a specific task
+    """
+    try:
+        # Import the session service from chat_agent
+        from src.ai_agents.chat_agent import _session_service
+        from src.core.config import settings
+        
+        # Generate the session ID that would be used for this task
+        session_id = f"session_{task_id}"
+        user_id = task_id
+        
+        # Try to delete the existing session properly
+        try:
+            # First check if session exists
+            existing_session = _session_service.get_session(
+                app_name=settings.PROJECT_NAME,
+                user_id=user_id,
+                session_id=session_id
+            )
+            
+            # If session exists, delete it properly
+            if existing_session:
+                # Session service methods are synchronous, not async
+                _session_service.delete_session(
+                    app_name=settings.PROJECT_NAME,
+                    user_id=user_id,
+                    session_id=session_id
+                )
+                logger.info(f"Successfully deleted session: {session_id}")
+            
+        except Exception as e:
+            # Session doesn't exist or error getting it, which is fine for reset
+            logger.info(f"Session {session_id} doesn't exist or error getting it: {e}")
+        
+        # Create a fresh session using synchronous method
+        try:
+            new_session = _session_service.create_session(
+                app_name=settings.PROJECT_NAME,
+                user_id=user_id,
+                session_id=session_id,
+                state={}
+            )
+            logger.info(f"Created fresh session: {new_session.id}")
+            
+            return {
+                "success": True,
+                "message": "Chat session has been reset successfully",
+                "session_id": session_id
+            }
+            
+        except Exception as create_error:
+            logger.error(f"Failed to create new session after reset: {create_error}")
+            return {
+                "success": False,
+                "message": "Failed to create new session after reset. Please try again."
+            }
+            
+    except Exception as e:
+        logger.error(f"Error resetting chat session for task {task_id}: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Failed to reset chat session: {str(e)}"
+        }
