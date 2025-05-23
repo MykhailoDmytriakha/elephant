@@ -918,6 +918,160 @@ async def reset_chat_session(
             "message": f"Failed to reset chat session: {str(e)}"
         }
 
+# ========================================
+# Status Update Endpoints
+# ========================================
+
+class SubtaskStatusUpdateRequest(BaseModel):
+    status: str
+    result: Optional[str] = None
+    error_message: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+
+@router.put("/{task_id}/subtasks/{subtask_reference}/status")
+@api_error_handler("OP_UPDATE_SUBTASK_STATUS")
+async def update_subtask_status(
+    task_id: str,
+    subtask_reference: str,
+    request: SubtaskStatusUpdateRequest,
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Update the status of a specific subtask.
+    
+    Args:
+        task_id: The task ID containing the subtask
+        subtask_reference: Subtask reference like "S1_W1_ET1_ST1" or subtask ID
+        request: Status update details
+        
+    Returns:
+        Updated status information
+    """
+    logger.info(f"API call to update subtask {subtask_reference} status to {request.status} in task {task_id}")
+    
+    # Validate status value
+    valid_statuses = ["Pending", "In Progress", "Completed", "Failed", "Cancelled", "Waiting"]
+    if request.status not in valid_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status '{request.status}'. Must be one of: {valid_statuses}"
+        )
+    
+    # Perform the update
+    result = db.update_subtask_status(
+        task_id=task_id,
+        subtask_reference=subtask_reference,
+        status=request.status,
+        result=request.result,
+        error_message=request.error_message,
+        started_at=request.started_at,
+        completed_at=request.completed_at
+    )
+    
+    if not result["success"]:
+        if "not found" in result.get("error", "").lower():
+            raise HTTPException(status_code=404, detail=result["error"])
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+    
+    return result
+
+@router.get("/{task_id}/subtasks/{subtask_reference}/status")
+@api_error_handler("OP_GET_SUBTASK_STATUS")
+async def get_subtask_status(
+    task_id: str,
+    subtask_reference: str,
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Get the current status and details of a specific subtask.
+    
+    Args:
+        task_id: The task ID containing the subtask
+        subtask_reference: Subtask reference like "S1_W1_ET1_ST1" or subtask ID
+        
+    Returns:
+        Subtask status and details
+    """
+    logger.info(f"API call to get subtask {subtask_reference} status in task {task_id}")
+    
+    result = db.get_subtask_status(task_id, subtask_reference)
+    
+    if not result["success"]:
+        if "not found" in result.get("error", "").lower():
+            raise HTTPException(status_code=404, detail=result["error"])
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+    
+    return result
+
+@router.post("/{task_id}/subtasks/{subtask_reference}/complete")
+@api_error_handler("OP_COMPLETE_SUBTASK")
+async def complete_subtask(
+    task_id: str,
+    subtask_reference: str,
+    result_text: str = "Task completed successfully",
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Mark a subtask as completed with a result.
+    Convenience endpoint that sets status to "Completed" with proper timestamps.
+    """
+    logger.info(f"API call to complete subtask {subtask_reference} in task {task_id}")
+    
+    from datetime import datetime
+    current_time = datetime.now().isoformat()
+    
+    update_result = db.update_subtask_status(
+        task_id=task_id,
+        subtask_reference=subtask_reference,
+        status="Completed",
+        result=result_text,
+        completed_at=current_time
+    )
+    
+    if not update_result["success"]:
+        if "not found" in update_result.get("error", "").lower():
+            raise HTTPException(status_code=404, detail=update_result["error"])
+        else:
+            raise HTTPException(status_code=500, detail=update_result["error"])
+    
+    return update_result
+
+@router.post("/{task_id}/subtasks/{subtask_reference}/fail")
+@api_error_handler("OP_FAIL_SUBTASK")
+async def fail_subtask(
+    task_id: str,
+    subtask_reference: str,
+    error_message: str = "Task failed",
+    db: DatabaseService = Depends(get_db_service)
+):
+    """
+    Mark a subtask as failed with an error message.
+    Convenience endpoint that sets status to "Failed" with proper timestamps.
+    """
+    logger.info(f"API call to fail subtask {subtask_reference} in task {task_id}")
+    
+    from datetime import datetime
+    current_time = datetime.now().isoformat()
+    
+    update_result = db.update_subtask_status(
+        task_id=task_id,
+        subtask_reference=subtask_reference,
+        status="Failed",
+        error_message=error_message,
+        completed_at=current_time
+    )
+    
+    if not update_result["success"]:
+        if "not found" in update_result.get("error", "").lower():
+            raise HTTPException(status_code=404, detail=update_result["error"])
+        else:
+            raise HTTPException(status_code=500, detail=update_result["error"])
+    
+    return update_result
+
 @router.get("/{task_id}/trace")
 async def get_agent_trace(task_id: str, session_id: Optional[str] = None) -> JSONResponse:
     """

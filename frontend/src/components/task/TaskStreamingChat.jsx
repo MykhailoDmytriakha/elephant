@@ -150,12 +150,19 @@ export default function TaskStreamingChat({
         const isCtrlOrCmd = e.ctrlKey || e.metaKey;
         
         if (isCtrlOrCmd && e.key === 'c') {
-          // Ctrl+C to copy focused message
-          e.preventDefault();
-          const message = displayChatHistory[focusedMessage];
-          if (message) {
-            handleCopyMessage(message.content, `message-${focusedMessage}`);
+          // Only copy the full message if there's no text selection
+          const selection = window.getSelection();
+          const hasTextSelection = selection && selection.toString().length > 0;
+          
+          if (!hasTextSelection) {
+            // Ctrl+C to copy focused message (only when no text is selected)
+            e.preventDefault();
+            const message = displayChatHistory[focusedMessage];
+            if (message) {
+              handleCopyMessage(message.content, `message-${focusedMessage}`);
+            }
           }
+          // If there is a text selection, let the browser handle the default copy behavior
           return;
         }
         
@@ -902,7 +909,7 @@ export default function TaskStreamingChat({
                       <div className={`absolute -top-8 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10 ${
                         msg.role === 'user' ? 'left-0' : 'right-0'
                       }`}>
-                        Ctrl+C: Copy • E: Edit • M: More • ↑↓: Navigate
+                        Ctrl+C: Copy all (no selection) • E: Edit • M: More • ↑↓: Navigate
                       </div>
                     )}
                     
