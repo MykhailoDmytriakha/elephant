@@ -2,6 +2,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path # Import Path
 import os # Import os
+from typing import List
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Elephant API"
@@ -14,8 +15,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = "no key"
     OPENAI_MODEL: str = "gpt-4o-mini"
     
-    # CORS settings
-    FRONTEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    # CORS settings - will be parsed from comma-separated string in .env
+    FRONTEND_CORS_ORIGINS: str = "http://localhost:3000"
 
     # Filesystem Tool Settings
     # Define base directory relative to the project root (backend/..)
@@ -23,7 +24,14 @@ class Settings(BaseSettings):
     ALLOWED_BASE_DIR: Path = PROJECT_ROOT / ".data"
     ALLOWED_BASE_DIR_RESOLVED: Path | None = None
 
-    model_config = SettingsConfigDict(env_file=".env", env_nested_delimiter=",")
+    model_config = SettingsConfigDict(env_file=".env")
+    
+    @property
+    def cors_origins(self) -> List[str]:
+        """Parse CORS origins from comma-separated string"""
+        if isinstance(self.FRONTEND_CORS_ORIGINS, str):
+            return [origin.strip() for origin in self.FRONTEND_CORS_ORIGINS.split(",")]
+        return self.FRONTEND_CORS_ORIGINS
 
 settings = Settings()
 

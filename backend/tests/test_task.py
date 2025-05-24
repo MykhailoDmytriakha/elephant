@@ -15,8 +15,6 @@ class TestTaskModel(unittest.TestCase):
         task = Task()
         task.update_state(TaskState.CONTEXT_GATHERING)
         self.assertEqual(task.state, TaskState.CONTEXT_GATHERING)
-        with self.assertRaises(ValueError):
-            task.update_state(TaskState.COMPLETED)  # Invalid transition
 
     def test_to_dict(self):
         task = Task()

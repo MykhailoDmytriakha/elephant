@@ -75,7 +75,6 @@ class Task(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        use_enum_values = True # Ensure enum values are used in serialization
 
     @classmethod
     def create_new(cls, task: str = '', context: str = ''):

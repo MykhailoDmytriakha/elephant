@@ -3,6 +3,7 @@ import sys
 import os
 from pathlib import Path
 import nest_asyncio  # type: ignore
+from contextlib import asynccontextmanager
 
 # Apply nest_asyncio to allow nested event loops
 nest_asyncio.apply()
@@ -57,10 +58,18 @@ logging.getLogger("google").setLevel(logging.ERROR)
 logging.getLogger("src.main").setLevel(logging.INFO)
 logging.getLogger("uvicorn").setLevel(logging.WARNING)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    logger.info("🚀 FastAPI application started successfully")
+    yield
+    # Shutdown logic (if needed)
+    logger.info("📊 FastAPI application shutdown completed")
+
+app = FastAPI(lifespan=lifespan)
 
 # CORS configuration
-origins = settings.FRONTEND_CORS_ORIGINS
+origins = settings.cors_origins
 
 app.add_middleware(
     CORSMiddleware,
@@ -75,11 +84,6 @@ app.include_router(user_queries_routes.router, prefix="/user-queries", tags=["Us
 app.include_router(tasks_routes.router, prefix="/tasks", tags=["Tasks"])
 app.include_router(util_routes.router, prefix="/utils", tags=["Utilities"])
 # Add other routes as needed
-
-# Startup event to log application start
-@app.on_event("startup")
-async def startup_event():
-    logger.info("🚀 FastAPI application started successfully")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

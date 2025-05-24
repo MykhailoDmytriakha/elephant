@@ -152,7 +152,7 @@ def test_create_user_query_error(mock_create_new, test_client, mock_task, mock_d
     # Assert response is correct
     assert response.status_code == 500
     data = response.json()
-    assert "Failed to create user query" in data["detail"]
+    assert "An internal error occurred during create query" in data["detail"]
 
 
 def test_get_user_queries(test_client, mock_db_service):
@@ -212,7 +212,7 @@ def test_get_user_query_not_found(test_client, mock_db_service):
     # Assert response is correct
     assert response.status_code == 404
     data = response.json()
-    assert data["detail"] == "User query not found"
+    assert "User query with ID 999 not found" in data["detail"]
 
 
 def test_get_task_user_queries(test_client, mock_db_service):
@@ -242,4 +242,4 @@ def test_get_task_user_queries_not_found(test_client, mock_db_service):
     # Assert response is correct
     assert response.status_code == 404
     data = response.json()
-    assert data["detail"] == "No queries found for task ID: nonexistent-task" 
+    assert "No queries found for task ID: nonexistent-task" in data["detail"] 

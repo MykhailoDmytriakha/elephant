@@ -1,20 +1,6 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { getEdgeColor } from './NetworkGraphLayout'; // Import the shared function
-
-// Helper function to get edge color based on stage ID (for visual variety)
-// Remove the duplicate function definition
-// const getEdgeColor = (id) => {
-//   const colors = [
-//     '#3b82f6', // blue-500
-//     '#8b5cf6', // purple-500
-//     '#22c55e', // green-500
-//     '#f59e0b', // amber-500
-//     '#f43f5e'  // rose-500
-//   ];
-//   const numericId = parseInt(id, 10);
-//   return colors[(numericId - 1) % colors.length];
-// };
+import { getEdgeColor } from '../../../utils/colorUtils';
 
 export default function StageNode({ data, selected, id }) {
   const { stage } = data;
@@ -26,52 +12,43 @@ export default function StageNode({ data, selected, id }) {
   const hasOutgoingConnections = data.hasOutgoingConnections;
   
   return (
-    <div className={`p-4 transition-all duration-300 h-full w-full rounded-lg shadow-md relative overflow-visible
-                    ${selected ? 'ring-2 ring-blue-500 bg-blue-50' : 'bg-white'}`}>
-      {/* Source handle on right side*/}
+    <div className="relative bg-white border-2 border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200">
+      {/* Top Handle */}
       <Handle
-        id="right"
-        type="source"
-        position={Position.Right}
-        isConnectable={false}
-        style={{ 
-          backgroundColor: color, // Use the color from getEdgeColor
-          border: 'none',
-          width: '10px',
-          height: '10px',
-          visibility: hasOutgoingConnections ? 'visible' : 'hidden'
-        }}
-      />
-      
-      {/* Target handle on left side */}
-      <Handle
-        id="left"
         type="target"
-        position={Position.Left}
-        isConnectable={false}
-        style={{ 
-          visibility: 'hidden'
+        position={Position.Top}
+        style={{
+          background: color,
+          width: 12,
+          height: 12,
+          border: '2px solid white',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
         }}
       />
       
-      {/* Stage ID badge - remove transition effects that might cause blinking */}
-      <div className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shadow-sm bg-blue-100 text-blue-800`}
-           style={{ transition: 'none' }}>
-        {stage.id}
-      </div>
-      
-      {/* Stage name with adaptive sizing support */}
-      <div className="flex items-center justify-center h-full w-full pt-2 pb-4">
-        <div className="text-sm font-medium text-center px-3 break-words">
+      <div className="text-center">
+        <h3 className="font-medium text-gray-900 text-sm mb-1">
+          {stage.id}
+        </h3>
+        <p className="text-xs text-gray-600 line-clamp-3">
           {stage.name}
-        </div>
+        </p>
       </div>
       
-      {/* Add a colored band to visually indicate the node's color */}
-      <div 
-        className="absolute h-2 bottom-0 left-0 right-0 rounded-b-lg" 
-        style={{ backgroundColor: color }}
-      />
+      {/* Bottom Handle - only show if there are outgoing connections */}
+      {hasOutgoingConnections && (
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          style={{
+            background: color,
+            width: 12,
+            height: 12,
+            border: '2px solid white',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+          }}
+        />
+      )}
     </div>
   );
 } 

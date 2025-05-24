@@ -40,6 +40,17 @@ from src.exceptions import (
     ValidationException
 )
 
+# Import the new error handling module
+from src.api.error_handling import api_error_handler
+
+# Import the new modular components
+from src.api.validators import (
+    TaskValidator, 
+    NetworkPlanValidator, 
+    StageValidator, 
+    WorkValidator
+)
+
 # Forward references for type hints
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -52,67 +63,6 @@ logger = logging.getLogger(__name__)
 
 P = ParamSpec('P')
 T = TypeVar('T')
-
-def api_error_handler(operation_name: str) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
-    """
-    Decorator for API endpoint functions to standardize error handling.
-    
-    Args:
-        operation_name: A descriptive name for the operation being performed
-        
-    Returns:
-        Decorated function with standardized error handling
-    
-    Example:
-        @router.post("/some-endpoint")
-        @api_error_handler("some operation")
-        async def some_endpoint(request_data: SomeType):
-            # Function implementation that may raise errors
-            return result
-    """
-    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
-        @wraps(func)
-        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            try:
-                return await func(*args, **kwargs)
-            except TaskNotFoundException as e:
-                logger.error(f"Task not found during {operation_name}: {e}")
-                raise HTTPException(status_code=HTTP_NOT_FOUND, detail=str(e))
-            except StageNotFoundException as e:
-                logger.error(f"Stage not found during {operation_name}: {e}")
-                raise HTTPException(status_code=HTTP_NOT_FOUND, detail=str(e))
-            except WorkNotFoundException as e:
-                logger.error(f"Work not found during {operation_name}: {e}")
-                raise HTTPException(status_code=HTTP_NOT_FOUND, detail=str(e))
-            except ExecutableTaskNotFoundException as e:
-                logger.error(f"ExecutableTask not found during {operation_name}: {e}")
-                raise HTTPException(status_code=HTTP_NOT_FOUND, detail=str(e))
-            except QueryNotFoundException as e:
-                logger.error(f"Query not found during {operation_name}: {e}")
-                raise HTTPException(status_code=HTTP_NOT_FOUND, detail=str(e))
-            except GroupNotFoundException as e:
-                logger.error(f"Group not found during {operation_name}: {e}")
-                raise HTTPException(status_code=HTTP_NOT_FOUND, detail=str(e))
-            except InvalidStateException as e:
-                logger.error(f"Invalid state error during {operation_name}: {e}")
-                raise HTTPException(status_code=HTTP_BAD_REQUEST, detail=str(e))
-            except MissingComponentException as e:
-                logger.error(f"Missing component error during {operation_name}: {e}")
-                raise HTTPException(status_code=HTTP_BAD_REQUEST, detail=str(e))
-            except ValidationException as e:
-                logger.error(f"Validation error during {operation_name}: {e}")
-                raise HTTPException(status_code=HTTP_BAD_REQUEST, detail=str(e))
-            except DeserializationException as e:
-                logger.error(f"Deserialization error during {operation_name}: {e}")
-                raise HTTPException(status_code=HTTP_SERVER_ERROR, detail=str(e))
-            except ImportError as ie:
-                logger.error(f"Import error during {operation_name}: {ie}")
-                raise HTTPException(status_code=HTTP_NOT_IMPLEMENTED, detail=f"{operation_name} feature requires additional dependencies.")
-            except Exception as e:
-                logger.error(f"Unexpected error during {operation_name}: {e}", exc_info=True)
-                raise HTTPException(status_code=HTTP_SERVER_ERROR, detail=f"An internal error occurred during {operation_name}.")
-        return wrapper
-    return decorator
 
 def deserialize_task(task_data: Optional[Dict[str, Any]], task_id: str) -> 'Task':
     """
@@ -260,13 +210,13 @@ def find_stage_by_id(task: 'Task', stage_id: str) -> 'Stage':
         MissingComponentException: If the task does not have a network plan with stages
         StageNotFoundException: If the stage is not found
     """
-    if not has_network_plan(task):
+    if not TaskValidator.has_network_plan(task):
         raise MissingComponentException(ERROR_TASK_NO_NETWORK_PLAN.format(id_str=""))
     
     # Since we've verified network_plan is not None, we can safely cast it
     network_plan = cast('NetworkPlan', task.network_plan)
     
-    if not has_stages(network_plan):
+    if not NetworkPlanValidator.has_stages(network_plan):
         raise MissingComponentException(ERROR_TASK_NO_NETWORK_PLAN.format(id_str=""))
     
     # At this point we know stages is not None and not empty
@@ -292,7 +242,7 @@ def find_work_package_by_id(stage: 'Stage', work_id: str) -> 'Work':
         MissingComponentException: If the stage does not have work packages
         WorkNotFoundException: If the work package is not found
     """
-    if not has_work_packages(stage):
+    if not StageValidator.has_work_packages(stage):
         raise MissingComponentException(ERROR_STAGE_NO_WORK.format(stage_id=stage.id))
     
     # At this point we know work_packages is not None and not empty
@@ -317,7 +267,7 @@ def find_executable_task_by_id(work: 'Work', task_id: str) -> 'ExecutableTask':
     Raises:
         ExecutableTaskNotFoundException: If the task is not found
     """
-    if not has_tasks(work):
+    if not WorkValidator.has_tasks(work):
         raise MissingComponentException(ERROR_WORK_NO_TASKS.format(work_id=work.id))
     
     # Since we've verified tasks is not None and not empty, we can safely cast it
@@ -386,4 +336,14 @@ def validate_task_scope_group(task: 'Task', group: str, task_id: Optional[str] =
         logger.error(error_message)
         raise GroupNotFoundException(error_message)
     
-    return True 
+    return True
+
+# Re-export validator functions for backward compatibility
+validate_task_state = TaskValidator.validate_task_state
+validate_task_network_plan = TaskValidator.validate_task_network_plan
+validate_task_scope_group = TaskValidator.validate_task_scope_group
+is_task_in_states = TaskValidator.is_task_in_states
+has_network_plan = TaskValidator.has_network_plan
+has_stages = NetworkPlanValidator.has_stages
+has_work_packages = StageValidator.has_work_packages
+has_tasks = WorkValidator.has_tasks 
