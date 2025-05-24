@@ -11,6 +11,17 @@ nest_asyncio.apply()
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
+# Configure LiteLLM logging level to reduce verbosity
+os.environ.setdefault("LITELLM_LOG", "ERROR")
+
+# Disable Google ADK verbose logging
+os.environ.setdefault("GOOGLE_ADK_LOG_LEVEL", "ERROR")
+os.environ.setdefault("GOOGLE_CLOUD_LOG_LEVEL", "ERROR")
+
+# Disable function call tracing and schema logging
+os.environ.setdefault("ADK_DISABLE_FUNCTION_TRACE", "false")
+os.environ.setdefault("ADK_DISABLE_SCHEMA_LOG", "true")
+
 from fastapi import FastAPI
 from src.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,12 +30,32 @@ from src.api.routes import user_queries_routes, tasks_routes, util_routes
 import logging
 import uvicorn
 
+# Import litellm to configure it globally
+try:
+    import litellm
+    litellm.set_verbose = False  # Disable verbose logging globally
+except ImportError:
+    pass  # litellm might not be available in all environments
+
 # Configure basic logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.WARNING,  # Changed from INFO to WARNING to reduce verbosity
     format='%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Disable specific loggers that are too verbose
+logging.getLogger("LiteLLM").setLevel(logging.ERROR)
+logging.getLogger("httpx").setLevel(logging.ERROR)
+logging.getLogger("litellm").setLevel(logging.ERROR)
+
+# Disable Google ADK verbose logging
+logging.getLogger("google.adk").setLevel(logging.ERROR)
+logging.getLogger("google").setLevel(logging.ERROR)
+
+# Keep only essential application logs
+logging.getLogger("src.main").setLevel(logging.INFO)
+logging.getLogger("uvicorn").setLevel(logging.WARNING)
 
 app = FastAPI()
 

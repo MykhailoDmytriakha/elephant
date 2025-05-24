@@ -6,7 +6,6 @@ import QueryList from '../components/query/QueryList';
 import CreateQueryModal from '../components/query/CreateQueryModal';
 import Header from '../components/layout/Header';
 import Toolbar from '../components/layout/Toolbar';
-import Summary from '../components/layout/Summary';
 import { fetchQueries } from '../utils/api';
 import { useToast } from '../components/common/ToastProvider';
 
@@ -82,14 +81,15 @@ const MainPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-25">
       <Header 
         queryCount={queries.length} 
         onCreateClick={handleCreateClick}
         isLoading={isLoading}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Toolbar */}
         <Toolbar
           isFilterOpen={isFilterOpen}
           setIsFilterOpen={setIsFilterOpen}
@@ -100,6 +100,7 @@ const MainPage = () => {
           onRefresh={loadQueries}
         />
         
+        {/* Query List */}
         <QueryList
           queries={filteredQueries}
           isLoading={isLoading}
@@ -107,14 +108,6 @@ const MainPage = () => {
           onSearchChange={setSearchTerm}
           onDetailsClick={handleDetailsClick}
           viewType={viewType}
-        />
-
-        <Summary
-          filteredCount={filteredQueries.length}
-          totalCount={queries.length}
-          filterStatus={filterStatus}
-          searchTerm={searchTerm}
-          isLoading={isLoading}
         />
       </div>
 

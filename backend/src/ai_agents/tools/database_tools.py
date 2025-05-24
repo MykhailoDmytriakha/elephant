@@ -373,7 +373,7 @@ def get_user_queries_from_database(task_id: Optional[str] = None) -> str:
 # ========================================
 
 def update_subtask_status_in_database(task_id: str, subtask_reference: str, status: str, 
-                                     result: str = None, error_message: str = None) -> str:
+                                     result: Optional[str] = None, error_message: Optional[str] = None) -> str:
     """
     Update a subtask's status directly in the database.
     
@@ -651,7 +651,7 @@ def create_tracked_database_tools(task_id: str, session_id: str) -> List:
     
     # Status update tools
     def tracked_update_subtask_status_in_database(task_id_param: str, subtask_reference: str, status: str, 
-                                                 result: str = None, error_message: str = None) -> str:
+                                                 result: Optional[str] = None, error_message: Optional[str] = None) -> str:
         start_time = time.time()
         try:
             result_str = update_subtask_status_in_database(task_id_param, subtask_reference, status, result, error_message)

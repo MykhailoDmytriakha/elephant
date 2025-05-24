@@ -339,30 +339,32 @@ export default function AllStagesPage() {
           <div className="flex-grow bg-white shadow overflow-hidden flex flex-col">
             {/* Task Stages Header - Fixed */}
             <div className="flex-shrink-0 border-b border-gray-200">
-              {/* Progress Indicator */}
-              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-gray-700">Progress:</span>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                      <span className="text-green-700">Stages Complete</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${anyWorkPackagesExist ? 'bg-green-500' : 'bg-amber-400'}`}></div>
-                      <span className={anyWorkPackagesExist ? 'text-green-700' : 'text-amber-700'}>
-                        {anyWorkPackagesExist ? 'Work Packages Ready' : 'Work Packages Needed'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${anyTasksExist ? 'bg-green-500' : anyWorkPackagesExist ? 'bg-amber-400' : 'bg-gray-300'}`}></div>
-                      <span className={anyTasksExist ? 'text-green-700' : anyWorkPackagesExist ? 'text-amber-700' : 'text-gray-500'}>
-                        {anyTasksExist ? 'Tasks Ready' : anyWorkPackagesExist ? 'Tasks Pending' : 'Tasks Not Ready'}
-                      </span>
+              {/* Progress Indicator - Only show when work packages and tasks don't exist */}
+              {!anyWorkPackagesExist && !anyTasksExist && (
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-700">Progress:</span>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span className="text-green-700">Stages Complete</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${anyWorkPackagesExist ? 'bg-green-500' : 'bg-amber-400'}`}></div>
+                        <span className={anyWorkPackagesExist ? 'text-green-700' : 'text-amber-700'}>
+                          {anyWorkPackagesExist ? 'Work Packages Ready' : 'Work Packages Needed'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${anyTasksExist ? 'bg-green-500' : anyWorkPackagesExist ? 'bg-amber-400' : 'bg-gray-300'}`}></div>
+                        <span className={anyTasksExist ? 'text-green-700' : anyWorkPackagesExist ? 'text-amber-700' : 'text-gray-500'}>
+                          {anyTasksExist ? 'Tasks Ready' : anyWorkPackagesExist ? 'Tasks Pending' : 'Tasks Not Ready'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
               
               <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-2">
