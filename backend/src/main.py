@@ -6,7 +6,7 @@ import nest_asyncio  # type: ignore
 from contextlib import asynccontextmanager
 
 # Apply nest_asyncio to allow nested event loops
-nest_asyncio.apply()
+# nest_asyncio.apply()
 
 # Add the project root directory to the Python path
 project_root = Path(__file__).resolve().parent.parent

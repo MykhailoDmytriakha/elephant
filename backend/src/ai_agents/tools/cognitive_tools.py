@@ -16,7 +16,7 @@ try:
     def adk_function_tool(func):
         # Add model_config with arbitrary_types_allowed=True to make Pydantic accept ToolContext
         setattr(func, 'model_config', ConfigDict(arbitrary_types_allowed=True))
-        return function_tool(func)
+        return function_tool(func, strict_mode=False)
         
 except ImportError:
     logging.warning("OpenAI Agents SDK not installed. function_tool decorator will not be effective.")
