@@ -16,10 +16,9 @@ from src.model.scope import TaskScope, DraftScope, ValidationScopeResult, ScopeV
 
 # Service imports
 from src.services.problem_analyzer import ProblemAnalyzer
-from src.services.database_service import DatabaseService
 
 # API utils imports
-from src.api.deps import get_problem_analyzer, get_db_service
+from src.api.deps import get_problem_analyzer, get_file_storage_service
 from src.api.utils import api_error_handler, deserialize_task
 from src.api.validators import TaskValidator
 
@@ -40,7 +39,7 @@ async def get_scope_questions(
     task_id: str,
     group: str,
     analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
-    db: DatabaseService = Depends(get_db_service)
+    storage: FileStorageService = Depends(get_file_storage_service)
 ) -> List[ScopeFormulationGroup]:
     """
     Get scope formulation questions for a specific group (What, Why, Who, Where, When, How).
@@ -59,8 +58,9 @@ async def get_scope_questions(
         ValidationException: If group already exists in task scope
         TaskNotFoundException: If task does not exist
     """
-    task_data = db.fetch_task_by_id(task_id)
-    task = deserialize_task(task_data, task_id)
+    task = storage.load_task(task_id)
+    if not task:
+        raise TaskNotFoundException(f"Task {task_id} not found")
     
     # Validate task state
     if not TaskValidator.is_task_in_states(task, [TaskState.CONTEXT_GATHERED, TaskState.TASK_FORMATION]):
@@ -85,7 +85,7 @@ async def submit_scope_answers(
     task_id: str,
     group: str,
     answers: UserAnswers,
-    db: DatabaseService = Depends(get_db_service)
+    storage: FileStorageService = Depends(get_file_storage_service)
 ) -> dict:
     """
     Submit scope formulation answers for a specific group.
@@ -105,9 +105,10 @@ async def submit_scope_answers(
     """
     logger.info(f"Submitting formulation answers for task {task_id} and group {group}")
     logger.info(f"Answers: {answers.json()}")
-    
-    task_data = db.fetch_task_by_id(task_id)
-    task = deserialize_task(task_data, task_id)
+
+    task = storage.load_task(task_id)
+    if not task:
+        raise TaskNotFoundException(f"Task {task_id} not found")
     
     # Validate task state
     if not TaskValidator.is_task_in_states(task, [TaskState.CONTEXT_GATHERED, TaskState.TASK_FORMATION]):
@@ -126,7 +127,7 @@ async def submit_scope_answers(
     task.state = TaskState.TASK_FORMATION
     
     # Save the updated task
-    db.updated_task(task)
+    storage.save_task(task_id, task)
     
     return {"message": f"Formulation answers for group '{group}' saved successfully"}
 
@@ -134,30 +135,32 @@ async def submit_scope_answers(
 @router.get("/{task_id}/draft-scope", response_model=DraftScope)
 @api_error_handler(OP_SCOPE_VALIDATION)
 async def get_draft_scope(
-    task_id: str, 
-    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), 
-    db: DatabaseService = Depends(get_db_service)
+    task_id: str,
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    storage: FileStorageService = Depends(get_file_storage_service)
 ) -> DraftScope:
     """
     Generate a draft scope based on all submitted scope formulation answers.
-    
+
     Args:
         task_id: Unique identifier of the task
         analyzer: Problem analyzer service
-        db: Database service
-        
+        storage: File storage service
+
     Returns:
         Draft scope with generated content
-        
+
     Raises:
         TaskNotFoundException: If task does not exist
     """
-    task_data = db.fetch_task_by_id(task_id)
-    task = deserialize_task(task_data, task_id)
-    
+    task = storage.load_task(task_id)
+    if not task:
+        from src.exceptions import TaskNotFoundException
+        raise TaskNotFoundException(f"Task {task_id} not found")
+
     # Generate draft scope using the problem analyzer
     draft_scope = await analyzer.generate_draft_scope(task)
-    
+
     logger.info(f"Draft scope generated for task {task_id}")
     return draft_scope
 
@@ -168,36 +171,38 @@ async def validate_scope(
     task_id: str,
     request: ScopeValidationRequest,
     analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
-    db: DatabaseService = Depends(get_db_service)
+    storage: FileStorageService = Depends(get_file_storage_service)
 ) -> ValidationScopeResult:
     """
     Validate and finalize the task scope based on user approval or feedback.
-    
+
     Args:
         task_id: Unique identifier of the task
         request: Validation request with approval status and optional feedback
         analyzer: Problem analyzer service
-        db: Database service
-        
+        storage: File storage service
+
     Returns:
         Validation result with final scope or revision requirements
-        
+
     Raises:
         TaskNotFoundException: If task does not exist
     """
     logger.info(f"Validating scope for task {task_id}")
     logger.info(f"Approved: {request.isApproved}, Feedback: {request.feedback}")
-    
-    task_data = db.fetch_task_by_id(task_id)
-    task = deserialize_task(task_data, task_id)
-    
+
+    task = storage.load_task(task_id)
+    if not task:
+        from src.exceptions import TaskNotFoundException
+        raise TaskNotFoundException(f"Task {task_id} not found")
+
     # Validate scope using the problem analyzer
     result = await analyzer.validate_scope(task, request.isApproved, request.feedback)
-    
+
     # Update task state if scope is approved
     if request.isApproved:
         task.state = TaskState.CONTEXT_GATHERED  # Move to next stage
-        db.updated_task(task)
+        storage.save_task(task_id, task)
         logger.info(f"Scope approved and task state updated for {task_id}")
-    
+
     return result 

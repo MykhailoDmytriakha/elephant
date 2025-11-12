@@ -15,10 +15,10 @@ from src.model.planning import NetworkPlan
 
 # Service imports
 from src.services.problem_analyzer import ProblemAnalyzer
-from src.services.database_service import DatabaseService
+from src.services.file_storage_service import FileStorageService
 
 # API utils imports
-from src.api.deps import get_problem_analyzer, get_db_service
+from src.api.deps import get_problem_analyzer, get_file_storage_service
 from src.api.utils import api_error_handler, deserialize_task
 from src.api.validators import TaskValidator
 
@@ -42,7 +42,7 @@ router = APIRouter()
 async def generate_ifr(
     task_id: str,
     analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
-    db: DatabaseService = Depends(get_db_service)
+    storage: FileStorageService = Depends(get_file_storage_service)
 ) -> IFR:
     """
     Generate Initial Functional Requirements (IFR) for a task.
@@ -59,9 +59,11 @@ async def generate_ifr(
         TaskNotFoundException: If task does not exist
     """
     logger.info(f"Generating IFR for task {task_id}")
-    
-    task_data = db.fetch_task_by_id(task_id)
-    task = deserialize_task(task_data, task_id)
+
+    task = storage.load_task(task_id)
+    if not task:
+        from fastapi import HTTPException
+        raise HTTPException(404, detail=f"Task {task_id} not found")
     
     # Generate IFR using the problem analyzer
     ifr = await analyzer.generate_ifr(task)
@@ -69,7 +71,7 @@ async def generate_ifr(
     # Update task with the generated IFR
     task.ifr = ifr
     task.state = TaskState.IFR_GENERATED
-    db.updated_task(task)
+    storage.save_task(task_id, task)
     
     logger.info(f"IFR generated and saved for task {task_id}")
     return ifr
@@ -80,7 +82,7 @@ async def generate_ifr(
 async def generate_requirements(
     task_id: str,
     analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
-    db: DatabaseService = Depends(get_db_service)
+    storage: FileStorageService = Depends(get_file_storage_service)
 ) -> Requirements:
     """
     Generate detailed requirements based on the task's IFR.
@@ -97,9 +99,11 @@ async def generate_requirements(
         TaskNotFoundException: If task does not exist
     """
     logger.info(f"Generating requirements for task {task_id}")
-    
-    task_data = db.fetch_task_by_id(task_id)
-    task = deserialize_task(task_data, task_id)
+
+    task = storage.load_task(task_id)
+    if not task:
+        from fastapi import HTTPException
+        raise HTTPException(404, detail=f"Task {task_id} not found")
     
     # Generate requirements using the problem analyzer
     requirements = await analyzer.define_requirements(task)
@@ -107,7 +111,7 @@ async def generate_requirements(
     # Update task with the generated requirements
     task.requirements = requirements
     task.state = TaskState.REQUIREMENTS_DEFINED
-    db.updated_task(task)
+    storage.save_task(task_id, task)
     
     logger.info(f"Requirements generated and saved for task {task_id}")
     return requirements
@@ -119,7 +123,7 @@ async def generate_network_plan(
     task_id: str,
     force: bool = False,
     analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
-    db: DatabaseService = Depends(get_db_service)
+    storage: FileStorageService = Depends(get_file_storage_service)
 ) -> NetworkPlan:
     """
     Generate a network plan for the task based on its requirements.
@@ -138,9 +142,11 @@ async def generate_network_plan(
         TaskNotFoundException: If task does not exist
     """
     logger.info(f"Generating network plan for task {task_id}, force={force}")
-    
-    task_data = db.fetch_task_by_id(task_id)
-    task = deserialize_task(task_data, task_id)
+
+    task = storage.load_task(task_id)
+    if not task:
+        from fastapi import HTTPException
+        raise HTTPException(404, detail=f"Task {task_id} not found")
     
     # Check if network plan already exists (unless force is True)
     if not force and TaskValidator.has_network_plan(task):
@@ -154,7 +160,12 @@ async def generate_network_plan(
     # Update task with the generated network plan
     task.network_plan = network_plan
     task.state = TaskState.NETWORK_PLAN_GENERATED
-    db.updated_task(task)
-    
+    storage.save_task(task_id, task)
+
+    # Save each stage individually
+    if task.network_plan and task.network_plan.stages:
+        for stage in task.network_plan.stages:
+            storage.save_stage(task_id, stage)
+
     logger.info(f"Network plan generated and saved for task {task_id}")
     return network_plan 

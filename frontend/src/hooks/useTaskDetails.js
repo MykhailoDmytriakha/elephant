@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/common/ToastProvider';
 import { useTaskOperation } from './useTaskOperation';
@@ -64,16 +64,18 @@ export function useTaskDetails(taskId) {
     }
   );
 
-  const [handleDelete] = useTaskOperation(
-    async () => {
-      if (window.confirm('Are you sure you want to delete this task?')) {
-        return deleteTask(taskId);
+  const handleDelete = useCallback(async () => {
+    if (window.confirm('Are you sure you want to delete this task?')) {
+      try {
+        await deleteTask(taskId);
+        toast.showSuccess('Task deleted successfully');
+        navigate('/');
+      } catch (error) {
+        toast.showError(`Failed to delete task: ${error.message}`);
       }
-      return Promise.reject(new Error('Delete cancelled'));
-    },
-    () => navigate('/'),
-    { successMessage: 'Task deleted successfully', errorMessage: 'Failed to delete task' }
-  );
+    }
+    // User cancelled - do nothing
+  }, [taskId, navigate, toast]);
 
   const handleBack = () => {
     navigate('/');

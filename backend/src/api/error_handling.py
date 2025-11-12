@@ -88,9 +88,13 @@ class APIErrorHandler:
         # Import errors
         if isinstance(error, ImportError):
             logger.error(f"Import error during {operation_name}: {error}")
-            return HTTPException(status_code=HTTP_NOT_IMPLEMENTED, 
+            return HTTPException(status_code=HTTP_NOT_IMPLEMENTED,
                                detail=f"{operation_name} feature requires additional dependencies.")
-        
+
+        # HTTPException - re-raise as is
+        if isinstance(error, HTTPException):
+            return error
+
         # Default to server error
         return cls._handle_server_errors(error, operation_name)
 

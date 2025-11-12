@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime
 from pydantic import BaseModel, Field
 from enum import Enum
@@ -17,8 +17,8 @@ class UserQuery(BaseModel):
 
 
 class UserQueryCreate(UserQuery):
-    id: int
-    task_id: str
+    id: Union[int, str]  # int for legacy DB queries, str for new file-based projects
+    task_id: str         # Always string (UUID or project_name)
     status: QueryStatus
     created_at: datetime
     progress: float

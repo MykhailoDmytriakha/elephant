@@ -24,7 +24,7 @@ from src.services.database_service import DatabaseService
 from src.services.task_generation_service import TaskGenerationService
 
 # API utils imports
-from src.api.deps import get_problem_analyzer, get_db_service
+from src.api.deps import get_problem_analyzer, get_file_storage_service
 from src.api.utils import api_error_handler, deserialize_task
 
 # Exception imports

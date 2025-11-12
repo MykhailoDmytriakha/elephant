@@ -1,8 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { PlusCircle, Search, Bell, User, ChevronDown, Settings, LogOut } from 'lucide-react';
+import { PlusCircle } from 'lucide-react';
 
-const Header = ({ queryCount, onCreateClick, isLoading }) => {
+const Header = ({ queryCount, onCreateClick, isLoading = false }) => {
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-soft backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -76,10 +76,6 @@ Header.propTypes = {
   queryCount: PropTypes.number.isRequired,
   onCreateClick: PropTypes.func.isRequired,
   isLoading: PropTypes.bool
-};
-
-Header.defaultProps = {
-  isLoading: false
 };
 
 export default Header; 

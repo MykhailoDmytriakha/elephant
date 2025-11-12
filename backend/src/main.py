@@ -23,10 +23,14 @@ os.environ.setdefault("GOOGLE_CLOUD_LOG_LEVEL", "ERROR")
 os.environ.setdefault("ADK_DISABLE_FUNCTION_TRACE", "false")
 os.environ.setdefault("ADK_DISABLE_SCHEMA_LOG", "true")
 
+# Uvicorn logging is configured in the LOGGING_CONFIG below
+
 from fastapi import FastAPI
 from src.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
-from src.api.routes import user_queries_routes, tasks_routes, util_routes
+from src.api.routes.user_queries_routes import router as user_queries_router
+from src.api.routes.tasks_routes import router as tasks_router
+from src.api.routes.util_routes import router as util_router
 
 import logging
 import uvicorn
@@ -40,7 +44,7 @@ except ImportError:
 
 # Configure basic logging
 logging.basicConfig(
-    level=logging.WARNING,  # Changed from INFO to WARNING to reduce verbosity
+    level=logging.INFO,  # Enable INFO level to see uvicorn access logs
     format='%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -54,9 +58,10 @@ logging.getLogger("litellm").setLevel(logging.ERROR)
 logging.getLogger("google.adk").setLevel(logging.ERROR)
 logging.getLogger("google").setLevel(logging.ERROR)
 
-# Keep only essential application logs
-logging.getLogger("src.main").setLevel(logging.INFO)
-logging.getLogger("uvicorn").setLevel(logging.WARNING)
+# Configure uvicorn access log to use our format
+logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+uvicorn_logger = logging.getLogger("uvicorn")
+uvicorn_logger.setLevel(logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -80,10 +85,44 @@ app.add_middleware(
 )
 
 # Include routes
-app.include_router(user_queries_routes.router, prefix="/user-queries", tags=["User Queries"])
-app.include_router(tasks_routes.router, prefix="/tasks", tags=["Tasks"])
-app.include_router(util_routes.router, prefix="/utils", tags=["Utilities"])
+app.include_router(user_queries_router, prefix="/api/v1/user-queries", tags=["User Queries"])
+app.include_router(tasks_router, prefix="/api/v1/tasks", tags=["Tasks"])
+app.include_router(util_router, prefix="/api/v1/utils", tags=["Utilities"])
 # Add other routes as needed
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Custom logging configuration for uvicorn
+    LOGGING_CONFIG = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            },
+        },
+        "handlers": {
+            "default": {
+                "formatter": "default",
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stderr",
+            },
+            "access": {
+                "formatter": "default",
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        "loggers": {
+            "uvicorn": {"handlers": ["default"], "level": "INFO"},
+            "uvicorn.error": {"level": "INFO"},
+            "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+        },
+    }
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        log_config=LOGGING_CONFIG,
+        access_log=True
+    )

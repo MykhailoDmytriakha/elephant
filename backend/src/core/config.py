@@ -8,8 +8,15 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Elephant API"
     API_V1_STR: str = "/api/v1"
 
-    # Database settings
+    # Filesystem Tool Settings
+    # Define base directory relative to the project root (backend/..)
+    PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent.parent
+
+    # Database settings (legacy - keep for backwards compatibility)
     DATABASE_URL: str = "../data/tasks.db"
+
+    # File storage settings
+    PROJECTS_BASE_DIR: Path = PROJECT_ROOT / ".data"
 
     # OpenAI settings (for use with Google ADK via LiteLLM)
     OPENAI_API_KEY: str = "no key"
@@ -18,13 +25,11 @@ class Settings(BaseSettings):
     # CORS settings - will be parsed from comma-separated string in .env
     FRONTEND_CORS_ORIGINS: str = "http://localhost:3000"
 
-    # Filesystem Tool Settings
-    # Define base directory relative to the project root (backend/..)
-    PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent.parent
+    # Filesystem Tool Settings (legacy - keep for compatibility)
     ALLOWED_BASE_DIR: Path = PROJECT_ROOT / ".data"
     ALLOWED_BASE_DIR_RESOLVED: Path | None = None
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=str(Path(__file__).parent.parent.parent / ".env"))
     
     @property
     def cors_origins(self) -> List[str]:

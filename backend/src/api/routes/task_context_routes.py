@@ -16,10 +16,9 @@ from src.model.context import ContextSufficiencyResult, UserAnswers
 
 # Service imports
 from src.services.problem_analyzer import ProblemAnalyzer
-from src.services.database_service import DatabaseService
 
 # API utils imports
-from src.api.deps import get_problem_analyzer, get_db_service
+from src.api.deps import get_problem_analyzer, get_file_storage_service
 from src.api.utils import api_error_handler, deserialize_task
 from src.api.validators import TaskValidator
 
@@ -42,11 +41,11 @@ class EditContextRequest(BaseModel):
 @router.post("/{task_id}/context-questions", response_model=ContextSufficiencyResult)
 @api_error_handler(OP_UPDATE_TASK)
 async def update_task_context(
-    task_id: str, 
-    context_answers: Optional[UserAnswers] = None, 
+    task_id: str,
+    context_answers: Optional[UserAnswers] = None,
     force: bool = False,
-    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer), 
-    db: DatabaseService = Depends(get_db_service)
+    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    storage: FileStorageService = Depends(get_file_storage_service)
 ) -> ContextSufficiencyResult:
     """
     Update task context with answers or get context clarification questions.
@@ -65,8 +64,9 @@ async def update_task_context(
         InvalidStateException: If task is in invalid state for context updates
         TaskNotFoundException: If task does not exist
     """
-    task_data = db.fetch_task_by_id(task_id)
-    task = deserialize_task(task_data, task_id)
+    task = storage.load_task(task_id)
+    if not task:
+        raise TaskNotFoundException(f"Task {task_id} not found")
     
     # Only check state if force is False
     if not force and TaskValidator.is_task_in_states(task, [TaskState.CONTEXT_GATHERED]):
@@ -85,7 +85,7 @@ async def update_task_context(
     else:
         logger.info(f"User context answers provided: {context_answers}")
         task.add_context_answers(context_answers)
-        db.updated_task(task)
+        storage.save_task(task_id, task)
         return await analyzer.clarify_context(task)
 
 
@@ -95,7 +95,7 @@ async def edit_context_summary(
     task_id: str,
     request: EditContextRequest,
     analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
-    db: DatabaseService = Depends(get_db_service)
+    storage: FileStorageService = Depends(get_file_storage_service)
 ) -> Task:
     """
     Edit the context summary of a task based on user feedback.
@@ -115,14 +115,15 @@ async def edit_context_summary(
     logger.info(f"Editing context summary for task {task_id}")
     logger.info(f"Feedback: {request.feedback}")
     
-    task_data = db.fetch_task_by_id(task_id)
-    task = deserialize_task(task_data, task_id)
-    
+    task = storage.load_task(task_id)
+    if not task:
+        raise TaskNotFoundException(f"Task {task_id} not found")
+
     # Edit the context using the problem analyzer
     updated_task = await analyzer.edit_context_summary(task, request.feedback)
-    
+
     # Save the updated task
-    db.updated_task(updated_task)
+    storage.save_task(task_id, updated_task)
     
     logger.info(f"Context summary updated for task {task_id}")
     return updated_task 

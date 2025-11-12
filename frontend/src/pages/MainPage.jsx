@@ -1,36 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, RefreshCw } from 'lucide-react';
 import QueryList from '../components/query/QueryList';
 import CreateQueryModal from '../components/query/CreateQueryModal';
 import Header from '../components/layout/Header';
 import Toolbar from '../components/layout/Toolbar';
 import { fetchQueries } from '../utils/api';
-import { useToast } from '../components/common/ToastProvider';
 
-const ErrorDisplay = ({ error, onRetry }) => (
-  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-    <div className="bg-red-50 text-red-700 p-6 rounded-lg max-w-md text-center shadow-md">
-      <AlertCircle className="w-8 h-8 mx-auto mb-3" aria-hidden="true" />
-      <h2 className="text-xl font-semibold mb-2">Error Loading Queries</h2>
-      <p className="mb-4">{error}</p>
-      <button 
-        onClick={onRetry}
-        className="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 mx-auto"
-        aria-label="Try loading queries again"
-      >
-        <RefreshCw className="w-4 h-4" aria-hidden="true" />
-        Try Again
-      </button>
-    </div>
-  </div>
-);
-
-ErrorDisplay.propTypes = {
-  error: PropTypes.string.isRequired,
-  onRetry: PropTypes.func.isRequired
-};
 
 const MainPage = () => {
   const [queries, setQueries] = useState([]);
@@ -41,30 +17,64 @@ const MainPage = () => {
   const [viewType, setViewType] = useState('list');
   const [filterStatus, setFilterStatus] = useState('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const toast = useToast();
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const retryAttemptRef = useRef(0);
   const navigate = useNavigate();
 
   const loadQueries = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await fetchQueries();
-      setQueries(data);
-    } catch (err) {
-      toast.showError('Failed to fetch queries. Please try again later.');
-      setError('Failed to fetch queries. Please try again later.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
+    const MAX_RETRIES = 3;
+    let currentAttempt = 0; // Always start from 0 for each loadQueries call
+
+    const attemptLoad = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await fetchQueries();
+        setQueries(data);
+        retryAttemptRef.current = 0; // Reset retry attempt on success
+        setRetryAttempt(0); // Update UI state
+        setIsLoading(false);
+      } catch (err) {
+        console.log(`Attempt ${currentAttempt + 1} failed:`, err.message);
+
+        if (currentAttempt < MAX_RETRIES - 1) {
+          // Retry with exponential backoff
+          currentAttempt++;
+
+          const delay = Math.min(1000 * Math.pow(2, currentAttempt - 1), 5000); // Max 5 seconds
+          setTimeout(attemptLoad, delay);
+        } else {
+          // Max retries reached, show error in loading state
+          const errorMessage = 'Unable to connect to the server. Please check if the backend is running.';
+          setError(errorMessage);
+          setIsLoading(false); // Keep loading false so we show error in loading div
+        }
+      }
+    };
+
+    attemptLoad(); // Start the first attempt
+  }, []); // Remove toast dependency since we don't show toast anymore
 
   useEffect(() => {
-    loadQueries();
-  }, [loadQueries]);
+    retryAttemptRef.current = 0; // Reset on component mount
+    setRetryAttempt(0); // Update UI state
+    loadQueries(); // Use the properly memoized function
+  }, [loadQueries]); // Include loadQueries dependency
 
   const handleCreateClick = useCallback(() => {
     setIsModalOpen(true);
   }, []);
+
+  const handleManualRetry = useCallback(() => {
+    if (retryAttempt >= 3) {
+      // Force page refresh when max retries reached
+      window.location.reload();
+    } else {
+      retryAttemptRef.current = 0; // Reset retry count for manual retry
+      setRetryAttempt(0); // Update UI state
+      loadQueries();
+    }
+  }, [loadQueries, retryAttempt]);
 
   const handleDetailsClick = useCallback((taskId) => {
     navigate(`/tasks/${taskId}`);
@@ -76,14 +86,10 @@ const MainPage = () => {
     return matchesSearch && matchesFilter;
   });
 
-  if (error) {
-    return <ErrorDisplay error={error} onRetry={loadQueries} />;
-  }
-
   return (
     <div className="min-h-screen bg-gray-25">
-      <Header 
-        queryCount={queries.length} 
+      <Header
+        queryCount={queries.length}
         onCreateClick={handleCreateClick}
         isLoading={isLoading}
       />
@@ -99,15 +105,18 @@ const MainPage = () => {
           setViewType={setViewType}
           onRefresh={loadQueries}
         />
-        
+
         {/* Query List */}
         <QueryList
           queries={filteredQueries}
           isLoading={isLoading}
+          error={error}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           onDetailsClick={handleDetailsClick}
+          onCreateClick={handleCreateClick}
           viewType={viewType}
+          onRetry={handleManualRetry}
         />
       </div>
 

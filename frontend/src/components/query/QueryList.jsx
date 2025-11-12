@@ -1,8 +1,9 @@
 import React from 'react';
-import { Search, Clock, AlertCircle, ArrowRight, Calendar, Hash, TrendingUp, Eye } from 'lucide-react';
+import { Search, Clock, AlertCircle, ArrowRight, Calendar, Hash, TrendingUp, Eye, ArrowUpDown } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
-const QueryList = ({ queries, isLoading, searchTerm, onSearchChange, onDetailsClick, viewType = 'list' }) => {
+const QueryList = ({ queries, isLoading, error, searchTerm, onSearchChange, onDetailsClick, onCreateClick, viewType = 'list', onRetry }) => {
+  const [sortOrder, setSortOrder] = React.useState('newest'); // 'newest', 'oldest', 'progress'
   const EmptyState = () => (
     <div className="card p-12 text-center animate-fade-in">
       <div className="mx-auto w-20 h-20 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl mb-6">
@@ -16,7 +17,10 @@ const QueryList = ({ queries, isLoading, searchTerm, onSearchChange, onDetailsCl
         }
       </p>
       {!searchTerm && (
-        <button className="btn btn-primary btn-lg">
+        <button
+          onClick={onCreateClick}
+          className="btn btn-primary btn-lg"
+        >
           <ArrowRight className="w-5 h-5" />
           Create Your First Query
         </button>
@@ -26,9 +30,27 @@ const QueryList = ({ queries, isLoading, searchTerm, onSearchChange, onDetailsCl
 
   const LoadingState = () => (
     <div className="card p-12 text-center">
-      <div className="mx-auto w-16 h-16 spinner mb-6" />
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading queries...</h3>
-      <p className="text-gray-600">Fetching your latest data</p>
+      {error ? (
+        <>
+          <div className="mx-auto w-16 h-16 flex items-center justify-center bg-red-50 rounded-full mb-6">
+            <AlertCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <h3 className="text-lg font-semibold text-red-900 mb-2">Connection Error</h3>
+          <p className="text-red-700 mb-4">{error}</p>
+          <button
+            onClick={onRetry}
+            className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="mx-auto w-16 h-16 spinner mb-6" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading queries...</h3>
+          <p className="text-gray-600">Fetching your latest data</p>
+        </>
+      )}
     </div>
   );
 
@@ -48,16 +70,17 @@ const QueryList = ({ queries, isLoading, searchTerm, onSearchChange, onDetailsCl
     </div>
   );
 
-  const GridView = () => (
+  const GridView = ({ sortedQueries }) => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
       {isLoading ? (
         Array.from({ length: 8 }, (_, i) => <SkeletonCard key={i} />)
       ) : (
-        queries.map((query) => (
-          <div 
-            key={query.id} 
-            className="card card-hover animate-slide-up group"
-            style={{ animationDelay: `${Math.min(queries.indexOf(query) * 50, 500)}ms` }}
+        sortedQueries.map((query) => (
+          <div
+            key={query.id}
+            className="card card-hover animate-slide-up group cursor-pointer"
+            style={{ animationDelay: `${Math.min(sortedQueries.indexOf(query) * 50, 500)}ms` }}
+            onClick={() => onDetailsClick?.(query.task_id)}
           >
             <div className="p-6">
               {/* Header */}
@@ -111,14 +134,11 @@ const QueryList = ({ queries, isLoading, searchTerm, onSearchChange, onDetailsCl
 
             {/* Action footer */}
             <div className="border-t border-gray-100 bg-gray-25 px-6 py-4">
-              <button 
-                onClick={() => onDetailsClick?.(query.task_id)}
-                className="btn btn-secondary btn-sm w-full justify-center group"
-              >
-                <Eye className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <div className="btn btn-secondary btn-sm w-full justify-center group opacity-75">
+                <Eye className="w-4 h-4" />
                 View Details
-                <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-              </button>
+                <ArrowRight className="w-3 h-3" />
+              </div>
             </div>
           </div>
         ))
@@ -126,16 +146,17 @@ const QueryList = ({ queries, isLoading, searchTerm, onSearchChange, onDetailsCl
     </div>
   );
 
-  const ListView = () => (
+  const ListView = ({ sortedQueries }) => (
     <div className="space-y-4">
       {isLoading ? (
         Array.from({ length: 5 }, (_, i) => <SkeletonCard key={i} />)
       ) : (
-        queries.map((query, index) => (
-          <div 
-            key={query.id} 
-            className="card card-hover p-6 animate-slide-up group"
+        sortedQueries.map((query, index) => (
+          <div
+            key={query.id}
+            className="card card-hover p-6 animate-slide-up group cursor-pointer"
             style={{ animationDelay: `${index * 50}ms` }}
+            onClick={() => onDetailsClick?.(query.task_id)}
           >
             <div className="flex items-start justify-between gap-6">
               {/* Main content */}
@@ -183,14 +204,11 @@ const QueryList = ({ queries, isLoading, searchTerm, onSearchChange, onDetailsCl
                     </div>
                   </div>
                   
-                  <button 
-                    onClick={() => onDetailsClick?.(query.task_id)}
-                    className="btn btn-primary btn-md group flex-shrink-0"
-                  >
-                    <Eye className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  <div className="btn btn-primary btn-md group flex-shrink-0 opacity-75">
+                    <Eye className="w-4 h-4" />
                     View Details
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -225,7 +243,7 @@ const QueryList = ({ queries, isLoading, searchTerm, onSearchChange, onDetailsCl
       </div>
 
       {/* Results */}
-      {isLoading ? (
+      {isLoading || error ? (
         <LoadingState />
       ) : queries.length === 0 ? (
         <EmptyState />
@@ -240,10 +258,36 @@ const QueryList = ({ queries, isLoading, searchTerm, onSearchChange, onDetailsCl
                 <>Showing <span className="font-semibold">{queries.length}</span> queries</>
               )}
             </div>
+            <button
+              onClick={() => {
+                const nextSortOrder = sortOrder === 'newest' ? 'oldest' : sortOrder === 'oldest' ? 'progress' : 'newest';
+                setSortOrder(nextSortOrder);
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+              title={`Sort by: ${sortOrder === 'newest' ? 'Newest first' : sortOrder === 'oldest' ? 'Oldest first' : 'Progress'}`}
+            >
+              <ArrowUpDown className="w-4 h-4" />
+              {sortOrder === 'newest' && 'Newest'}
+              {sortOrder === 'oldest' && 'Oldest'}
+              {sortOrder === 'progress' && 'Progress'}
+            </button>
           </div>
-          
-          {/* Query List */}
-          {viewType === 'grid' ? <GridView /> : <ListView />}
+
+          {/* Sort queries */}
+          {(() => {
+            const sortedQueries = [...queries].sort((a, b) => {
+              switch (sortOrder) {
+                case 'oldest':
+                  return new Date(a.created_at) - new Date(b.created_at);
+                case 'progress':
+                  return b.progress - a.progress;
+                case 'newest':
+                default:
+                  return new Date(b.created_at) - new Date(a.created_at);
+              }
+            });
+            return viewType === 'grid' ? <GridView sortedQueries={sortedQueries} /> : <ListView sortedQueries={sortedQueries} />;
+          })()}
         </>
       )}
     </div>

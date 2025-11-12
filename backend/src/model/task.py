@@ -77,8 +77,9 @@ class Task(BaseModel):
         }
 
     @classmethod
-    def create_new(cls, task: str = '', context: str = ''):
+    def create_new(cls, task: str = '', context: str = '', project_id: str = None):
         return cls(
+            id=project_id or str(uuid.uuid4()),  # Accept custom project_id or fallback to UUID
             state=TaskState.NEW,
             task=task,
             context=context,

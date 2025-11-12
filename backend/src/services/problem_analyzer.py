@@ -1,5 +1,5 @@
 # backend/src/services/problem_analyzer.py
-from .database_service import DatabaseService
+from src.services.file_storage_service import FileStorageService
 from src.services.openai_service import OpenAIService
 from src.model.context import ContextSufficiencyResult, ClarifiedTask
 from src.model.task import Task, TaskState
@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 
 class ProblemAnalyzer:
 
-    def __init__(self, openai_service: OpenAIService, db_service: DatabaseService):
+    def __init__(self, openai_service: OpenAIService, storage_service: FileStorageService):
         self.openai_service = openai_service
-        self.db_service = db_service
+        self.storage_service = storage_service
 
     async def clarify_context(self, task: Task, force: bool = False) -> ContextSufficiencyResult:
         """Initial context gathering method"""
@@ -30,7 +30,7 @@ class ProblemAnalyzer:
             logger.info(f"Task {task.id}: Context already sufficient.")
             if task.state != TaskState.CONTEXT_GATHERED: # Only update if not already gathered
                  task.update_state(TaskState.CONTEXT_GATHERED)
-                 self.db_service.updated_task(task)
+                 # Task will be saved by calling code
             return ContextSufficiencyResult(is_context_sufficient=True, questions=[])
 
         if not force:
@@ -45,7 +45,7 @@ class ProblemAnalyzer:
                 logger.info(f"Task {task.id}: AI context sufficiency result: sufficient={result.is_context_sufficient}, questions asked={len(result.questions)}")
 
             if not result.is_context_sufficient:
-                self.db_service.updated_task(task) # Save state change even if more questions needed
+                # Task will be saved by calling code # Save state change even if more questions needed
                 return result
         else:
             logger.info(f"Task {task.id}: Forcing context sufficiency check bypass.")
@@ -67,7 +67,7 @@ class ProblemAnalyzer:
             task.context = task.context or "Context summarization failed." # Add a note
 
         task.update_state(TaskState.CONTEXT_GATHERED)
-        self.db_service.updated_task(task)
+        # Task will be saved by calling code
         logger.info(f"Task {task.id}: State updated to {TaskState.CONTEXT_GATHERED}.")
 
         return result
@@ -127,7 +127,7 @@ class ProblemAnalyzer:
 
         logger.info(f"Task {task.id}, Stage {stage_id}: AI generated {len(generated_work_packages)} work packages.")
         target_stage.work_packages = generated_work_packages
-        self.db_service.updated_task(task)
+        # Task will be saved by calling code
         logger.info(f"Task {task.id}: Updated with work packages for Stage {stage_id}")
         return generated_work_packages
 
@@ -150,7 +150,7 @@ class ProblemAnalyzer:
 
         logger.info(f"Task {task.id}, Stage {stage_id}, Work {work_id}: AI generated {len(generated_tasks)} tasks.")
         target_work.tasks = generated_tasks
-        self.db_service.updated_task(task)
+        # Task will be saved by calling code
         logger.info(f"Task {task.id}: Updated with executable tasks for Work {work_id}")
         return generated_tasks
 
@@ -176,7 +176,7 @@ class ProblemAnalyzer:
 
         logger.info(f"Task {task.id}, ..., ExecTask {executable_task_id}: AI generated {len(generated_subtasks)} subtasks.")
         target_executable_task.subtasks = generated_subtasks
-        self.db_service.updated_task(task)
+        # Task will be saved by calling code
         logger.info(f"Task {task.id}: Updated with subtasks for ExecutableTask {executable_task_id}")
         return generated_subtasks
 
@@ -199,7 +199,7 @@ class ProblemAnalyzer:
             logger.info(f"Task {task.id}: Context summary refined successfully based on feedback.")
             
             # Save the updated task to the database
-            self.db_service.updated_task(task)
+            # Task will be saved by calling code
             logger.info(f"Task {task.id}: Updated task saved to DB after context edit.")
             
             return task

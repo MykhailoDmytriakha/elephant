@@ -94,26 +94,26 @@ const apiRequest = async (method, endpoint, data = null, errorMessage, options =
 // --- API functions using the new apiRequest wrapper ---
 
 export const fetchQueries = async () => {
-  return apiRequest('get', '/user-queries', null, 'Failed to fetch queries');
+  return apiRequest('get', '/api/v1/user-queries', null, 'Failed to fetch queries');
 };
 
 export const createQuery = async (query) => {
-  return apiRequest('post', '/user-queries/', { query }, 'Failed to create query');
+  return apiRequest('post', '/api/v1/user-queries/', { query }, 'Failed to create query');
 };
 
 export const fetchTaskDetails = async (taskId) => {
-  return apiRequest('get', `/tasks/${taskId}`, null, `Failed to fetch details for task ${taskId}`);
+  return apiRequest('get', `/api/v1/tasks/${taskId}`, null, `Failed to fetch details for task ${taskId}`);
 };
 
 export const loadTaskDataOnly = async (taskId) => {
-  return apiRequest('get', `/tasks/${taskId}`, null, `Failed to fetch data for task ${taskId}`);
+  return apiRequest('get', `/api/v1/tasks/${taskId}`, null, `Failed to fetch data for task ${taskId}`);
 };
 
 export const updateTaskContext = async (taskId, answers, queryParams = '') => {
   return apiRequest(
-    'post', 
-    `/tasks/${taskId}/context-questions`, 
-    answers, 
+    'post',
+    `/api/v1/tasks/${taskId}/context-questions`,
+    answers,
     `Failed to process context questions for task ${taskId}`,
     { queryParams }
   );
@@ -123,23 +123,23 @@ export const getContextQuestions = async (taskId, force = false) => {
   const shouldForce = force === true;
   const queryParams = shouldForce ? '?force=true' : '';
   return apiRequest(
-    'post', 
-    `/tasks/${taskId}/context-questions`, 
-    null, 
+    'post',
+    `/api/v1/tasks/${taskId}/context-questions`,
+    null,
     `Failed to get context questions and evaluate for task ${taskId}`,
     { queryParams }
   );
 };
 
 export const deleteTask = async (taskId) => {
-  return apiRequest('delete', `/tasks/${taskId}`, null, `Failed to delete task ${taskId}`);
+  return apiRequest('delete', `/api/v1/tasks/${taskId}`, null, `Failed to delete task ${taskId}`);
 };
 
 export const getFormulationQuestions = async (taskId, groupId) => {
   return apiRequest(
-    'get', 
-    `/tasks/${taskId}/formulate/${groupId}`, 
-    null, 
+    'get',
+    `/api/v1/tasks/${taskId}/formulate/${groupId}`,
+    null,
     `Failed to get formulation questions for task ${taskId}, group ${groupId}`,
     { logging: true }
   );
@@ -147,16 +147,16 @@ export const getFormulationQuestions = async (taskId, groupId) => {
 
 export const submitFormulationAnswers = async (taskId, groupId, answers) => {
   return apiRequest(
-    'post', 
-    `/tasks/${taskId}/formulate/${groupId}`, 
-    answers, 
+    'post',
+    `/api/v1/tasks/${taskId}/formulate/${groupId}`,
+    answers,
     `Failed to submit formulation answers for task ${taskId}, group ${groupId}`,
     { logging: true }
   );
 };
 
 export const getDraftScope = async (taskId) => {
-  return apiRequest('get', `/tasks/${taskId}/draft-scope`, null, `Failed to get draft scope for task ${taskId}`);
+  return apiRequest('get', `/api/v1/tasks/${taskId}/draft-scope`, null, `Failed to get draft scope for task ${taskId}`);
 };
 
 export const validateScope = async (taskId, isApproved, feedback = null) => {
@@ -168,9 +168,9 @@ export const validateScope = async (taskId, isApproved, feedback = null) => {
   isValidateScopeInProgress = true;
   try {
     const result = await apiRequest(
-      'post', 
-      `/tasks/${taskId}/validate-scope`, 
-      { isApproved, feedback }, 
+      'post',
+      `/api/v1/tasks/${taskId}/validate-scope`,
+      { isApproved, feedback },
       `Failed to validate scope for task ${taskId}`,
       { logging: true }
     );
@@ -183,7 +183,7 @@ export const validateScope = async (taskId, isApproved, feedback = null) => {
 export const generateIFR = async (taskId) => {
   return apiRequest(
     'post',
-    `/tasks/${taskId}/ifr`,
+    `/api/v1/tasks/${taskId}/ifr`,
     null,
     `Failed to generate IFR for task ${taskId}`,
     { logging: true }
@@ -193,7 +193,7 @@ export const generateIFR = async (taskId) => {
 export const generateRequirements = async (taskId) => {
   return apiRequest(
     'post',
-    `/tasks/${taskId}/requirements`,
+    `/api/v1/tasks/${taskId}/requirements`,
     null,
     `Failed to generate Requirements for task ${taskId}`,
     { logging: true }
@@ -204,7 +204,7 @@ export const generateNetworkPlan = async (taskId, forceRefresh = false) => {
   const queryParams = forceRefresh ? '?force=true' : '';
   return apiRequest(
     'post',
-    `/tasks/${taskId}/network-plan`,
+    `/api/v1/tasks/${taskId}/network-plan`,
     null,
     `Failed to generate Network Plan for task ${taskId}`,
     { queryParams, logging: true }
@@ -217,7 +217,7 @@ export const generateNetworkPlan = async (taskId, forceRefresh = false) => {
 export const generateWorkForStage = async (taskId, stageId) => {
   return apiRequest(
     'post',
-    `/tasks/${taskId}/stages/${stageId}/generate-work`,
+    `/api/v1/tasks/${taskId}/stages/${stageId}/generate-work`,
     null,
     `Failed to generate Work Packages for stage ${stageId} in task ${taskId}`,
     { logging: true }
@@ -228,7 +228,7 @@ export const generateWorkForStage = async (taskId, stageId) => {
 export const generateAllWorkPackages = async (taskId) => {
   return apiRequest(
     'post',
-    `/tasks/${taskId}/stages/generate-work`, // Note: no stageId here
+    `/api/v1/tasks/${taskId}/stages/generate-work`, // Note: no stageId here
     null,
     `Failed to generate Work Packages for all stages in task ${taskId}`,
     { logging: true }
@@ -238,7 +238,7 @@ export const generateAllWorkPackages = async (taskId) => {
 export const generateTasksForWork = async (taskId, stageId, workId) => {
   return apiRequest(
     'post',
-    `/tasks/${taskId}/stages/${stageId}/work/${workId}/generate-tasks`,
+    `/api/v1/tasks/${taskId}/stages/${stageId}/work/${workId}/generate-tasks`,
     null,
     `Failed to generate Executable Tasks for work ${workId}`,
     { logging: true }
@@ -248,7 +248,7 @@ export const generateTasksForWork = async (taskId, stageId, workId) => {
 export const generateSubtasksForTask = async (taskId, stageId, workId, executableTaskId) => {
   return apiRequest(
     'post',
-    `/tasks/${taskId}/stages/${stageId}/work/${workId}/tasks/${executableTaskId}/generate-subtasks`,
+    `/api/v1/tasks/${taskId}/stages/${stageId}/work/${workId}/tasks/${executableTaskId}/generate-subtasks`,
     null,
     `Failed to generate Subtasks for executable task ${executableTaskId}`,
     { logging: true }
@@ -259,7 +259,7 @@ export const generateAllTasksForWork = async (taskId, stageId, workId) => {
   // Using the specific work endpoint
   return apiRequest(
     'post',
-    `/tasks/${taskId}/stages/${stageId}/work/${workId}/generate-tasks`,
+    `/api/v1/tasks/${taskId}/stages/${stageId}/work/${workId}/generate-tasks`,
     null,
     `Failed to generate ALL Executable Tasks for work ${workId}`,
     { logging: true }
@@ -269,7 +269,7 @@ export const generateAllTasksForWork = async (taskId, stageId, workId) => {
 export const generateAllSubtasksForWork = async (taskId, stageId, workId) => {
   return apiRequest(
     'post',
-    `/tasks/${taskId}/stages/${stageId}/work/${workId}/tasks/generate-subtasks`,
+    `/api/v1/tasks/${taskId}/stages/${stageId}/work/${workId}/tasks/generate-subtasks`,
     null,
     `Failed to generate ALL Subtasks for work ${workId}`,
     { logging: true }
@@ -279,7 +279,7 @@ export const generateAllSubtasksForWork = async (taskId, stageId, workId) => {
 export const generateAllTasksForStage = async (taskId, stageId) => {
   return apiRequest(
     'post',
-    `/tasks/${taskId}/stages/${stageId}/works/generate-tasks`,
+    `/api/v1/tasks/${taskId}/stages/${stageId}/works/generate-tasks`,
     null,
     `Failed to generate ALL Executable Tasks for stage ${stageId}`,
     { logging: true }
@@ -289,7 +289,7 @@ export const generateAllTasksForStage = async (taskId, stageId) => {
 export const editContextSummary = async (taskId, feedback) => {
   return apiRequest(
     'post',
-    `/tasks/${taskId}/edit-context`,
+    `/api/v1/tasks/${taskId}/edit-context`,
     { feedback },
     `Failed to update context with feedback for task ${taskId}`,
     { logging: true }
@@ -300,7 +300,7 @@ export const editContextSummary = async (taskId, feedback) => {
 export const generateTasksForAllStages = async (taskId) => {
   return apiRequest(
     'post',
-    `/tasks/${taskId}/stages/generate-all-tasks`, // The new endpoint
+    `/api/v1/tasks/${taskId}/stages/generate-all-tasks`, // The new endpoint
     null,
     `Failed to generate Tasks for all stages in task ${taskId}`,
     { logging: true }
@@ -310,7 +310,7 @@ export const generateTasksForAllStages = async (taskId) => {
 // Function to stream assistant responses using Server-Sent Events
 export const chatWithTaskAssistant = async (taskId, message, callbacks = {}, messageHistory = []) => {
   const { onChunk, onComplete, onError } = callbacks;
-  const endpoint = `${API_BASE_URL}/tasks/${taskId}/chat/stream`;
+  const endpoint = `${API_BASE_URL}/api/v1/tasks/${taskId}/chat/stream`;
   
   // Generate a stable session ID based on the task ID with timestamp for uniqueness
   // This ensures we use a consistent session for the same task while handling resets
@@ -422,7 +422,7 @@ export const chatWithTaskAssistant = async (taskId, message, callbacks = {}, mes
 export const resetChatSession = async (taskId) => {
   return apiRequest(
     'post',
-    `/tasks/${taskId}/chat/reset`,
+    `/api/v1/tasks/${taskId}/chat/reset`,
     null,
     `Failed to reset chat session for task ${taskId}`,
     { logging: true }

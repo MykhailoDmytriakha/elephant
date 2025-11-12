@@ -18,7 +18,7 @@ from src.model.subtask import Subtask, SubtaskStatus
 from src.services.database_service import DatabaseService
 
 # API utils imports
-from src.api.deps import get_db_service
+from src.api.deps import get_file_storage_service
 from src.api.utils import api_error_handler, deserialize_task
 
 logger = logging.getLogger(__name__)
