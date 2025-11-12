@@ -1,19 +1,86 @@
 // src/components/task/TaskOverview.jsx
-import React from 'react';
-import { 
-  FileText, 
-  AlignLeft, 
-  Target, 
-  Compass, 
-  Clock, 
-  Microscope, 
-  Lightbulb, 
-  CheckCircle, 
-  Check, 
-  TrendingUp 
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { updateTask } from '../../utils/api';
+import {
+  FileText,
+  AlignLeft,
+  Target,
+  Compass,
+  Microscope,
+  Lightbulb,
+  CheckCircle,
+  Check,
+  TrendingUp,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  Copy,
+  Edit2,
+  Save,
+  X
 } from 'lucide-react';
 
-const TaskOverview = ({ task }) => {
+const TaskOverview = ({ task, onTaskUpdated }) => {
+  const [metadataExpanded, setMetadataExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isEditingQuery, setIsEditingQuery] = useState(false);
+  const [editedQuery, setEditedQuery] = useState('');
+
+  // Load metadata expanded state from localStorage on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem(`taskOverview_metadata_expanded_${task.id}`);
+    if (savedState !== null) {
+      setMetadataExpanded(JSON.parse(savedState));
+    }
+  }, [task.id]);
+
+  // Save metadata expanded state to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem(`taskOverview_metadata_expanded_${task.id}`, JSON.stringify(metadataExpanded));
+  }, [metadataExpanded, task.id]);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(task.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const toggleMetadata = () => {
+    setMetadataExpanded(!metadataExpanded);
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleMetadata();
+    }
+  };
+
+  const startEditingQuery = () => {
+    setEditedQuery(task.short_description || '');
+    setIsEditingQuery(true);
+  };
+
+  const cancelEditingQuery = () => {
+    setIsEditingQuery(false);
+    setEditedQuery('');
+  };
+
+  const saveEditedQuery = async () => {
+    try {
+      await updateTask(task.id, { short_description: editedQuery });
+      setIsEditingQuery(false);
+      // Refresh task data after successful save
+      if (onTaskUpdated) {
+        await onTaskUpdated();
+      }
+    } catch (error) {
+      console.error('Failed to save edited query:', error);
+      // Handle error (show toast, etc.)
+    }
+  };
+
   return (
     <div className="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
       <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white">
@@ -43,11 +110,50 @@ const TaskOverview = ({ task }) => {
 
           {/* Task description */}
           <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-600 flex items-center mb-2">
-              <AlignLeft className="w-4 h-4 mr-1.5 text-gray-500" />
-              Initial User Query
-            </h3>
-            <p className="mt-1 text-gray-900 whitespace-pre-line bg-gray-50 p-3 rounded-md">{task.short_description || ''}</p>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-gray-600 flex items-center">
+                <AlignLeft className="w-4 h-4 mr-1.5 text-gray-500" />
+                Initial User Query
+              </h3>
+              {!isEditingQuery && (
+                <button
+                  onClick={startEditingQuery}
+                  className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                  title="Edit query"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            {isEditingQuery ? (
+              <div className="space-y-3">
+                <textarea
+                  value={editedQuery}
+                  onChange={(e) => setEditedQuery(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  rows={4}
+                  placeholder="Enter your query..."
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={saveEditedQuery}
+                    className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                  >
+                    <Save className="w-3 h-3" />
+                    Save
+                  </button>
+                  <button
+                    onClick={cancelEditingQuery}
+                    className="flex items-center gap-1 px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors text-sm"
+                  >
+                    <X className="w-3 h-3" />
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-1 text-gray-900 whitespace-pre-line bg-gray-50 p-3 rounded-md">{task.short_description || ''}</p>
+            )}
           </div>
 
           {/* Task data */}
@@ -162,26 +268,119 @@ const TaskOverview = ({ task }) => {
             </div>
           )}
           
-          
-          {/* Task metadata */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {task.level && (
-              <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm">
-                <h3 className="text-sm font-medium text-gray-600 flex items-center mb-1">
-                  <Target className="w-4 h-4 mr-1.5 text-gray-500" />
-                  Level
-                </h3>
-                <p className="bg-gray-50 p-2 rounded-md border border-gray-100 text-gray-900 font-medium">{task.level}</p>
-              </div>
-            )}
+          {/* Collapsible Metadata Section */}
+          <div className="border-t border-gray-200 mt-6">
+            <button
+              id="metadata-toggle"
+              onClick={toggleMetadata}
+              onKeyDown={handleKeyDown}
+              className="w-full flex justify-between items-center py-3 px-1 hover:bg-gray-50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+              aria-expanded={metadataExpanded}
+              aria-label="Toggle metadata visibility"
+              aria-controls="metadata-content"
+            >
+              <span className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <Info className="w-4 h-4" />
+                Metadata
+              </span>
+              {metadataExpanded ?
+                <ChevronUp className="w-4 h-4 text-gray-400" /> :
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              }
+            </button>
 
-            {task.eta_to_complete && (
-              <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm">
-                <h3 className="text-sm font-medium text-gray-600 flex items-center mb-1">
-                  <Clock className="w-4 h-4 mr-1.5 text-gray-500" />
-                  ETA to Complete
-                </h3>
-                <p className="bg-gray-50 p-2 rounded-md border border-gray-100 text-gray-900 font-medium">{task.eta_to_complete}</p>
+            {metadataExpanded && (
+              <div
+                id="metadata-content"
+                className="px-4 pb-4 space-y-3 bg-gray-50 rounded-b-lg transition-all duration-200"
+                role="region"
+                aria-labelledby="metadata-toggle"
+              >
+                {/* Task ID */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Task ID</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-gray-900 font-mono text-xs bg-white p-2 rounded border break-all">
+                      {task.id}
+                    </p>
+                    <button
+                      onClick={handleCopy}
+                      className="p-1 text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
+                      title="Copy Task ID"
+                    >
+                      {copied ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Created At */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Created</h3>
+                  <p className="mt-1 text-gray-900 text-sm">
+                    {new Date(task.created_at).toLocaleString()}
+                  </p>
+                </div>
+
+                {/* Updated At */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
+                  <p className="mt-1 text-gray-900 text-sm">
+                    {new Date(task.updated_at).toLocaleString()}
+                  </p>
+                </div>
+
+                {/* Level */}
+                {task.level && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Level</h3>
+                    <p className="mt-1 text-gray-900 text-sm bg-white p-2 rounded border">
+                      {task.level}
+                    </p>
+                  </div>
+                )}
+
+                {/* ETA to Complete */}
+                {task.eta_to_complete && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">ETA to Complete</h3>
+                    <p className="mt-1 text-gray-900 text-sm bg-white p-2 rounded border">
+                      {task.eta_to_complete}
+                    </p>
+                  </div>
+                )}
+
+                {/* Stages List */}
+                {task.network_plan?.stages && task.network_plan.stages.length > 0 && (
+                  <>
+                    <hr className="my-3 border-gray-200" />
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500 mb-2">Stages</h3>
+                      <div className="space-y-1">
+                        {task.network_plan.stages.map((stage) => (
+                          <Link
+                            key={stage.id}
+                            to={`/tasks/${task.id}/stages/${stage.id}`}
+                            state={{
+                              stage: stage,
+                              taskShortDescription: task.short_description,
+                              taskId: task.id,
+                              task: task
+                            }}
+                            className="block p-2 rounded-md hover:bg-gray-100 cursor-pointer transition-colors border border-transparent hover:border-gray-200"
+                          >
+                            <span className="text-sm font-medium text-blue-700 hover:text-blue-900">
+                              {stage.id}. {stage.name}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

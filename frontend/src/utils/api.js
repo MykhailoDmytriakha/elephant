@@ -105,6 +105,10 @@ export const fetchTaskDetails = async (taskId) => {
   return apiRequest('get', `/api/v1/tasks/${taskId}`, null, `Failed to fetch details for task ${taskId}`);
 };
 
+export const updateTask = async (taskId, updates) => {
+  return apiRequest('put', `/api/v1/tasks/${taskId}`, updates, `Failed to update task ${taskId}`);
+};
+
 export const loadTaskDataOnly = async (taskId) => {
   return apiRequest('get', `/api/v1/tasks/${taskId}`, null, `Failed to fetch data for task ${taskId}`);
 };
@@ -133,6 +137,15 @@ export const getContextQuestions = async (taskId, force = false) => {
 
 export const deleteTask = async (taskId) => {
   return apiRequest('delete', `/api/v1/tasks/${taskId}`, null, `Failed to delete task ${taskId}`);
+};
+
+export const deleteContextAnswer = async (taskId, answerIndex) => {
+  return apiRequest('delete', `/api/v1/tasks/${taskId}/context-answers/${answerIndex}`, null, `Failed to delete context answer at index ${answerIndex}`);
+};
+
+export const deleteContextQuestion = async (taskId, question) => {
+  // Send question as query parameter to avoid URL length issues
+  return apiRequest('delete', `/api/v1/tasks/${taskId}/context-questions?question=${encodeURIComponent(question)}`, null, `Failed to delete context question`);
 };
 
 export const getFormulationQuestions = async (taskId, groupId) => {

@@ -70,12 +70,32 @@ class FileStorageService:
 
         # Convert task to dict and save
         task_dict = task.to_dict()
+        context_answers_count = len(task_dict.get('context_answers', []))
+
+        logger.info("=== STORAGE SAVE OPERATION ===")
+        logger.info(f"📦 Saving task for project: {project_name}")
+        logger.info(f"📂 File path: {project_dir / 'project.json'}")
+        logger.info(f"📊 Context answers count: {context_answers_count}")
+        logger.info(f"🏷️ Task state: {task_dict.get('state', 'unknown')}")
+        logger.info(f"📝 Task ID: {task_dict.get('id', 'unknown')}")
+        logger.info(f"⏰ Updated at: {task_dict.get('updated_at', 'unknown')}")
+
+        if context_answers_count > 0:
+            logger.info("📋 Context answers content:")
+            for i, answer in enumerate(task_dict['context_answers'][:3]):  # Show first 3
+                status = "PENDING" if not answer.get('answer', '').strip() else "ANSWERED"
+                options_count = len(answer.get('options', [])) if answer.get('options') else 0
+                logger.info(f"   {i+1}. {answer.get('question', '')[:50]}... [{status}] options: {options_count}")
+            if context_answers_count > 3:
+                logger.info(f"   ... and {context_answers_count - 3} more answers")
+
         self._write_json(project_dir / "project.json", task_dict)
 
         # Update metadata timestamp
         self.update_metadata(project_name, updated_at=datetime.now().isoformat())
 
-        logger.debug(f"Saved task for project: {project_name}")
+        logger.info(f"✅ Task saved successfully to: {project_dir / 'project.json'}")
+        logger.info("=== END STORAGE SAVE ===")
 
     def load_task(self, project_name: str) -> Optional[Task]:
         """

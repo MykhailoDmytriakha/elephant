@@ -30,6 +30,7 @@ from src.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes.user_queries_routes import router as user_queries_router
 from src.api.routes.tasks_routes import router as tasks_router
+from src.api.routes.task_context_routes import router as task_context_router
 from src.api.routes.util_routes import router as util_router
 
 import logging
@@ -87,6 +88,7 @@ app.add_middleware(
 # Include routes
 app.include_router(user_queries_router, prefix="/api/v1/user-queries", tags=["User Queries"])
 app.include_router(tasks_router, prefix="/api/v1/tasks", tags=["Tasks"])
+app.include_router(task_context_router, prefix="/api/v1/tasks", tags=["Task Context"])
 app.include_router(util_router, prefix="/api/v1/utils", tags=["Utilities"])
 # Add other routes as needed
 

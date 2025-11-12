@@ -21,4 +21,4 @@ echo ""
 
 # Set uvicorn log level to show access logs with timestamps
 export UVICORN_LOG_LEVEL=info
-python src/main.py
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000 --access-log --log-config logging_config.json

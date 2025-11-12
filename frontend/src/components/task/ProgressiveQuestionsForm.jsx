@@ -12,6 +12,7 @@ const ProgressiveQuestionsForm = ({
   isSubmitting = false,
   error = null,
   onRetry,
+  onDeleteQuestion,
   isForceRefresh = false
 }) => {
   // Debug log to see what's coming in
@@ -86,7 +87,16 @@ const ProgressiveQuestionsForm = ({
       {/* Questions list */}
       <div className="space-y-6">
         {questions.map((question, index) => (
-          <div key={question.id} className="p-4 border rounded-md bg-white">
+          <div key={question.id} className="p-4 border rounded-md bg-white relative">
+            {onDeleteQuestion && (
+              <button
+                onClick={() => onDeleteQuestion(index)}
+                className="absolute top-2 right-2 text-gray-400 hover:text-red-600 p-1 rounded-md hover:bg-red-50 transition-colors"
+                title="Delete this question"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
             <div className="mb-2 flex items-center">
               <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full mr-2">
                 {index + 1}/{questions.length}

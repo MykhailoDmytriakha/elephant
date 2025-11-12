@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import QueryList from '../components/query/QueryList';
 import CreateQueryModal from '../components/query/CreateQueryModal';

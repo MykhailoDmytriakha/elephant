@@ -5,7 +5,6 @@ import { ArrowLeft, Trash2, RefreshCw, List } from 'lucide-react';
 import { LoadingSpinner } from '../components/task/TaskComponents';
 import { getStateColor } from '../constants/taskStates';
 import TaskOverview from '../components/task/TaskOverview';
-import Metadata from '../components/task/Metadata';
 import TaskScope from '../components/task/scope/TaskScope';
 import IFRView from '../components/task/IFRView';
 import TaskRequirements from '../components/task/requirements/TaskRequirements';
@@ -45,13 +44,20 @@ export default function TaskDetailsPage() {
     startContextGathering: handleStartContextGathering,
     handleAnswerChange,
     submitAnswers: handleSubmitAnswers,
-    
+
     // Context editing
     isEditingContext,
     contextFeedback,
     handleContextFeedbackChange,
     submitContextFeedback,
-    setTask
+    setTask,
+
+    // Context answer deletion
+    handleDeleteAnswer,
+    isDeletingAnswer,
+
+    // Context question deletion
+    deleteQuestion
   } = useTaskDetails(taskId);
 
   const handleNavigateToAllStages = () => {
@@ -139,12 +145,11 @@ export default function TaskDetailsPage() {
       </header>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="col-span-2 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-6">
             <TaskOverview
               task={task}
+              onTaskUpdated={loadTask}
             />
 
             <TaskContext
@@ -163,6 +168,10 @@ export default function TaskDetailsPage() {
               onContextFeedbackChange={handleContextFeedbackChange}
               onSubmitContextFeedback={submitContextFeedback}
               isEditingContext={isEditingContext}
+              // Context answer deletion props
+              onDeleteAnswer={handleDeleteAnswer}
+              // Context question deletion props
+              onDeleteQuestion={deleteQuestion}
             />
 
             {task.sub_level === 0 && task.is_context_sufficient &&(
@@ -209,14 +218,6 @@ export default function TaskDetailsPage() {
                 }
               />
             )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <div className="sticky top-24">
-              <Metadata task={task} />
-            </div>
-          </div>
         </div>
       </div>
     </div>

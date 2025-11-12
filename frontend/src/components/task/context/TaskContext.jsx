@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, AlertCircle, Loader2, Check, HelpCircle, Edit2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, Loader2, Check, HelpCircle, Edit2, Trash2 } from 'lucide-react';
 import { CollapsibleSection } from '../TaskComponents';
 import { TaskStates } from '../../../constants/taskStates';
 import ProgressiveQuestionsForm from '../ProgressiveQuestionsForm';
@@ -32,7 +32,7 @@ const HelpTooltip = ({ text }) => {
 /**
  * Component for displaying and generating task requirements with card-based navigation
  */
-export default function TaskContext({ 
+export default function TaskContext({
   task,
   onStartContextGathering,
   isContextGatheringLoading,
@@ -47,7 +47,11 @@ export default function TaskContext({
   contextFeedback = '',
   onContextFeedbackChange,
   onSubmitContextFeedback,
-  isEditingContext = false
+  isEditingContext = false,
+  // New prop for deleting answers
+  onDeleteAnswer,
+  // New prop for deleting questions
+  onDeleteQuestion
 }) {
   const [currentStep, setCurrentStep] = useState('start');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -194,6 +198,7 @@ export default function TaskContext({
                   isSubmitting={isSubmittingAnswers}
                   error={error}
                   onRetry={handleRetryContextGathering}
+                  onDeleteQuestion={onDeleteQuestion}
                   isForceRefresh={isForceRefreshMode}
                 />
               )}
@@ -267,16 +272,27 @@ export default function TaskContext({
                     <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Questions and Answers</h4>
                       {task.context_answers && task.context_answers.length > 0 ? (
-                        <ul className="list-disc pl-5 space-y-3">
+                        <div className="space-y-3">
                           {task.context_answers.map((item, index) => (
-                            <li key={index} className="pb-2">
-                              <div className="font-medium text-gray-800 mb-1">{item.question}</div>
-                              <div className="text-gray-700 ml-2 border-l-2 border-gray-200 pl-3">
+                            <div key={index} className="pb-2 border rounded-lg p-3 bg-gray-50">
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="font-medium text-gray-800 flex-1">{item.question}</div>
+                                {onDeleteAnswer && (
+                                  <button
+                                    onClick={() => onDeleteAnswer(index)}
+                                    className="text-red-500 hover:text-red-700 p-1 rounded-md hover:bg-red-50 transition-colors"
+                                    title="Delete this answer"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                              <div className="text-gray-700 border-l-2 border-gray-300 pl-3">
                                 {item.answer}
                               </div>
-                            </li>
+                            </div>
                           ))}
-                        </ul>
+                        </div>
                       ) : (
                         <p className="text-gray-500 italic">No answers stored for this task.</p>
                       )}

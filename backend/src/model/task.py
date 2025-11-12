@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional, Dict
-from src.model.context import UserAnswers, UserAnswer
+from src.model.context import UserAnswers, UserAnswer, ContextQuestion
 from src.model.scope import TaskScope
 from src.model.ifr import IFR, Requirements
 from src.model.planning import NetworkPlan
@@ -81,11 +81,11 @@ class Task(BaseModel):
         return cls(
             id=project_id or str(uuid.uuid4()),  # Accept custom project_id or fallback to UUID
             state=TaskState.NEW,
-            task=task,
+            task=None,  # Task field should be empty until clarified by AI after context gathering
             context=context,
             sub_level=0,
             is_context_sufficient=False,
-            short_description=task, # Initialize short_description with task query
+            short_description=task, # Initialize short_description with original user query
             scope=TaskScope(), # Initialize scope object
             ifr=None,
             requirements=None,
@@ -99,6 +99,60 @@ class Task(BaseModel):
             # if not any(existing.question == answer.question for existing in self.context_answers):
             self.context_answers.append(answer)
         self.updated_at = datetime.now().isoformat() # Update timestamp
+
+    def remove_context_answer(self, index: int):
+        """Remove a context answer by index"""
+        if 0 <= index < len(self.context_answers):
+            self.context_answers.pop(index)
+            self.updated_at = datetime.now().isoformat() # Update timestamp
+            return True
+        return False
+
+    def add_pending_questions(self, questions: List[ContextQuestion]):
+        """Add questions as pending (unanswered) to context_answers"""
+        logger.info(f"add_pending_questions called with {len(questions)} questions")
+        added_count = 0
+        for q in questions:
+            # Check for duplicates by question text
+            if not any(existing.question == q.question for existing in self.context_answers):
+                logger.info(f"Adding question: {q.question} (options: {len(q.options) if q.options else 0})")
+                self.context_answers.append(UserAnswer(
+                    question=q.question,
+                    answer="",
+                    options=q.options
+                ))
+                added_count += 1
+            else:
+                logger.info(f"Skipping duplicate question: {q.question}")
+        logger.info(f"Added {added_count} new questions, total context_answers: {len(self.context_answers)}")
+        self.updated_at = datetime.now().isoformat()
+
+    def get_pending_questions(self) -> List[ContextQuestion]:
+        """Get all unanswered questions from context_answers"""
+        pending = [a for a in self.context_answers if a.answer.strip() == ""]
+        return [ContextQuestion(question=p.question, options=p.options or []) for p in pending]
+
+    def update_answers(self, user_answers: UserAnswers):
+        """Update existing pending questions with user's answers"""
+        # Get list of questions that were submitted
+        submitted_questions = {answer.question for answer in user_answers.answers}
+
+        # Update answers for submitted questions
+        for submitted in user_answers.answers:
+            for existing in self.context_answers:
+                if existing.question == submitted.question and existing.answer.strip() == "":
+                    existing.answer = submitted.answer
+                    # Remove options after answering since they're no longer needed
+                    existing.options = None
+                    break
+
+        # Remove unanswered questions that were not submitted (user deleted them)
+        self.context_answers = [
+            answer for answer in self.context_answers
+            if answer.answer.strip() != "" or answer.question in submitted_questions
+        ]
+
+        self.updated_at = datetime.now().isoformat()
 
     def update_state(self, new_state: TaskState):
         # Always allow setting state, log invalid transitions as warnings

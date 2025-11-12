@@ -4,6 +4,7 @@ from typing import List, Optional, cast, AsyncGenerator, Dict, Any
 import logging
 import json
 import asyncio
+from datetime import datetime
 from pydantic import BaseModel
 
 # Model imports
@@ -124,39 +125,34 @@ async def get_task(task_id: str, storage: FileStorageService = Depends(get_file_
     return task
 
 
-@router.post("/{task_id}/context-questions", response_model=ContextSufficiencyResult)
+class UpdateTaskRequest(BaseModel):
+    short_description: Optional[str] = None
+
+
+@router.put("/{task_id}", response_model=Task)
 @api_error_handler(OP_UPDATE_TASK)
-async def update_task_context(
+async def update_task(
     task_id: str,
-    context_answers: Optional[UserAnswers] = None,
-    force: bool = False,
-    analyzer: ProblemAnalyzer = Depends(get_problem_analyzer),
+    request: UpdateTaskRequest,
     storage: FileStorageService = Depends(get_file_storage_service)
 ):
+    """Update task fields"""
     task = storage.load_task(task_id)
     if not task:
-        raise HTTPException(404, detail=f"Task {task_id} not found")
-    
-    # Only check state if force is False
-    if not force and is_task_in_states(task, [TaskState.CONTEXT_GATHERED]):
-        error_message = f"Task is already in the context gathered state. Current state: {task.state}"
-        logger.error(error_message)
-        raise InvalidStateException(error_message)
-    
-    task.state = TaskState.CONTEXT_GATHERING
-    
-    # Handle the case where UserInteraction is provided but both query and answer are empty
-    if not context_answers:
-        logger.info(f"No context answers provided. Clarifying context. Force mode: {force}")
-        result = await analyzer.clarify_context(task, force)
-        logger.info(f"Context sufficiency result: {result}")
-        return result
-    else:
-        logger.info(f"User context answers provided: {context_answers}")
-        task.add_context_answers(context_answers)
-        storage.save_task(task_id, task)
-        return await analyzer.clarify_context(task)
-    
+        raise TaskNotFoundException(f"Task {task_id} not found")
+
+    # Update fields if provided
+    if request.short_description is not None:
+        task.short_description = request.short_description
+        task.updated_at = datetime.now().isoformat()
+
+    # Save updated task
+    storage.save_task(task_id, task)
+
+    logger.info(f"Task {task_id} updated successfully")
+    return task
+
+
 @router.get("/{task_id}/formulate/{group}", response_model=List[ScopeFormulationGroup])
 @api_error_handler(OP_FORMULATE_TASK)
 async def formulate_task(

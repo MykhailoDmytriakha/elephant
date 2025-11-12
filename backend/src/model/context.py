@@ -1,4 +1,4 @@
-from typing import TypedDict, List
+from typing import TypedDict, List, Optional
 from pydantic import BaseModel
 
 
@@ -14,6 +14,7 @@ class ContextSufficiencyResult(BaseModel):
 class UserAnswer(BaseModel):
     question: str
     answer: str
+    options: Optional[List[str]] = None
     
 
 class UserAnswers(BaseModel):
