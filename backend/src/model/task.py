@@ -41,6 +41,7 @@ class Task(BaseModel):
     state: TaskState = Field(default=TaskState.NEW)
     is_context_sufficient: bool = False
     context_answers: List[UserAnswer] = Field(default_factory=list)
+    context_iteration_count: int = Field(default=0)
     context: Optional[str] = None
     scope: Optional[TaskScope] = None
     ifr: Optional[IFR] = None

@@ -82,7 +82,10 @@ async def update_task_context(
         logger.error(error_message)
         raise InvalidStateException(error_message)
 
-    task.state = TaskState.CONTEXT_GATHERING
+    # Set state to CONTEXT_GATHERING only if we're providing answers or forcing
+    # Don't reset state if we're just checking sufficiency without answers
+    if context_answers or force:
+        task.state = TaskState.CONTEXT_GATHERING
 
     # Handle the case where no context answers are provided
     if not context_answers:
@@ -125,11 +128,18 @@ async def update_task_context(
         logger.info("Saving task with updated answers before generating new questions")
         storage.save_task(task_id, task)
 
+        # Increment iteration count for adaptation
+        task.context_iteration_count += 1
+        logger.info(f"Context iteration {task.context_iteration_count} for task {task_id}")
+
         # Get next result
         result = await analyzer.clarify_context(task)
         logger.info(f"Next context sufficiency result: {result}")
 
-        # Save new pending questions if any
+        # Always save task after clarify_context as it may have changed state or context
+        storage.save_task(task_id, task)
+
+        # Save new pending questions if any (additional save if needed)
         if not result.is_context_sufficient and result.questions:
             task.add_pending_questions(result.questions)
             # Save again with new questions

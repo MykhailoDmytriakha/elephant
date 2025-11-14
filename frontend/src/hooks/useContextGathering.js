@@ -26,15 +26,36 @@ export function useContextGathering(taskId, onTaskUpdated, task = null) {
 
   // Track when a context gathering operation has been started
   useEffect(() => {
-    if (contextQuestions.length > 0) {
-      // Questions are loaded, save the initial set of empty answers
-      const initialAnswers = contextQuestions.reduce((acc, q) => {
-        acc[q.id] = '';
-        return acc;
-      }, {});
-      setContextAnswers(initialAnswers);
+    // Don't reset answers if we're in the middle of a question deletion
+    if (isDeletingQuestion) {
+      return;
     }
-  }, [contextQuestions]);
+
+    if (contextQuestions.length > 0) {
+      // Questions are loaded, initialize empty answers only for questions that don't have answers yet
+      setContextAnswers(prev => {
+        const newAnswers = { ...prev };
+
+        // First, clean up orphaned answers (answers for questions that no longer exist)
+        const validQuestionIds = new Set(contextQuestions.map(q => q.id));
+        Object.keys(newAnswers).forEach(questionId => {
+          if (!validQuestionIds.has(questionId)) {
+            console.warn(`Cleaning up orphaned answer for question ID: ${questionId}`);
+            delete newAnswers[questionId];
+          }
+        });
+
+        // Then initialize empty answers for questions that don't have answers yet
+        contextQuestions.forEach(q => {
+          if (!(q.id in newAnswers)) {
+            newAnswers[q.id] = '';
+          }
+        });
+
+        return newAnswers;
+      });
+    }
+  }, [contextQuestions, isDeletingQuestion]);
 
   // Restore pending questions from task data when task is available
   useEffect(() => {
@@ -223,20 +244,26 @@ export function useContextGathering(taskId, onTaskUpdated, task = null) {
     const formattedAnswers = Object.entries(contextAnswers).map(([questionId, answer]) => {
       // Find the corresponding question
       const question = contextQuestions.find(q => q.id === questionId);
-      
+
+      // Skip if question not found (can happen if answers are out of sync)
+      if (!question) {
+        console.warn(`Question with ID ${questionId} not found in contextQuestions, skipping answer:`, answer);
+        return null;
+      }
+
       // Format the answer based on question type
       let formattedAnswer = answer;
-      
+
       // If answer is an array (for questions with options), join them with commas
       if (Array.isArray(answer)) {
         formattedAnswer = answer.join(', ');
       }
-      
+
       return {
         question: question.text,
         answer: formattedAnswer
       };
-    });
+    }).filter(answer => answer !== null); // Remove null entries
 
     return {
       answers: formattedAnswers,

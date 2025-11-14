@@ -74,7 +74,7 @@ class OpenAIService:
         """
         logger.info("Called is_context_sufficient method")
         
-        return await context_sufficiency_agent.analyze_context_sufficiency(task)
+        return await context_sufficiency_agent.analyze_context_sufficiency(task, iteration_count=getattr(task, 'context_iteration_count', 0))
             
 
     @_agent_call

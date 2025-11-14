@@ -35,9 +35,11 @@ class ProblemAnalyzer:
 
         if not force:
             task.update_state(TaskState.CONTEXT_GATHERING)
-            max_question_rounds = 20 # Consider making this configurable
-            if task.context_answers and len(task.context_answers) >= max_question_rounds:
-                logger.warning(f"Task {task.id}: Force marking context sufficient after {len(task.context_answers)} rounds.")
+            # Maximum number of context elements (questions + answers) to prevent infinite loops
+            # This limits the total accumulation of context_answers array elements
+            max_context_answers = 20 # Consider making this configurable
+            if task.context_answers and len(task.context_answers) >= max_context_answers:
+                logger.warning(f"Task {task.id}: Force marking context sufficient after {len(task.context_answers)} accumulated context elements (limit: {max_context_answers}).")
                 result = ContextSufficiencyResult(is_context_sufficient=True, questions=[])
             else:
                 logger.info(f"Task {task.id}: Calling AI for context sufficiency analysis.")
